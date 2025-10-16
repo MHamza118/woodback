@@ -25,6 +25,7 @@ class Employee extends Authenticatable
         'location',
         'questionnaire_responses',
         'profile_data',
+        'assignments',
         'approved_at',
         'approved_by',
         'rejection_reason'
@@ -40,6 +41,7 @@ class Employee extends Authenticatable
         'approved_at' => 'datetime',
         'questionnaire_responses' => 'array',
         'profile_data' => 'array',
+        'assignments' => 'array',
         'password' => 'hashed',
     ];
 

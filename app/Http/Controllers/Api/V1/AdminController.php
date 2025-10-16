@@ -263,6 +263,61 @@ class AdminController extends Controller
     }
 
     /**
+     * Update admin user
+     */
+    public function updateAdminUser(Request $request, $id): JsonResponse
+    {
+        try {
+            $validatedData = $request->validate([
+                'first_name' => 'sometimes|required|string|max:255',
+                'last_name' => 'sometimes|required|string|max:255',
+                'email' => 'sometimes|required|email|unique:admins,email,' . $id,
+                'password' => 'nullable|string|min:8|confirmed',
+                'phone' => 'nullable|string',
+                'role' => 'sometimes|required|in:owner,admin,manager,hiring_manager,expo',
+                'location_id' => 'nullable|exists:locations,id',
+                'department' => 'nullable|string'
+            ]);
+
+            $adminUser = Admin::findOrFail($id);
+            
+            // Update fields
+            if (isset($validatedData['first_name'])) {
+                $adminUser->first_name = $validatedData['first_name'];
+            }
+            if (isset($validatedData['last_name'])) {
+                $adminUser->last_name = $validatedData['last_name'];
+            }
+            if (isset($validatedData['email'])) {
+                $adminUser->email = $validatedData['email'];
+            }
+            if (isset($validatedData['password'])) {
+                $adminUser->password = bcrypt($validatedData['password']);
+            }
+            if (isset($validatedData['phone'])) {
+                $adminUser->phone = $validatedData['phone'];
+            }
+            if (isset($validatedData['role'])) {
+                $adminUser->role = $validatedData['role'];
+            }
+            if (isset($validatedData['location_id'])) {
+                $adminUser->location_id = $validatedData['location_id'];
+            }
+            if (isset($validatedData['department'])) {
+                $adminUser->department = $validatedData['department'];
+            }
+            
+            $adminUser->save();
+            
+            return $this->successResponse([
+                'user' => new AdminResource($adminUser->fresh()),
+            ], 'Admin user updated successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to update admin user: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Update admin user permissions
      */
     public function updateAdminPermissions(Request $request, $id): JsonResponse
@@ -564,12 +619,14 @@ class AdminController extends Controller
                 'first_name' => 'required|string|max:255',
                 'last_name' => 'required|string|max:255',
                 'email' => 'required|email|unique:customers,email',
-                'phone' => 'nullable|string|regex:/^\+?[1-9]\d{1,14}$/|max:20',
+                'phone' => 'nullable|string|regex:/^\+1 \(\d{3}\) \d{3}-\d{4}$/|max:18',
                 'password' => 'required|string|min:6',
                 'home_location' => 'nullable|string|max:255',
                 'homeLocation' => 'nullable|string|max:255', // Support frontend field name
                 'status' => 'in:ACTIVE,INACTIVE,SUSPENDED',
                 'loyalty_points' => 'integer|min:0'
+            ], [
+                'phone.regex' => 'Phone number must be in valid US format: +1 (XXX) XXX-XXXX'
             ]);
 
             // Map frontend field names to backend field names
@@ -613,7 +670,7 @@ class AdminController extends Controller
                 'first_name' => 'nullable|string|max:255',
                 'last_name' => 'nullable|string|max:255',
                 'email' => 'required|email|unique:customers,email,' . $id,
-                'phone' => 'nullable|string|regex:/^\+?[1-9]\d{1,14}$/|max:20',
+                'phone' => 'nullable|string|regex:/^\+1 \(\d{3}\) \d{3}-\d{4}$/|max:18',
                 'password' => 'nullable|string|min:6', // Optional for updates
                 'home_location' => 'nullable|string|max:255',
                 'homeLocation' => 'nullable|string|max:255', // Support frontend field name
@@ -622,6 +679,8 @@ class AdminController extends Controller
                 'loyaltyPoints' => 'nullable|integer|min:0', // Support frontend field name
                 'locations' => 'nullable|array',
                 'locations.*' => 'string'
+            ], [
+                'phone.regex' => 'Phone number must be in valid US format: +1 (XXX) XXX-XXXX'
             ]);
 
             // Map frontend field names to backend field names

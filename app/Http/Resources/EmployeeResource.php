@@ -30,6 +30,7 @@ class EmployeeResource extends JsonResource
             'next_stage' => $this->getNextStage(),
             'questionnaire_responses' => $this->questionnaire_responses,
             'profile_data' => $this->profile_data,
+            'assignments' => $this->assignments,
             'personal_info' => $this->when(isset($this->personal_info), $this->personal_info) ?: ($this->profile_data['personal_info'] ?? null),
             'questionnaire_files' => $this->when($this->fileUploads, function () {
                 return $this->fileUploads->map(function ($file) {

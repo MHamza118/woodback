@@ -115,6 +115,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
             Route::prefix('users')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\AdminController::class, 'getAdminUsers']);
                 Route::post('/', [App\Http\Controllers\Api\V1\AdminController::class, 'createAdminUser'])->middleware('permission:full_access');
+                Route::put('/{id}', [App\Http\Controllers\Api\V1\AdminController::class, 'updateAdminUser']);
                 Route::put('/{id}/permissions', [App\Http\Controllers\Api\V1\AdminController::class, 'updateAdminPermissions']);
                 Route::delete('/{id}', [App\Http\Controllers\Api\V1\AdminController::class, 'deactivateAdminUser']);
             });
@@ -148,6 +149,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/{id}/approve', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'approve']);
                 Route::post('/{id}/reject', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'reject']);
                 Route::put('/{id}/personal-info', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'updatePersonalInfo']);
+                Route::put('/{id}/assignments', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'updateRoleAssignments']);
                 // Lifecycle actions
                 Route::post('/{id}/pause', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'pause']);
                 Route::post('/{id}/resume', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'resume']);

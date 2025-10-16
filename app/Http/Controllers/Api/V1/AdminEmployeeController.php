@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\EmployeeResource;
 use App\Http\Resources\QuestionnaireResource;
+use App\Models\Employee;
 use App\Models\Questionnaire;
 use App\Models\EmployeeFileUpload;
 use App\Services\EmployeeService;
@@ -392,6 +393,58 @@ class AdminEmployeeController extends Controller
             );
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to update personal information: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update employee role assignments
+     */
+    public function updateRoleAssignments(Request $request, string $id): JsonResponse
+    {
+        $request->validate([
+            'departments' => 'required|array|min:1',
+            'departments.*' => 'required|string|in:FOH,BOH',
+            'areas' => 'nullable|array',
+            'areas.*' => 'string',
+            'roles' => 'required|array|min:1',
+            'roles.*' => 'required|string',
+            'primaryDepartment' => 'nullable|string|in:FOH,BOH',
+            'primaryArea' => 'nullable|string',
+            'primaryRole' => 'nullable|string',
+            'isFlexible' => 'nullable|boolean'
+        ]);
+
+        try {
+            $employee = Employee::findOrFail($id);
+            
+            if (!$employee) {
+                return $this->notFoundResponse('Employee not found');
+            }
+
+            // Prepare assignments data
+            $assignments = [
+                'departments' => $request->departments,
+                'areas' => $request->areas ?? [],
+                'roles' => $request->roles,
+                'primaryDepartment' => $request->primaryDepartment ?? ($request->departments[0] ?? null),
+                'primaryArea' => $request->primaryArea ?? null,
+                'primaryRole' => $request->primaryRole ?? ($request->roles[0] ?? null),
+                'isFlexible' => $request->isFlexible ?? false,
+                'assignedAt' => $employee->assignments['assignedAt'] ?? now()->toISOString(),
+                'assignedBy' => $request->user()->id,
+                'lastModified' => now()->toISOString()
+            ];
+
+            // Update employee assignments
+            $employee->assignments = $assignments;
+            $employee->save();
+
+            return $this->successResponse(
+                new EmployeeResource($employee),
+                'Role assignments updated successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to update role assignments: ' . $e->getMessage());
         }
     }
 
