@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Employee;
 use App\Models\Questionnaire;
+use App\Models\TableNotification;
 use App\Repositories\Contracts\EmployeeRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -37,7 +38,38 @@ class EmployeeService
         $data['status'] = Employee::STATUS_PENDING_APPROVAL;
         $data['password'] = Hash::make($data['password']);
 
-        return $this->employeeRepository->create($data);
+        $employee = $this->employeeRepository->create($data);
+
+        // Create notification for admin about new employee signup
+        try {
+            $employeeName = trim(($employee->first_name ?? '') . ' ' . ($employee->last_name ?? ''));
+            if (empty($employeeName)) {
+                $employeeName = $employee->email;
+            }
+
+            TableNotification::create([
+                'type' => TableNotification::TYPE_NEW_SIGNUP,
+                'title' => 'New Employee Signup',
+                'message' => $employeeName . ' has signed up and is awaiting approval.',
+                'order_number' => null,
+                'recipient_type' => TableNotification::RECIPIENT_ADMIN,
+                'recipient_id' => null,
+                'priority' => TableNotification::PRIORITY_MEDIUM,
+                'data' => [
+                    'employee_id' => $employee->id,
+                    'employee_name' => $employeeName,
+                    'employee_email' => $employee->email,
+                    'stage' => $employee->stage,
+                    'status' => $employee->status
+                ],
+                'is_read' => false
+            ]);
+        } catch (\Exception $e) {
+            // Log error but don't fail employee registration
+            \Log::error('Failed to create employee signup notification: ' . $e->getMessage());
+        }
+
+        return $employee;
     }
 
     /**

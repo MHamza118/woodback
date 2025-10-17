@@ -39,6 +39,11 @@ class TableNotification extends Model
     const TYPE_ORDER_READY = 'order_ready';
     const TYPE_ORDER_DELIVERED = 'order_delivered';
     const TYPE_TABLE_CHANGED = 'table_changed';
+    const TYPE_NEW_SIGNUP = 'NEW_SIGNUP';
+    const TYPE_ONBOARDING_COMPLETE = 'ONBOARDING_COMPLETE';
+    const TYPE_SHOUTOUT_RECEIVED = 'shoutout_received';
+    const TYPE_REWARD_RECEIVED = 'reward_received';
+    const TYPE_BADGE_RECEIVED = 'badge_received';
 
     // Priority constants  
     const PRIORITY_HIGH = 'high';
@@ -56,7 +61,12 @@ class TableNotification extends Model
             self::TYPE_ORDER_UPDATED,
             self::TYPE_ORDER_READY,
             self::TYPE_ORDER_DELIVERED,
-            self::TYPE_TABLE_CHANGED
+            self::TYPE_TABLE_CHANGED,
+            self::TYPE_NEW_SIGNUP,
+            self::TYPE_ONBOARDING_COMPLETE,
+            self::TYPE_SHOUTOUT_RECEIVED,
+            self::TYPE_REWARD_RECEIVED,
+            self::TYPE_BADGE_RECEIVED
         ];
     }
 

@@ -18,5 +18,9 @@ class DatabaseSeeder extends Seeder
         
         // Seed questionnaire data
         $this->call(QuestionnaireSeeder::class);
+        
+        // Seed employee recognition data
+        $this->call(RewardTypeSeeder::class);
+        $this->call(BadgeTypeSeeder::class);
     }
 }

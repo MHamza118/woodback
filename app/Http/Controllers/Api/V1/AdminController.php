@@ -887,4 +887,48 @@ class AdminController extends Controller
             return $this->errorResponse('Failed to create employee: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Get notification preferences (Expo only)
+     */
+    public function getNotificationPreferences(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            
+            return $this->successResponse([
+                'notifications_enabled' => $user->notifications_enabled ?? true
+            ], 'Notification preferences retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to get notification preferences: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Toggle notification preferences (Expo only)
+     */
+    public function toggleNotifications(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            
+            // Only allow expo users to toggle notifications
+            if ($user->role !== 'expo') {
+                return $this->errorResponse('Only expo users can toggle notifications', 403);
+            }
+            
+            $request->validate([
+                'enabled' => 'required|boolean'
+            ]);
+            
+            $user->notifications_enabled = $request->enabled;
+            $user->save();
+            
+            return $this->successResponse([
+                'notifications_enabled' => $user->notifications_enabled
+            ], 'Notification preferences updated successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to update notification preferences: ' . $e->getMessage());
+        }
+    }
 }

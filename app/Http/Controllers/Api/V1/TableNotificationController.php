@@ -16,6 +16,18 @@ class TableNotificationController extends Controller
     public function getAdminNotifications(Request $request): JsonResponse
     {
         try {
+            // Check if user is expo with notifications disabled
+            $user = Auth::guard('sanctum')->user();
+            if ($user && $user->role === 'expo' && !$user->notifications_enabled) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Notifications are disabled',
+                    'data' => [
+                        'notifications' => []
+                    ]
+                ]);
+            }
+
             $notifications = TableNotification::forAdmin()
                 ->orderBy('created_at', 'desc')
                 ->limit(50)

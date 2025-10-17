@@ -99,6 +99,10 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
     Route::get('profile', [App\Http\Controllers\Api\V1\AdminController::class, 'profile']);
     Route::post('logout', [App\Http\Controllers\Api\V1\AdminController::class, 'logout']);
     
+    // Notification preferences (Expo only)
+    Route::get('notification-preferences', [App\Http\Controllers\Api\V1\AdminController::class, 'getNotificationPreferences']);
+    Route::put('notification-preferences', [App\Http\Controllers\Api\V1\AdminController::class, 'toggleNotifications']);
+    
     // Admin FAQ management routes
     Route::prefix('faqs')->group(function () {
         Route::get('/', [App\Http\Controllers\Api\V1\FaqController::class, 'adminIndex']);
@@ -247,6 +251,38 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/messages/group', [App\Http\Controllers\Api\V1\MessageController::class, 'sendGroupMessage']);
                 Route::post('/messages/private', [App\Http\Controllers\Api\V1\MessageController::class, 'sendPrivateMessage']);
             });
+            
+            // Admin employee recognition routes
+            Route::prefix('recognition')->group(function () {
+                Route::get('/stats', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getStats']);
+                Route::get('/activity', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getRecentActivity']);
+                Route::get('/top-performers', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getTopPerformers']);
+                
+                // Shoutouts
+                Route::get('/shoutouts', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getAllShoutouts']);
+                Route::post('/shoutouts', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'createShoutout']);
+                Route::delete('/shoutouts/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'deleteShoutout']);
+                
+                // Rewards
+                Route::get('/rewards', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getAllRewards']);
+                Route::post('/rewards', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'giveReward']);
+                
+                // Reward Types
+                Route::get('/reward-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getRewardTypes']);
+                Route::post('/reward-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'createRewardType']);
+                Route::put('/reward-types/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'updateRewardType']);
+                Route::delete('/reward-types/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'deleteRewardType']);
+                
+                // Badges
+                Route::get('/badges', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getAllBadges']);
+                Route::post('/badges', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'awardBadge']);
+                
+                // Badge Types
+                Route::get('/badge-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getBadgeTypes']);
+                Route::post('/badge-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'createBadgeType']);
+                Route::put('/badge-types/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'updateBadgeType']);
+                Route::delete('/badge-types/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'deleteBadgeType']);
+            });
         });
 
         // Employee ticket routes
@@ -289,6 +325,19 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::get('/conversations/{id}/messages', [App\Http\Controllers\Api\V1\MessageController::class, 'index']);
                 Route::post('/conversations/{id}/messages', [App\Http\Controllers\Api\V1\MessageController::class, 'store']);
                 Route::post('/messages/private', [App\Http\Controllers\Api\V1\MessageController::class, 'sendPrivateMessage']);
+            });
+            
+            // Employee recognition routes
+            Route::prefix('recognition')->group(function () {
+                Route::get('/my-shoutouts', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getMyShoutouts']);
+                Route::get('/my-rewards', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getMyRewards']);
+                Route::get('/my-badges', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getMyBadges']);
+                Route::get('/my-performance', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getMyPerformance']);
+                Route::post('/rewards/{id}/redeem', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'redeemReward']);
+                
+                // Public reference data
+                Route::get('/reward-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getRewardTypes']);
+                Route::get('/badge-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getBadgeTypes']);
             });
         });
         

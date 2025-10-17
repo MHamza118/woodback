@@ -20,6 +20,7 @@ use App\Models\OnboardingPage;
 use App\Models\EmployeeOnboardingProgress;
 use App\Models\TrainingModule;
 use App\Models\TrainingAssignment;
+use App\Models\TableNotification;
 
 class EmployeeController extends Controller
 {
@@ -576,6 +577,23 @@ class EmployeeController extends Controller
                 'progress_id' => $progress->id,
                 'status' => $progress->status,
                 'completed_at' => $progress->completed_at
+            ]);
+            
+            // Create notification for admin
+            TableNotification::create([
+                'type' => TableNotification::TYPE_ONBOARDING_COMPLETE,
+                'title' => 'Onboarding Document Acknowledged',
+                'message' => $employee->full_name . ' acknowledged: ' . $page->title,
+                'priority' => TableNotification::PRIORITY_LOW,
+                'recipient_type' => TableNotification::RECIPIENT_ADMIN,
+                'data' => [
+                    'employee_id' => $employee->id,
+                    'employee_name' => $employee->full_name,
+                    'page_id' => $page->id,
+                    'page_title' => $page->title,
+                    'completed_at' => $progress->completed_at->toISOString()
+                ],
+                'is_read' => false
             ]);
             
             // Get updated progress for all pages

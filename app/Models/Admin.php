@@ -23,6 +23,7 @@ class Admin extends Authenticatable
         'department',
         'notes',
         'status',
+        'notifications_enabled',
         'profile_data',
         'last_login_at',
     ];
@@ -37,6 +38,7 @@ class Admin extends Authenticatable
         'last_login_at' => 'datetime',
         'profile_data' => 'array',
         'password' => 'hashed',
+        'notifications_enabled' => 'boolean',
     ];
 
     protected $dates = ['deleted_at'];
