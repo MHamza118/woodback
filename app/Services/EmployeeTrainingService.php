@@ -92,38 +92,30 @@ class EmployeeTrainingService
 
         $stats = $this->calculateEmployeeStats($assignments);
 
-        // Also provide all available training modules for the employee
-        $allModules = TrainingModule::where('active', true)
-            ->ordered()
-            ->get()
-            ->map(function ($module) use ($employeeIdInt) {
-                // Check if this module is assigned to the employee
-                $assignment = TrainingAssignment::where('employee_id', $employeeIdInt)
-                    ->where('module_id', $module->id)
-                    ->whereNotIn('status', ['removed'])
-                    ->first();
-                
-                return [
-                    'id' => $module->id,
-                    'title' => $module->title,
-                    'description' => $module->description,
-                    'category' => $module->category,
-                    'duration' => $module->duration,
-                    'video_url' => $module->video_url,
-                    'qr_code' => $module->qr_code,
-                    'content' => $module->content,
-                    // Assignment information if exists
-                    'assignment_id' => $assignment?->id,
-                    'assignment_status' => $assignment?->status ?? 'not_assigned',
-                    'assigned_at' => $assignment?->assigned_at?->toISOString(),
-                    'unlocked_at' => $assignment?->unlocked_at?->toISOString(),
-                    'started_at' => $assignment?->started_at?->toISOString(),
-                    'completed_at' => $assignment?->completed_at?->toISOString(),
-                    'progress' => $assignment ? $this->calculateProgress($assignment) : 0,
-                    'is_overdue' => $assignment ? $this->isOverdue($assignment) : false,
-                    'can_unlock' => $assignment ? $this->canUnlock($assignment) : false,
-                ];
-            });
+        // Only return training modules that have been assigned to the employee
+        // This ensures modules are hidden until admin explicitly assigns them
+        $allModules = $assignments->map(function ($assignment) {
+            return [
+                'id' => $assignment->module->id,
+                'title' => $assignment->module->title,
+                'description' => $assignment->module->description,
+                'category' => $assignment->module->category,
+                'duration' => $assignment->module->duration,
+                'video_url' => $assignment->module->video_url,
+                'qr_code' => $assignment->module->qr_code,
+                'content' => $assignment->module->content,
+                // Assignment information
+                'assignment_id' => $assignment->id,
+                'assignment_status' => $assignment->status,
+                'assigned_at' => $assignment->assigned_at?->toISOString(),
+                'unlocked_at' => $assignment->unlocked_at?->toISOString(),
+                'started_at' => $assignment->started_at?->toISOString(),
+                'completed_at' => $assignment->completed_at?->toISOString(),
+                'progress' => $this->calculateProgress($assignment),
+                'is_overdue' => $this->isOverdue($assignment),
+                'can_unlock' => $this->canUnlock($assignment),
+            ];
+        });
 
         return [
             'assignments' => $formattedAssignments,
