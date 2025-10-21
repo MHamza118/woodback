@@ -40,8 +40,9 @@ class EmployeeResource extends JsonResource
                         'file_path' => $file->file_path,
                         'mime_type' => $file->mime_type,
                         'file_size' => $file->file_size,
-                        'question_index' => $file->question_index,
-                        'uploaded_at' => $file->created_at->toISOString(),
+                        'field_name' => $file->field_name,
+                        'question_index' => $file->question_index ?? null,
+                        'uploaded_at' => $file->created_at ? $file->created_at->toISOString() : null,
                     ];
                 });
             }),

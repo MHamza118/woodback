@@ -76,13 +76,13 @@ class AdminEmployeeController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         try {
-            $profileData = $this->employeeService->getProfile($id);
+            $employee = Employee::with(['fileUploads', 'approvedBy', 'trainingAssignments.module', 'trainingProgress'])->find($id);
 
-            if (empty($profileData)) {
+            if (!$employee) {
                 return $this->notFoundResponse('Employee not found');
             }
 
-            return $this->successResponse($profileData, 'Employee details retrieved successfully');
+            return $this->successResponse(new EmployeeResource($employee), 'Employee details retrieved successfully');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to retrieve employee: ' . $e->getMessage());
         }
@@ -484,6 +484,59 @@ class AdminEmployeeController extends Controller
             return response()->json([
                 'error' => 'Failed to download file: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Upload file for employee (admin upload)
+     */
+    public function uploadFile(Request $request, string $id): JsonResponse
+    {
+        $request->validate([
+            'file' => 'required|file|max:10240', // Max 10MB
+            'field_name' => 'required|string|max:255',
+            'notes' => 'nullable|string|max:1000'
+        ]);
+
+        try {
+            $employee = Employee::findOrFail($id);
+            
+            if (!$request->hasFile('file')) {
+                return $this->errorResponse('No file provided', 400);
+            }
+
+            $file = $request->file('file');
+            $originalFilename = $file->getClientOriginalName();
+            $mimeType = $file->getMimeType();
+            $fileSize = $file->getSize();
+            $extension = $file->getClientOriginalExtension();
+            
+            // Generate unique filename
+            $storedFilename = uniqid('emp_' . $employee->id . '_') . '.' . $extension;
+            
+            // Store file in public disk under employee_documents directory
+            $filePath = $file->storeAs('employee_documents', $storedFilename, 'public');
+
+            // Create database record
+            $fileUpload = EmployeeFileUpload::create([
+                'employee_id' => $employee->id,
+                'field_name' => $request->field_name,
+                'original_filename' => $originalFilename,
+                'stored_filename' => $storedFilename,
+                'file_path' => $filePath,
+                'mime_type' => $mimeType,
+                'file_size' => $fileSize,
+                'file_extension' => $extension,
+                'upload_status' => 'verified', // Admin uploads are auto-verified
+                'notes' => $request->notes
+            ]);
+
+            return $this->successResponse(
+                $fileUpload,
+                'File uploaded successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to upload file: ' . $e->getMessage());
         }
     }
 }

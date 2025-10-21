@@ -154,12 +154,17 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/{id}/reject', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'reject']);
                 Route::put('/{id}/personal-info', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'updatePersonalInfo']);
                 Route::put('/{id}/assignments', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'updateRoleAssignments']);
+                // File management
+                Route::post('/{id}/files', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'uploadFile']);
                 // Lifecycle actions
                 Route::post('/{id}/pause', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'pause']);
                 Route::post('/{id}/resume', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'resume']);
                 Route::post('/{id}/deactivate', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'deactivate']);
                 Route::post('/{id}/activate', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'activate']);
             });
+            
+            // File download route (separate from employee prefix for clarity)
+            Route::get('/files/{id}/download', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'downloadFile']);
             
             // Admin questionnaire management routes
             Route::prefix('questionnaires')->group(function () {
