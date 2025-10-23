@@ -11,6 +11,7 @@ use App\Http\Resources\TicketResponseResource;
 use App\Models\Ticket;
 use App\Models\TicketResponse;
 use App\Models\Employee;
+use App\Models\TableNotification;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -152,6 +153,26 @@ class TicketController extends Controller
 
             $ticket->load(['employee']);
 
+            // Create notification for admin
+            TableNotification::create([
+                'type' => TableNotification::TYPE_NEW_TICKET,
+                'title' => 'New Support Ticket',
+                'message' => $employee->name . ' submitted a new ' . $request->priority . ' priority ticket: ' . $request->title,
+                'recipient_type' => TableNotification::RECIPIENT_ADMIN,
+                'recipient_id' => null, // null means all admins
+                'priority' => $request->priority === 'urgent' ? TableNotification::PRIORITY_HIGH : 
+                              ($request->priority === 'high' ? TableNotification::PRIORITY_HIGH : TableNotification::PRIORITY_MEDIUM),
+                'data' => [
+                    'ticket_id' => $ticket->id,
+                    'employee_id' => $employee->id,
+                    'employee_name' => $employee->name,
+                    'ticket_title' => $ticket->title,
+                    'ticket_category' => $ticket->category,
+                    'ticket_priority' => $ticket->priority,
+                    'ticket_status' => $ticket->status
+                ]
+            ]);
+
             DB::commit();
 
             return $this->successResponse(
@@ -204,8 +225,27 @@ class TicketController extends Controller
 
             DB::beginTransaction();
 
+            $oldStatus = $ticket->status;
             $ticket->update($request->validated());
             $ticket->load(['employee', 'responses']);
+
+            // Create notification for employee if status changed
+            if (isset($request->status) && $oldStatus !== $request->status) {
+                TableNotification::create([
+                    'type' => TableNotification::TYPE_TICKET_STATUS_UPDATE,
+                    'title' => 'Ticket Status Updated',
+                    'message' => 'Your ticket "' . $ticket->title . '" status changed to ' . $request->status,
+                    'recipient_type' => TableNotification::RECIPIENT_EMPLOYEE,
+                    'recipient_id' => $ticket->employee_id,
+                    'priority' => TableNotification::PRIORITY_MEDIUM,
+                    'data' => [
+                        'ticket_id' => $ticket->id,
+                        'ticket_title' => $ticket->title,
+                        'old_status' => $oldStatus,
+                        'new_status' => $request->status
+                    ]
+                ]);
+            }
 
             DB::commit();
 
@@ -235,6 +275,21 @@ class TicketController extends Controller
             $ticket->archive();
             $ticket->load(['employee', 'responses']);
 
+            // Create notification for employee
+            TableNotification::create([
+                'type' => TableNotification::TYPE_TICKET_ARCHIVED,
+                'title' => 'Ticket Archived',
+                'message' => 'Your ticket "' . $ticket->title . '" has been archived by management',
+                'recipient_type' => TableNotification::RECIPIENT_EMPLOYEE,
+                'recipient_id' => $ticket->employee_id,
+                'priority' => TableNotification::PRIORITY_LOW,
+                'data' => [
+                    'ticket_id' => $ticket->id,
+                    'ticket_title' => $ticket->title,
+                    'ticket_status' => $ticket->status
+                ]
+            ]);
+
             DB::commit();
 
             return $this->successResponse(
@@ -247,6 +302,49 @@ class TicketController extends Controller
                 return $this->notFoundResponse('Ticket not found');
             }
             return $this->errorResponse('Failed to archive ticket: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Unarchive a ticket (Admin only)
+     */
+    public function unarchive(Request $request, $id): JsonResponse
+    {
+        try {
+            $ticket = Ticket::findOrFail($id);
+
+            DB::beginTransaction();
+
+            $ticket->unarchive();
+            $ticket->load(['employee', 'responses']);
+
+            // Create notification for employee
+            TableNotification::create([
+                'type' => TableNotification::TYPE_TICKET_STATUS_UPDATE,
+                'title' => 'Ticket Restored',
+                'message' => 'Your ticket "' . $ticket->title . '" has been restored by management',
+                'recipient_type' => TableNotification::RECIPIENT_EMPLOYEE,
+                'recipient_id' => $ticket->employee_id,
+                'priority' => TableNotification::PRIORITY_MEDIUM,
+                'data' => [
+                    'ticket_id' => $ticket->id,
+                    'ticket_title' => $ticket->title,
+                    'ticket_status' => $ticket->status
+                ]
+            ]);
+
+            DB::commit();
+
+            return $this->successResponse(
+                new TicketResource($ticket),
+                'Ticket unarchived successfully'
+            );
+        } catch (\Exception $e) {
+            DB::rollBack();
+            if ($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+                return $this->notFoundResponse('Ticket not found');
+            }
+            return $this->errorResponse('Failed to unarchive ticket: ' . $e->getMessage());
         }
     }
 
@@ -300,6 +398,23 @@ class TicketController extends Controller
             }
 
             $response->load(['ticket']);
+
+            // Create notification for employee if response is not internal
+            if (!$request->get('internal', false)) {
+                TableNotification::create([
+                    'type' => TableNotification::TYPE_TICKET_RESPONSE,
+                    'title' => 'New Response from Management',
+                    'message' => 'You received a response on your ticket "' . $ticket->title . '"',
+                    'recipient_type' => TableNotification::RECIPIENT_EMPLOYEE,
+                    'recipient_id' => $ticket->employee_id,
+                    'priority' => TableNotification::PRIORITY_MEDIUM,
+                    'data' => [
+                        'ticket_id' => $ticket->id,
+                        'ticket_title' => $ticket->title,
+                        'response_message' => $request->message
+                    ]
+                ]);
+            }
 
             DB::commit();
 

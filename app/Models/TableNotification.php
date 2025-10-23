@@ -47,6 +47,10 @@ class TableNotification extends Model
     const TYPE_TRAINING_ASSIGNED = 'training_assigned';
     const TYPE_TRAINING_COMPLETED = 'training_completed';
     const TYPE_TIME_OFF_REQUEST = 'time_off_request';
+    const TYPE_NEW_TICKET = 'new_ticket';
+    const TYPE_TICKET_STATUS_UPDATE = 'ticket_status_update';
+    const TYPE_TICKET_RESPONSE = 'ticket_response';
+    const TYPE_TICKET_ARCHIVED = 'ticket_archived';
 
     // Priority constants  
     const PRIORITY_HIGH = 'high';
@@ -72,7 +76,11 @@ class TableNotification extends Model
             self::TYPE_BADGE_RECEIVED,
             self::TYPE_TRAINING_ASSIGNED,
             self::TYPE_TRAINING_COMPLETED,
-            self::TYPE_TIME_OFF_REQUEST
+            self::TYPE_TIME_OFF_REQUEST,
+            self::TYPE_NEW_TICKET,
+            self::TYPE_TICKET_STATUS_UPDATE,
+            self::TYPE_TICKET_RESPONSE,
+            self::TYPE_TICKET_ARCHIVED
         ];
     }
 

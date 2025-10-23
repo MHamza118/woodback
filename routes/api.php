@@ -216,6 +216,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::get('/{id}', [App\Http\Controllers\Api\V1\TicketController::class, 'show']);
                 Route::put('/{id}', [App\Http\Controllers\Api\V1\TicketController::class, 'update']);
                 Route::post('/{id}/archive', [App\Http\Controllers\Api\V1\TicketController::class, 'archive']);
+                Route::post('/{id}/unarchive', [App\Http\Controllers\Api\V1\TicketController::class, 'unarchive']);
                 Route::delete('/{id}', [App\Http\Controllers\Api\V1\TicketController::class, 'destroy']);
                 Route::post('/{id}/responses', [App\Http\Controllers\Api\V1\TicketController::class, 'addResponse']);
             });
@@ -290,6 +291,25 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::put('/badge-types/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'updateBadgeType']);
                 Route::delete('/badge-types/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'deleteBadgeType']);
             });
+            
+            // Admin performance management routes
+            Route::prefix('performance')->group(function () {
+                // Overview and employee listing
+                Route::get('/employees', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'index']);
+                
+                // Performance Reports
+                Route::get('/reports', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getAllReports']);
+                Route::post('/reports', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'createReport']);
+                Route::get('/reports/{id}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getEmployeeReports']);
+                Route::put('/reports/{id}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'updateReport']);
+                Route::delete('/reports/{id}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'deleteReport']);
+                
+                // Performance Interactions/Feedback
+                Route::get('/interactions', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getAllInteractions']);
+                Route::post('/interactions', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'createInteraction']);
+                Route::get('/interactions/{id}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getEmployeeInteractions']);
+                Route::delete('/interactions/{id}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'deleteInteraction']);
+            });
         });
 
         // Employee ticket routes
@@ -345,6 +365,13 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 // Public reference data
                 Route::get('/reward-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getRewardTypes']);
                 Route::get('/badge-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getBadgeTypes']);
+            });
+            
+            // Employee performance routes
+            Route::prefix('performance')->group(function () {
+                Route::get('/dashboard', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getMyPerformanceDashboard']);
+                Route::get('/reports', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getMyReports']);
+                Route::get('/interactions', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getMyInteractions']);
             });
         });
         

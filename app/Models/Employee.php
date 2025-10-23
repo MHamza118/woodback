@@ -122,6 +122,22 @@ class Employee extends Authenticatable
     }
 
     /**
+     * Get performance reports for this employee
+     */
+    public function performanceReports()
+    {
+        return $this->hasMany(PerformanceReport::class, 'employee_id');
+    }
+
+    /**
+     * Get performance interactions for this employee
+     */
+    public function performanceInteractions()
+    {
+        return $this->hasMany(PerformanceInteraction::class, 'employee_id');
+    }
+
+    /**
      * Get full name attribute
      */
     public function getFullNameAttribute()

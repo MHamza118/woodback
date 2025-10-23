@@ -163,6 +163,18 @@ class Ticket extends Model
     }
 
     /**
+     * Unarchive the ticket
+     */
+    public function unarchive()
+    {
+        $this->update([
+            'archived' => false,
+            'archived_at' => null,
+            'status' => 'open'
+        ]);
+    }
+
+    /**
      * Update ticket status and set updated_at
      */
     public function updateStatus($status)
