@@ -43,6 +43,8 @@ class Admin extends Authenticatable
 
     protected $dates = ['deleted_at'];
 
+    protected $appends = ['name', 'full_name'];
+
     // Role constants (hierarchy: OWNER > ADMIN > MANAGER > HIRING_MANAGER > EXPO)
     const ROLE_OWNER = 'owner';
     const ROLE_ADMIN = 'admin';
@@ -79,6 +81,14 @@ class Admin extends Authenticatable
     public function getFullNameAttribute()
     {
         return $this->first_name . ' ' . $this->last_name;
+    }
+
+    /**
+     * Get name attribute (alias for full_name for compatibility)
+     */
+    public function getNameAttribute()
+    {
+        return $this->full_name;
     }
 
     /**

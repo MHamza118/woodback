@@ -36,7 +36,7 @@ class EmployeeShoutout extends Model
      */
     public function recognizedBy()
     {
-        return $this->belongsTo(User::class, 'recognized_by');
+        return $this->belongsTo(Admin::class, 'recognized_by');
     }
 
     /**

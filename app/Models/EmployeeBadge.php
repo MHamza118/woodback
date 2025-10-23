@@ -44,7 +44,7 @@ class EmployeeBadge extends Model
      */
     public function awardedBy()
     {
-        return $this->belongsTo(User::class, 'awarded_by');
+        return $this->belongsTo(Admin::class, 'awarded_by');
     }
 
     /**

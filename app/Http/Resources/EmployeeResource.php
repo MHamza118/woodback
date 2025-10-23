@@ -14,13 +14,27 @@ class EmployeeResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // Extract phone from questionnaire_responses if phone field is empty
+        $phone = $this->phone;
+        if (empty($phone) && !empty($this->questionnaire_responses)) {
+            foreach ($this->questionnaire_responses as $response) {
+                if (is_array($response) && isset($response['question']) && isset($response['answer'])) {
+                    $question = strtolower($response['question']);
+                    if (str_contains($question, 'phone') && !empty($response['answer'])) {
+                        $phone = $response['answer'];
+                        break;
+                    }
+                }
+            }
+        }
+
         return [
             'id' => $this->id,
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
             'full_name' => $this->full_name,
             'email' => $this->email,
-            'phone' => $this->phone,
+            'phone' => $phone,
             'position' => $this->position,
             'department' => $this->department,
             'stage' => $this->stage,

@@ -45,7 +45,7 @@ class EmployeeReward extends Model
      */
     public function givenBy()
     {
-        return $this->belongsTo(User::class, 'given_by');
+        return $this->belongsTo(Admin::class, 'given_by');
     }
 
     /**

@@ -152,6 +152,19 @@ class EmployeeRepository implements EmployeeRepositoryInterface
             'stage' => Employee::STAGE_QUESTIONNAIRE_COMPLETED
         ];
 
+        // Extract phone number from questionnaire responses and update employee phone field
+        foreach ($responses as $response) {
+            if (is_array($response) && isset($response['question']) && isset($response['answer'])) {
+                $question = strtolower($response['question']);
+                $answer = $response['answer'];
+                
+                // Look for phone number question
+                if (str_contains($question, 'phone') && !empty($answer)) {
+                    $updateData['phone'] = $answer;
+                }
+            }
+        }
+
         // If this is the first time submitting, record when questionnaire was first completed
         if (!$employee->questionnaire_responses) {
             $updateData['profile_data'] = array_merge(
