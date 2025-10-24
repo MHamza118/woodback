@@ -24,6 +24,7 @@ class Admin extends Authenticatable
         'notes',
         'status',
         'notifications_enabled',
+        'onboarding_notifications_enabled',
         'profile_data',
         'last_login_at',
     ];
@@ -39,6 +40,7 @@ class Admin extends Authenticatable
         'profile_data' => 'array',
         'password' => 'hashed',
         'notifications_enabled' => 'boolean',
+        'onboarding_notifications_enabled' => 'boolean',
     ];
 
     protected $dates = ['deleted_at'];

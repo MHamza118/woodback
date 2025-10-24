@@ -103,6 +103,9 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
     Route::get('notification-preferences', [App\Http\Controllers\Api\V1\AdminController::class, 'getNotificationPreferences']);
     Route::put('notification-preferences', [App\Http\Controllers\Api\V1\AdminController::class, 'toggleNotifications']);
     
+    // Onboarding notification preferences
+    Route::put('toggle-onboarding-notifications', [App\Http\Controllers\Api\V1\AdminController::class, 'toggleOnboardingNotifications']);
+    
     // Admin FAQ management routes
     Route::prefix('faqs')->group(function () {
         Route::get('/', [App\Http\Controllers\Api\V1\FaqController::class, 'adminIndex']);

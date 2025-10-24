@@ -627,20 +627,13 @@ class AdminController extends Controller
         try {
             $page = OnboardingPage::findOrFail($id);
             
-            // Check if any employees have progress on this page
-            $hasProgress = EmployeeOnboardingProgress::where('onboarding_page_id', $id)->exists();
+            // Delete all employee progress for this page first
+            EmployeeOnboardingProgress::where('onboarding_page_id', $id)->delete();
             
-            if ($hasProgress) {
-                // Soft delete by deactivating instead of hard delete
-                $page->update(['active' => false]);
-                $message = 'Onboarding page deactivated successfully (has employee progress data)';
-            } else {
-                // Safe to hard delete
-                $page->delete();
-                $message = 'Onboarding page deleted successfully';
-            }
+            // Hard delete the page
+            $page->delete();
             
-            return $this->successResponse(null, $message);
+            return $this->successResponse(null, 'Onboarding page deleted successfully');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to delete onboarding page: ' . $e->getMessage());
         }
@@ -1053,6 +1046,27 @@ class AdminController extends Controller
             ], 'Notification preferences updated successfully');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to update notification preferences: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Toggle onboarding notifications for admin
+     */
+    public function toggleOnboardingNotifications(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            
+            // Toggle the onboarding notifications setting
+            $user->update([
+                'onboarding_notifications_enabled' => !$user->onboarding_notifications_enabled
+            ]);
+            
+            return $this->successResponse([
+                'onboarding_notifications_enabled' => $user->fresh()->onboarding_notifications_enabled
+            ], 'Onboarding notification preferences updated successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to update onboarding notification preferences: ' . $e->getMessage());
         }
     }
 }

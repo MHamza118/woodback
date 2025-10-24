@@ -21,6 +21,7 @@ use App\Models\EmployeeOnboardingProgress;
 use App\Models\TrainingModule;
 use App\Models\TrainingAssignment;
 use App\Models\TableNotification;
+use App\Models\Admin;
 
 class EmployeeController extends Controller
 {
@@ -568,7 +569,6 @@ class EmployeeController extends Controller
             // Verify the page exists, is active, and is approved
             $page = OnboardingPage::where('id', $pageId)->active()->approved()->firstOrFail();
             
-            // Complete the onboarding page
             $progress = $employee->completeOnboardingPage($pageId, $signature);
             
             \Log::info('Onboarding page completed successfully', [
@@ -579,22 +579,57 @@ class EmployeeController extends Controller
                 'completed_at' => $progress->completed_at
             ]);
             
-            // Create notification for admin
-            TableNotification::create([
-                'type' => TableNotification::TYPE_ONBOARDING_COMPLETE,
-                'title' => 'Onboarding Document Acknowledged',
-                'message' => $employee->full_name . ' acknowledged: ' . $page->title,
-                'priority' => TableNotification::PRIORITY_LOW,
-                'recipient_type' => TableNotification::RECIPIENT_ADMIN,
-                'data' => [
-                    'employee_id' => $employee->id,
-                    'employee_name' => $employee->full_name,
-                    'page_id' => $page->id,
-                    'page_title' => $page->title,
-                    'completed_at' => $progress->completed_at->toISOString()
-                ],
-                'is_read' => false
+            $allPages = OnboardingPage::active()->approved()->get();
+            $allPageIds = $allPages->pluck('id')->toArray();
+            
+            $completedCount = EmployeeOnboardingProgress::where('employee_id', $employee->id)
+                ->whereIn('onboarding_page_id', $allPageIds)
+                ->where('status', 'completed')
+                ->count();
+            
+            \Log::info('Checking onboarding completion', [
+                'employee_id' => $employee->id,
+                'total_active_pages' => $allPages->count(),
+                'completed_count' => $completedCount,
+                'all_completed' => $completedCount === $allPages->count()
             ]);
+            
+            if ($completedCount === $allPages->count() && $allPages->count() > 0) {
+                // Check if notification already exists for this employee's completion
+                $existingNotification = TableNotification::where('type', TableNotification::TYPE_ONBOARDING_COMPLETE)
+                    ->where('data->employee_id', $employee->id)
+                    ->where('created_at', '>=', now()->subMinutes(5))
+                    ->exists();
+                
+                if (!$existingNotification) {
+                    // Check if any admin (except expo) has notifications enabled
+                    $hasEnabledAdmins = Admin::where('onboarding_notifications_enabled', true)
+                        ->where('role', '!=', 'expo')
+                        ->exists();
+                    
+                    if ($hasEnabledAdmins) {
+                        TableNotification::create([
+                            'type' => TableNotification::TYPE_ONBOARDING_COMPLETE,
+                            'title' => 'All Onboarding Documents Completed',
+                            'message' => $employee->full_name . ' has completed all ' . $allPages->count() . ' onboarding documents',
+                            'priority' => TableNotification::PRIORITY_MEDIUM,
+                            'recipient_type' => TableNotification::RECIPIENT_ADMIN,
+                            'data' => [
+                                'employee_id' => $employee->id,
+                                'employee_name' => $employee->full_name,
+                                'total_documents' => $allPages->count(),
+                                'completed_at' => $progress->completed_at->toISOString()
+                            ],
+                            'is_read' => false
+                        ]);
+                        
+                        \Log::info('Single notification created for all admins', [
+                            'employee_id' => $employee->id,
+                            'employee_name' => $employee->full_name
+                        ]);
+                    }
+                }
+            }
             
             // Get updated progress for all pages (only approved)
             $allProgress = [];
