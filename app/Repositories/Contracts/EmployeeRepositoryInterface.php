@@ -88,4 +88,9 @@ interface EmployeeRepositoryInterface
     public function resume(string $id): ?Employee;
     public function deactivate(string $id, ?string $reason = null): ?Employee;
     public function activate(string $id): ?Employee;
+
+    /**
+     * Permanently delete employee from database
+     */
+    public function delete(string $id): bool;
 }

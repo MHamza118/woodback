@@ -62,7 +62,7 @@ class QuestionnaireSeeder extends Seeder
                 ],
                 [
                     'question' => 'You will be added to the 7shifts software, look for an email and text. Your assigned shift will be sent to you through this software.',
-                    'type' => 'text',
+                    'type' => 'info',
                     'required' => false
                 ],
                 [

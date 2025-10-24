@@ -215,6 +215,27 @@ class AdminEmployeeController extends Controller
     }
 
     /**
+     * Delete employee permanently from the database
+     */
+    public function destroy(Request $request, string $id): JsonResponse
+    {
+        try {
+            $deleted = $this->employeeService->deleteEmployee($id);
+            
+            if (!$deleted) {
+                return $this->notFoundResponse('Employee not found');
+            }
+            
+            return $this->successResponse(
+                null,
+                'Employee deleted successfully from the database'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to delete employee: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Get all questionnaires
      */
     public function questionnaires(Request $request): JsonResponse

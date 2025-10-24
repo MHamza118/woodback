@@ -118,7 +118,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
             // Admin user management routes (role-based permissions)
             Route::prefix('users')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\AdminController::class, 'getAdminUsers']);
-                Route::post('/', [App\Http\Controllers\Api\V1\AdminController::class, 'createAdminUser'])->middleware('permission:full_access');
+                Route::post('/', [App\Http\Controllers\Api\V1\AdminController::class, 'createAdminUser']);
                 Route::put('/{id}', [App\Http\Controllers\Api\V1\AdminController::class, 'updateAdminUser']);
                 Route::put('/{id}/permissions', [App\Http\Controllers\Api\V1\AdminController::class, 'updateAdminPermissions']);
                 Route::delete('/{id}', [App\Http\Controllers\Api\V1\AdminController::class, 'deactivateAdminUser']);
@@ -149,7 +149,6 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/', [App\Http\Controllers\Api\V1\AdminController::class, 'createEmployee']);
                 Route::get('/pending', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'pendingApproval']);
                 Route::get('/statistics', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'statistics']);
-                Route::get('/{id}', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'show']);
                 Route::post('/{id}/approve', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'approve']);
                 Route::post('/{id}/reject', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'reject']);
                 Route::put('/{id}/personal-info', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'updatePersonalInfo']);
@@ -161,6 +160,10 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/{id}/resume', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'resume']);
                 Route::post('/{id}/deactivate', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'deactivate']);
                 Route::post('/{id}/activate', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'activate']);
+                // Delete employee - must come before GET /{id} to avoid conflicts
+                Route::delete('/{id}', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'destroy']);
+                // Get single employee - must come last among /{id} routes
+                Route::get('/{id}', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'show']);
             });
             
             // File download route (separate from employee prefix for clarity)

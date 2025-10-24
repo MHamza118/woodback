@@ -335,4 +335,59 @@ class EmployeeRepository implements EmployeeRepositoryInterface
         ]);
         return $employee->fresh();
     }
+
+    /**
+     * Permanently delete an employee from the database
+     */
+    public function delete(string $id): bool
+    {
+        $employee = $this->findById($id);
+        if (!$employee) {
+            return false;
+        }
+
+        try {
+            // Delete physical file uploads from storage
+            if (method_exists($employee, 'fileUploads')) {
+                $fileUploads = $employee->fileUploads;
+                foreach ($fileUploads as $fileUpload) {
+                    if (\Storage::disk('public')->exists($fileUpload->file_path)) {
+                        \Storage::disk('public')->delete($fileUpload->file_path);
+                    }
+                    $fileUpload->delete();
+                }
+            }
+
+            // Delete training assignments
+            if (method_exists($employee, 'trainingAssignments')) {
+                $employee->trainingAssignments()->delete();
+            }
+
+            // Delete training progress
+            if (method_exists($employee, 'trainingProgress')) {
+                $employee->trainingProgress()->delete();
+            }
+
+            // Delete related table notifications
+            \App\Models\TableNotification::where('recipient_type', 'employee')
+                ->where('recipient_id', $id)
+                ->delete();
+
+            \App\Models\TableNotification::where('data->employee_id', $id)
+                ->delete();
+
+            // Revoke authentication tokens
+            $employee->tokens()->delete();
+
+            // FORCE DELETE the employee record (bypass soft delete)
+            return $employee->forceDelete();
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to delete employee: ' . $e->getMessage(), [
+                'employee_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
 }

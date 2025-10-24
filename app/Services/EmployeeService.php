@@ -414,6 +414,20 @@ class EmployeeService
     }
 
     /**
+     * Delete employee permanently from the database
+     */
+    public function deleteEmployee(string $employeeId): bool
+    {
+        $employee = $this->employeeRepository->findById($employeeId);
+        if (!$employee) {
+            return false;
+        }
+
+        // Delete employee from database
+        return $this->employeeRepository->delete($employeeId);
+    }
+
+    /**
      * Update employee personal information
      */
     public function updatePersonalInfo(string $employeeId, array $personalInfo): Employee

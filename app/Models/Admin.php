@@ -182,18 +182,7 @@ class Admin extends Authenticatable
                 return [self::PERMISSION_FULL_ACCESS]; // Owner has full access to everything
                 
             case self::ROLE_ADMIN:
-                return [
-                    self::PERMISSION_MANAGE_MANAGERS,
-                    self::PERMISSION_MANAGE_EMPLOYEES,
-                    self::PERMISSION_MANAGE_CUSTOMERS,
-                    self::PERMISSION_MANAGE_ORDERS,
-                    self::PERMISSION_MANAGE_MENU,
-                    self::PERMISSION_MANAGE_LOCATIONS,
-                    self::PERMISSION_MANAGE_SCHEDULES,
-                    self::PERMISSION_MANAGE_REPORTS,
-                    self::PERMISSION_VIEW_ANALYTICS,
-                    self::PERMISSION_MANAGE_NOTIFICATIONS,
-                ];
+                return [self::PERMISSION_FULL_ACCESS]; // Admin has full access to everything like Owner
                 
                 case self::ROLE_MANAGER:
                 return [
@@ -239,7 +228,7 @@ class Admin extends Authenticatable
      */
     public function canManageAdmins()
     {
-        return $this->isOwner() || $this->hasPermission(self::PERMISSION_MANAGE_ADMINS);
+        return $this->isOwner() || $this->isAdmin() || $this->hasPermission(self::PERMISSION_MANAGE_ADMINS);
     }
 
     /**

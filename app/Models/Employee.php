@@ -61,11 +61,11 @@ class Employee extends Authenticatable
     const STATUS_INACTIVE = 'inactive';
 
     /**
-     * Get the user who approved this employee
+     * Get the admin who approved this employee
      */
     public function approvedBy()
     {
-        return $this->belongsTo(User::class, 'approved_by');
+        return $this->belongsTo(Admin::class, 'approved_by');
     }
 
     /**

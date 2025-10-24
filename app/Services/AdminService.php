@@ -66,14 +66,14 @@ class AdminService
     }
 
     /**
-     * Create a new admin/manager user (Only OWNER can do this)
+     * Create a new admin/manager user (OWNER and ADMIN can do this)
      */
     public function createAdminUser(Admin $createdBy, array $userData): array
     {
-        // Only owners can create other admins
-        if (!$createdBy->isOwner()) {
+        // Only owners and admins can create other admin users
+        if (!$createdBy->isOwner() && !$createdBy->isAdmin()) {
             throw ValidationException::withMessages([
-                'role' => ['Only restaurant owners can create admin users.'],
+                'role' => ['Only restaurant owners and admins can create admin users.'],
             ]);
         }
 
@@ -111,13 +111,10 @@ class AdminService
         $query = Admin::query();
 
         // Role-based access control
-        if ($requestingAdmin->isOwner()) {
-            // Owner can see all
-        } elseif ($requestingAdmin->isAdmin()) {
-            // Admin can see managers only
-            $query->where('role', Admin::ROLE_MANAGER);
+        if ($requestingAdmin->isOwner() || $requestingAdmin->isAdmin()) {
+            // Owner and Admin can see all
         } else {
-            // Managers can't see other admin users
+            // Managers and below can't see other admin users
             $query->whereRaw('1 = 0'); // Return empty result
         }
 
@@ -205,10 +202,9 @@ class AdminService
         $availableRoles = [];
         $allPermissions = Admin::getAllPermissions();
 
-        if ($admin->isOwner()) {
-            $availableRoles = [Admin::ROLE_ADMIN, Admin::ROLE_MANAGER];
-        } elseif ($admin->isAdmin()) {
-            $availableRoles = [Admin::ROLE_MANAGER];
+        if ($admin->isOwner() || $admin->isAdmin()) {
+            // Owner and Admin can create other admins and managers
+            $availableRoles = [Admin::ROLE_ADMIN, Admin::ROLE_MANAGER, Admin::ROLE_HIRING_MANAGER, Admin::ROLE_EXPO];
         }
 
         return [
