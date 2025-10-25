@@ -499,13 +499,26 @@ class AdminController extends Controller
             $query = OnboardingPage::query();
             
             // Admin and Owner see all pages
-            // Manager and Hiring Manager see their own submissions and approved pages
+            // Manager sees their own, hiring_manager created, and approved pages
+            // Hiring Manager sees their own and approved pages
             // Employees (if this endpoint is ever called by them) see only approved active pages
             if (in_array($userRole, ['admin', 'owner'])) {
                 // Admin/Owner see everything
                 $query->ordered();
-            } else if (in_array($userRole, ['manager', 'hiring_manager'])) {
-                // Manager/Hiring Manager see their own and approved pages
+            } else if ($userRole === 'manager') {
+                // Manager sees:
+                // 1. Their own submissions
+                // 2. Pages created by hiring_manager (for approval)
+                // 3. Approved pages
+                $query->where(function($q) use ($user) {
+                    $q->where('created_by', $user->id)
+                      ->orWhereHas('creator', function($creatorQuery) {
+                          $creatorQuery->where('role', 'hiring_manager');
+                      })
+                      ->orWhere('approval_status', 'approved');
+                })->ordered();
+            } else if ($userRole === 'hiring_manager') {
+                // Hiring Manager sees their own and approved pages
                 $query->where(function($q) use ($user) {
                     $q->where('created_by', $user->id)
                       ->orWhere('approval_status', 'approved');
@@ -660,19 +673,28 @@ class AdminController extends Controller
     }
 
     /**
-     * Approve onboarding page (Admin/Owner only)
+     * Approve onboarding page (Admin/Owner/Manager for hiring_manager pages)
      */
     public function approveOnboardingPage(Request $request, $id): JsonResponse
     {
         try {
             $user = $request->user();
+            $page = OnboardingPage::with('creator')->findOrFail($id);
             
-            // Only admin and owner can approve
-            if (!in_array($user->role, ['admin', 'owner'])) {
-                return $this->forbiddenResponse('Only admins can approve onboarding pages');
+            // Check permissions
+            // Admin and Owner can approve all pages
+            // Manager can only approve pages created by hiring_manager
+            $canApprove = false;
+            
+            if (in_array($user->role, ['admin', 'owner'])) {
+                $canApprove = true;
+            } elseif ($user->role === 'manager' && $page->creator && $page->creator->role === 'hiring_manager') {
+                $canApprove = true;
             }
             
-            $page = OnboardingPage::findOrFail($id);
+            if (!$canApprove) {
+                return $this->forbiddenResponse('You do not have permission to approve this onboarding page');
+            }
             
             $page->update([
                 'approval_status' => 'approved',
@@ -691,7 +713,7 @@ class AdminController extends Controller
     }
 
     /**
-     * Reject onboarding page (Admin/Owner only)
+     * Reject onboarding page (Admin/Owner/Manager for hiring_manager pages)
      */
     public function rejectOnboardingPage(Request $request, $id): JsonResponse
     {
@@ -701,13 +723,22 @@ class AdminController extends Controller
             ]);
             
             $user = $request->user();
+            $page = OnboardingPage::with('creator')->findOrFail($id);
             
-            // Only admin and owner can reject
-            if (!in_array($user->role, ['admin', 'owner'])) {
-                return $this->forbiddenResponse('Only admins can reject onboarding pages');
+            // Check permissions
+            // Admin and Owner can reject all pages
+            // Manager can only reject pages created by hiring_manager
+            $canReject = false;
+            
+            if (in_array($user->role, ['admin', 'owner'])) {
+                $canReject = true;
+            } elseif ($user->role === 'manager' && $page->creator && $page->creator->role === 'hiring_manager') {
+                $canReject = true;
             }
             
-            $page = OnboardingPage::findOrFail($id);
+            if (!$canReject) {
+                return $this->forbiddenResponse('You do not have permission to reject this onboarding page');
+            }
             
             $page->update([
                 'approval_status' => 'rejected',

@@ -617,7 +617,7 @@ class EmployeeController extends Controller
                         
                         // Create individual notification for each admin with notifications enabled
                         foreach ($enabledAdmins as $admin) {
-                            TableNotification::create([
+                            $notification = TableNotification::create([
                                 'type' => TableNotification::TYPE_ONBOARDING_COMPLETE,
                                 'title' => 'All Onboarding Documents Completed',
                                 'message' => $employee->full_name . ' has completed all ' . $allPages->count() . ' onboarding documents',
@@ -634,12 +634,6 @@ class EmployeeController extends Controller
                                 'is_read' => false
                             ]);
                         }
-                        
-                        \Log::info('Individual notifications created for enabled admins', [
-                            'employee_id' => $employee->id,
-                            'employee_name' => $employee->full_name,
-                            'notification_count' => $enabledAdmins->count()
-                        ]);
                     }
                 } catch (\Exception $notificationError) {
                     // Log notification creation error but don't fail the entire request
