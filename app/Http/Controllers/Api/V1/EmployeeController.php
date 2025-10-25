@@ -610,18 +610,21 @@ class EmployeeController extends Controller
                     }
                     
                     if (!$existingNotification) {
-                        // Check if any admin (except expo) has notifications enabled
-                        $hasEnabledAdmins = Admin::where('onboarding_notifications_enabled', true)
+                        // Get all admins with onboarding notifications enabled (excluding expo role)
+                        $enabledAdmins = Admin::where('onboarding_notifications_enabled', true)
                             ->where('role', '!=', 'expo')
-                            ->exists();
+                            ->get();
                         
-                        if ($hasEnabledAdmins) {
+                        // Create individual notification for each admin with notifications enabled
+                        foreach ($enabledAdmins as $admin) {
                             TableNotification::create([
                                 'type' => TableNotification::TYPE_ONBOARDING_COMPLETE,
                                 'title' => 'All Onboarding Documents Completed',
                                 'message' => $employee->full_name . ' has completed all ' . $allPages->count() . ' onboarding documents',
+                                'order_number' => 'N/A', // Required field for notification table
                                 'priority' => TableNotification::PRIORITY_MEDIUM,
                                 'recipient_type' => TableNotification::RECIPIENT_ADMIN,
+                                'recipient_id' => $admin->id, // Link notification to specific admin
                                 'data' => [
                                     'employee_id' => $employee->id,
                                     'employee_name' => $employee->full_name,
@@ -630,12 +633,13 @@ class EmployeeController extends Controller
                                 ],
                                 'is_read' => false
                             ]);
-                            
-                            \Log::info('Single notification created for all admins', [
-                                'employee_id' => $employee->id,
-                                'employee_name' => $employee->full_name
-                            ]);
                         }
+                        
+                        \Log::info('Individual notifications created for enabled admins', [
+                            'employee_id' => $employee->id,
+                            'employee_name' => $employee->full_name,
+                            'notification_count' => $enabledAdmins->count()
+                        ]);
                     }
                 } catch (\Exception $notificationError) {
                     // Log notification creation error but don't fail the entire request

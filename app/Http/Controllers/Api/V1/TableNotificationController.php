@@ -28,7 +28,16 @@ class TableNotificationController extends Controller
                 ]);
             }
 
+            $adminId = $user->id;
+            
+            // Get notifications for this admin:
+            // 1. Global notifications (recipient_id is null)
+            // 2. Notifications specifically for this admin (recipient_id matches)
             $notifications = TableNotification::forAdmin()
+                ->where(function ($query) use ($adminId) {
+                    $query->whereNull('recipient_id') // Global admin notifications
+                          ->orWhere('recipient_id', $adminId); // Specific admin notifications
+                })
                 ->orderBy('created_at', 'desc')
                 ->limit(50)
                 ->get();
