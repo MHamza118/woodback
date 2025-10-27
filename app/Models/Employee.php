@@ -138,6 +138,22 @@ class Employee extends Authenticatable
     }
 
     /**
+     * Get time entries for this employee
+     */
+    public function timeEntries()
+    {
+        return $this->hasMany(TimeEntry::class, 'employee_id');
+    }
+
+    /**
+     * Get clock status for this employee
+     */
+    public function clockStatus()
+    {
+        return $this->hasOne(EmployeeClockStatus::class, 'employee_id');
+    }
+
+    /**
      * Get full name attribute
      */
     public function getFullNameAttribute()

@@ -92,6 +92,13 @@ Route::prefix('employee')->middleware(['check.employee.status'])->group(function
             Route::post('training-modules/{moduleId}/complete', [App\Http\Controllers\Api\V1\EmployeeController::class, 'completeTraining']);
             
             Route::post('logout', [App\Http\Controllers\Api\V1\EmployeeController::class, 'logout']);
+            
+            // Time Tracking routes
+            Route::post('clock-in', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'clockIn']);
+            Route::post('clock-out', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'clockOut']);
+            Route::get('clock-status', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getClockStatus']);
+            Route::get('time-entries', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getTimeEntries']);
+            Route::get('current-time-entry', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getCurrentTimeEntry']);
         });
 
 // Admin dashboard and profile routes
@@ -301,6 +308,13 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/badge-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'createBadgeType']);
                 Route::put('/badge-types/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'updateBadgeType']);
                 Route::delete('/badge-types/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'deleteBadgeType']);
+            });
+            
+            // Admin time tracking routes
+            Route::prefix('time-tracking')->group(function () {
+                Route::get('/live-roster', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getLiveRoster']);
+                Route::get('/time-entries', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getAllTimeEntries']);
+                Route::get('/time-entries/{employeeId}', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getEmployeeTimeEntries']);
             });
             
             // Admin performance management routes
