@@ -54,8 +54,9 @@ Route::prefix('v1')->group(function () {
         });
 
 // Employee routes (for authenticated employees)
-Route::prefix('employee')->group(function () {
+Route::prefix('employee')->middleware(['check.employee.status'])->group(function () {
     Route::get('profile', [App\Http\Controllers\Api\V1\EmployeeController::class, 'profile']);
+    Route::get('check-status', [App\Http\Controllers\Api\V1\EmployeeController::class, 'checkStatus']);
     Route::put('personal-info', [App\Http\Controllers\Api\V1\EmployeeController::class, 'updatePersonalInfo']);
     Route::get('qr', [App\Http\Controllers\Api\V1\EmployeeController::class, 'generateQR']);
     Route::post('location', [App\Http\Controllers\Api\V1\EmployeeController::class, 'submitLocation']);

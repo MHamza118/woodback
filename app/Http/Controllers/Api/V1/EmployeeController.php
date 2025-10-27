@@ -804,6 +804,28 @@ class EmployeeController extends Controller
     
     
     /**
+     * Check employee status (for polling from frontend)
+     */
+    public function checkStatus(Request $request): JsonResponse
+    {
+        try {
+            $employee = $request->user();
+            
+            // Return current status
+            return $this->successResponse([
+                'status' => $employee->status,
+                'stage' => $employee->stage,
+                'is_active' => $employee->isActive(),
+                'is_paused' => $employee->isPaused(),
+                'is_inactive' => $employee->isInactive(),
+                'can_access_dashboard' => $employee->canAccessDashboard(),
+            ], 'Status retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to check status: ' . $e->getMessage());
+        }
+    }
+    
+    /**
      * Logout employee
      */
     public function logout(Request $request): JsonResponse

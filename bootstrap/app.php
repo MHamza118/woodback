@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth' => \App\Http\Middleware\Authenticate::class,
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'permission' => \App\Http\Middleware\PermissionMiddleware::class,
+            'check.employee.status' => \App\Http\Middleware\CheckEmployeeStatus::class,
         ]);
 
         $middleware->group('api', [
