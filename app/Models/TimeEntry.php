@@ -62,6 +62,23 @@ class TimeEntry extends Model
     }
 
     /**
+     * Get formatted total hours as HH:MM:SS
+     */
+    public function getFormattedTotalHoursAttribute()
+    {
+        if (!$this->total_hours) {
+            return '00:00:00';
+        }
+
+        $totalMinutes = round($this->total_hours * 60);
+        $hours = floor($totalMinutes / 60);
+        $minutes = $totalMinutes % 60;
+        $seconds = 0; // Since we're working with hourly data, seconds are always 0
+
+        return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
+    }
+
+    /**
      * Scope to get entries for a specific employee
      */
     public function scopeForEmployee($query, $employeeId)

@@ -393,6 +393,7 @@ class TimeTrackingController extends Controller
                         'clockInTime' => $entry->clock_in_time,
                         'clockOutTime' => $entry->clock_out_time,
                         'totalHours' => $entry->total_hours,
+                        'totalHoursFormatted' => $entry->formatted_total_hours,
                         'status' => $entry->status,
                         'locationInfo' => $entry->location_info,
                     ];
