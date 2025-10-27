@@ -33,9 +33,9 @@ class TimeTrackingController extends Controller
             $validator = Validator::make($request->all(), [
                 'location_info' => 'nullable|array',
                 'qr_code_data' => 'required|string',
-                'client_date' => 'required|date',
+                'client_date' => 'required|string',
                 'client_time' => 'required|string',
-                'client_date_time' => 'required|string'
+                'client_date_time' => 'nullable|string'
             ]);
 
             if ($validator->fails()) {
@@ -132,9 +132,9 @@ class TimeTrackingController extends Controller
             // Validate QR code and client time
             $validator = Validator::make($request->all(), [
                 'qr_code_data' => 'required|string',
-                'client_date' => 'required|date',
+                'client_date' => 'required|string',
                 'client_time' => 'required|string',
-                'client_date_time' => 'required|string'
+                'client_date_time' => 'nullable|string'
             ]);
 
             if ($validator->fails()) {
