@@ -384,7 +384,19 @@ class TimeTrackingController extends Controller
 
             $timeEntries = $query->orderBy('date', 'desc')
                 ->orderBy('clock_in_time', 'desc')
-                ->get();
+                ->get()
+                ->map(function ($entry) {
+                    return [
+                        'id' => $entry->id,
+                        'employeeId' => $entry->employee_id,
+                        'date' => $entry->date,
+                        'clockInTime' => $entry->clock_in_time,
+                        'clockOutTime' => $entry->clock_out_time,
+                        'totalHours' => $entry->total_hours,
+                        'status' => $entry->status,
+                        'locationInfo' => $entry->location_info,
+                    ];
+                });
 
             return response()->json([
                 'success' => true,
