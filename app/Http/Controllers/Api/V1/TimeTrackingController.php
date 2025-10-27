@@ -29,10 +29,13 @@ class TimeTrackingController extends Controller
                 ], 401);
             }
 
-            // Validate location info
+            // Validate location info and client time
             $validator = Validator::make($request->all(), [
                 'location_info' => 'nullable|array',
-                'qr_code_data' => 'required|string'
+                'qr_code_data' => 'required|string',
+                'client_date' => 'required|date',
+                'client_time' => 'required|string',
+                'client_date_time' => 'required|string'
             ]);
 
             if ($validator->fails()) {
@@ -52,9 +55,13 @@ class TimeTrackingController extends Controller
                 ], 400);
             }
 
+            // Use client date and time
+            $clientDate = $request->client_date;
+            $clientTime = $request->client_time;
+
             // Check if already clocked in today
             $existingEntry = TimeEntry::where('employee_id', $employee->id)
-                ->where('date', now()->toDateString())
+                ->where('date', $clientDate)
                 ->whereNull('clock_out_time')
                 ->first();
 
@@ -69,11 +76,11 @@ class TimeTrackingController extends Controller
 
             DB::beginTransaction();
 
-            // Create new time entry
+            // Create new time entry using CLIENT time
             $timeEntry = TimeEntry::create([
                 'employee_id' => $employee->id,
-                'date' => now()->toDateString(),
-                'clock_in_time' => now()->format('H:i:s'),
+                'date' => $clientDate,
+                'clock_in_time' => $clientTime,
                 'location_info' => $request->location_info,
                 'status' => 'APPROVED', // Auto-approved
             ]);
@@ -122,9 +129,12 @@ class TimeTrackingController extends Controller
                 ], 401);
             }
 
-            // Validate QR code
+            // Validate QR code and client time
             $validator = Validator::make($request->all(), [
-                'qr_code_data' => 'required|string'
+                'qr_code_data' => 'required|string',
+                'client_date' => 'required|date',
+                'client_time' => 'required|string',
+                'client_date_time' => 'required|string'
             ]);
 
             if ($validator->fails()) {
@@ -143,9 +153,13 @@ class TimeTrackingController extends Controller
                 ], 400);
             }
 
+            // Use client date and time
+            $clientDate = $request->client_date;
+            $clientTime = $request->client_time;
+
             // Find active time entry
             $timeEntry = TimeEntry::where('employee_id', $employee->id)
-                ->where('date', now()->toDateString())
+                ->where('date', $clientDate)
                 ->whereNull('clock_out_time')
                 ->first();
 
@@ -159,8 +173,8 @@ class TimeTrackingController extends Controller
 
             DB::beginTransaction();
 
-            // Update time entry with clock out
-            $clockOutTime = now()->format('H:i:s');
+            // Update time entry with clock out using CLIENT time
+            $clockOutTime = $clientTime;
             $timeEntry->clock_out_time = $clockOutTime;
             $timeEntry->total_hours = $timeEntry->calculateTotalHours();
             $timeEntry->save();
@@ -330,7 +344,9 @@ class TimeTrackingController extends Controller
                         'position' => $employee->position,
                     ],
                     'assignments' => $employee->assignments,
-                    'location' => $employee->location,
+                    'location' => [
+                        'name' => $employee->location
+                    ],
                     'clockStatus' => [
                         'isCurrentlyClocked' => $status->is_currently_clocked,
                         'lastClockIn' => $status->last_clock_in,
