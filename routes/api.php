@@ -106,6 +106,10 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
     // Onboarding notification preferences
     Route::put('toggle-onboarding-notifications', [App\Http\Controllers\Api\V1\AdminController::class, 'toggleOnboardingNotifications']);
     
+    // Welcome message settings
+    Route::get('welcome-message', [App\Http\Controllers\Api\V1\AdminController::class, 'getWelcomeMessage']);
+    Route::put('welcome-message', [App\Http\Controllers\Api\V1\AdminController::class, 'updateWelcomeMessage']);
+    
     // Admin FAQ management routes
     Route::prefix('faqs')->group(function () {
         Route::get('/', [App\Http\Controllers\Api\V1\FaqController::class, 'adminIndex']);

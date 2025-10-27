@@ -15,6 +15,7 @@ use App\Models\OnboardingPage;
 use App\Models\EmployeeOnboardingProgress;
 use App\Models\TrainingAssignment;
 use App\Models\TrainingModule;
+use App\Models\SystemSetting;
 use App\Services\AdminService;
 use App\Http\Requests\CreateAdminRequest;
 use Illuminate\Validation\ValidationException;
@@ -1098,6 +1099,54 @@ class AdminController extends Controller
             ], 'Onboarding notification preferences updated successfully');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to update onboarding notification preferences: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Get employee welcome message setting
+     */
+    public function getWelcomeMessage(Request $request): JsonResponse
+    {
+        try {
+            $welcomeMessage = SystemSetting::get('employee_welcome_message', 'Here\'s your personalized dashboard with training progress, anniversaries, and important updates.');
+            
+            return $this->successResponse([
+                'message' => $welcomeMessage
+            ], 'Welcome message retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to get welcome message: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Update employee welcome message setting (Owner/Admin/Manager only)
+     */
+    public function updateWelcomeMessage(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            
+            // Only owner, admin, and manager can update welcome message
+            if (!in_array($user->role, ['owner', 'admin', 'manager'])) {
+                return $this->forbiddenResponse('Only owner, admin, and manager can update welcome message');
+            }
+            
+            $request->validate([
+                'message' => 'required|string|max:500'
+            ]);
+            
+            SystemSetting::set(
+                'employee_welcome_message',
+                $request->message,
+                'text',
+                'Welcome message shown on employee dashboard'
+            );
+            
+            return $this->successResponse([
+                'message' => $request->message
+            ], 'Welcome message updated successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to update welcome message: ' . $e->getMessage());
         }
     }
 }

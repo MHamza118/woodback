@@ -22,6 +22,7 @@ use App\Models\TrainingModule;
 use App\Models\TrainingAssignment;
 use App\Models\TableNotification;
 use App\Models\Admin;
+use App\Models\SystemSetting;
 
 class EmployeeController extends Controller
 {
@@ -375,10 +376,17 @@ class EmployeeController extends Controller
                 ];
             }
 
+            // Get customizable welcome message and replace {name} placeholder
+            $welcomeMessageTemplate = SystemSetting::get(
+                'employee_welcome_message',
+                "Welcome {name}! Here's your personalized dashboard with training progress, anniversaries, and important updates."
+            );
+            $welcomeMessage = str_replace('{name}', $employee->full_name, $welcomeMessageTemplate);
+            
             return $this->successResponse([
                 'employee' => new EmployeeResource($employee),
                 'dashboard_data' => [
-                    'welcome_message' => "Welcome to the dashboard, {$employee->full_name}!",
+                    'welcome_message' => $welcomeMessage,
                     'status' => $employee->status,
                     'stage' => $employee->stage,
                     'approved_at' => $employee->approved_at?->toISOString(),
