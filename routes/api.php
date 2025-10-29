@@ -197,6 +197,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
             // Admin onboarding page management routes
             Route::prefix('onboarding-pages')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\AdminController::class, 'getOnboardingPages']);
+                Route::get('/pending-count', [App\Http\Controllers\Api\V1\AdminController::class, 'getPendingOnboardingCount']);
                 Route::post('/', [App\Http\Controllers\Api\V1\AdminController::class, 'createOnboardingPage']);
                 Route::put('/{id}', [App\Http\Controllers\Api\V1\AdminController::class, 'updateOnboardingPage']);
                 Route::delete('/{id}', [App\Http\Controllers\Api\V1\AdminController::class, 'deleteOnboardingPage']);

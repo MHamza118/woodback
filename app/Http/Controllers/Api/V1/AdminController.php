@@ -16,6 +16,7 @@ use App\Models\EmployeeOnboardingProgress;
 use App\Models\TrainingAssignment;
 use App\Models\TrainingModule;
 use App\Models\SystemSetting;
+use App\Models\TableNotification;
 use App\Services\AdminService;
 use App\Http\Requests\CreateAdminRequest;
 use Illuminate\Validation\ValidationException;
@@ -576,6 +577,32 @@ class AdminController extends Controller
                 'approved_at' => $approvedAt
             ]);
             
+            // Create notification for admin/owner when manager/hiring_manager submits for approval
+            if ($approvalStatus === 'pending') {
+                try {
+                    TableNotification::create([
+                        'type' => 'onboarding_document_pending',
+                        'title' => 'New Onboarding Document',
+                        'message' => $user->name . ' created a new onboarding document "' . $request->title . '" pending approval.',
+                        'order_number' => null,
+                        'recipient_type' => TableNotification::RECIPIENT_ADMIN,
+                        'recipient_id' => null,
+                        'priority' => TableNotification::PRIORITY_MEDIUM,
+                        'data' => [
+                            'type' => 'onboarding_document',
+                            'page_id' => $page->id,
+                            'creator_id' => $user->id,
+                            'creator_name' => $user->name,
+                            'creator_role' => $userRole,
+                            'title' => $request->title
+                        ],
+                        'is_read' => false
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::error('Failed to create onboarding notification: ' . $e->getMessage());
+                }
+            }
+            
             $message = $approvalStatus === 'pending' 
                 ? 'Onboarding page submitted for approval' 
                 : 'Onboarding page created successfully';
@@ -704,6 +731,12 @@ class AdminController extends Controller
                 'rejection_reason' => null
             ]);
             
+            // Mark related notification as read
+            TableNotification::where('type', 'onboarding_document_pending')
+                ->where('data->page_id', $page->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true, 'read_at' => now()]);
+            
             return $this->successResponse(
                 $page->fresh()->load(['creator', 'approver']),
                 'Onboarding page approved successfully'
@@ -748,12 +781,42 @@ class AdminController extends Controller
                 'rejection_reason' => $request->rejection_reason
             ]);
             
+            // Mark related notification as read
+            TableNotification::where('type', 'onboarding_document_pending')
+                ->where('data->page_id', $page->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true, 'read_at' => now()]);
+            
             return $this->successResponse(
                 $page->fresh()->load(['creator', 'approver']),
                 'Onboarding page rejected'
             );
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to reject onboarding page: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get count of pending onboarding pages (Admin/Owner only)
+     */
+    public function getPendingOnboardingCount(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            
+            // Only admin and owner can see pending count
+            if (!in_array($user->role, ['admin', 'owner'])) {
+                return $this->successResponse(['count' => 0], 'Pending onboarding count retrieved');
+            }
+            
+            $count = OnboardingPage::where('approval_status', 'pending')->count();
+            
+            return $this->successResponse(
+                ['count' => $count],
+                'Pending onboarding count retrieved successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to get pending count: ' . $e->getMessage());
         }
     }
 
