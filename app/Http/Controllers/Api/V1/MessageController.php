@@ -81,7 +81,7 @@ class MessageController extends Controller
     {
         try {
             $request->validate([
-                'content' => 'required|string',
+                'content' => 'required_without:attachments|string',
                 'attachments' => 'nullable|array',
                 'has_attachments' => 'nullable|boolean'
             ]);
@@ -158,7 +158,7 @@ class MessageController extends Controller
         try {
             $request->validate([
                 'conversation_id' => 'required|exists:conversations,id',
-                'content' => 'required|string',
+                'content' => 'required_without:attachments|string',
                 'attachments' => 'nullable|array',
                 'has_attachments' => 'nullable|boolean'
             ]);
@@ -177,7 +177,7 @@ class MessageController extends Controller
         try {
             $request->validate([
                 'recipient_id' => 'required|string',
-                'content' => 'required|string',
+                'content' => 'required_without:attachments|string',
                 'attachments' => 'nullable|array',
                 'has_attachments' => 'nullable|boolean'
             ]);
