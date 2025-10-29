@@ -326,8 +326,15 @@ class Employee extends Authenticatable
      */
     public function getOnboardingPageProgress()
     {
-        $totalPages = OnboardingPage::active()->count();
-        $completedPages = $this->onboardingProgress()->completed()->count();
+        // Get all active AND approved onboarding page IDs (exclude pending/rejected)
+        $activePageIds = OnboardingPage::active()->approved()->pluck('id');
+        $totalPages = $activePageIds->count();
+        
+        // Only count completed progress for pages that still exist, are active, and approved
+        $completedPages = $this->onboardingProgress()
+            ->completed()
+            ->whereIn('onboarding_page_id', $activePageIds)
+            ->count();
         
         return [
             'total' => $totalPages,
