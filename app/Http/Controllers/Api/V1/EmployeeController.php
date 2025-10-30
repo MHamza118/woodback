@@ -532,6 +532,10 @@ class EmployeeController extends Controller
                     'status' => $status,
                     'completed_at' => $progressRecord ? $progressRecord->completed_at?->toISOString() : null,
                     'signature' => $progressRecord ? $progressRecord->signature : null,
+                    'has_test' => $page->hasTest(),
+                    'test_status' => $progressRecord ? $progressRecord->test_status : null,
+                    'test_score' => $progressRecord ? $progressRecord->test_score : null,
+                    'test_attempts' => $progressRecord ? $progressRecord->test_attempts : 0,
                 ];
             }
             
@@ -577,7 +581,34 @@ class EmployeeController extends Controller
             // Verify the page exists, is active, and is approved
             $page = OnboardingPage::where('id', $pageId)->active()->approved()->firstOrFail();
             
-            $progress = $employee->completeOnboardingPage($pageId, $signature);
+            // Get or create progress record
+            $progress = EmployeeOnboardingProgress::firstOrCreate(
+                [
+                    'employee_id' => $employee->id,
+                    'onboarding_page_id' => $pageId
+                ],
+                [
+                    'status' => 'in_progress',
+                    'signature' => $signature
+                ]
+            );
+            
+            // If page has a test, mark as in_progress and set test status to pending
+            // If no test, mark as completed
+            if ($page->hasTest()) {
+                $progress->update([
+                    'status' => 'in_progress',
+                    'signature' => $signature,
+                    'test_status' => 'pending',
+                    'test_attempts' => 0
+                ]);
+            } else {
+                $progress->update([
+                    'status' => 'completed',
+                    'signature' => $signature,
+                    'completed_at' => now()
+                ]);
+            }
             
             \Log::info('Onboarding page completed successfully', [
                 'employee_id' => $employee->id,
@@ -637,7 +668,7 @@ class EmployeeController extends Controller
                                     'employee_id' => $employee->id,
                                     'employee_name' => $employee->full_name,
                                     'total_documents' => $allPages->count(),
-                                    'completed_at' => $progress->completed_at->toISOString()
+                                    'completed_at' => $progress->completed_at ? $progress->completed_at->toISOString() : now()->toISOString()
                                 ],
                                 'is_read' => false
                             ]);
@@ -671,7 +702,7 @@ class EmployeeController extends Controller
                 'completed_page' => [
                     'id' => $page->id,
                     'title' => $page->title,
-                    'completed_at' => $progress->completed_at->toISOString(),
+                    'completed_at' => $progress->completed_at ? $progress->completed_at->toISOString() : null,
                     'signature' => $progress->signature
                 ]
             ], 'Onboarding page completed successfully');
@@ -723,6 +754,142 @@ class EmployeeController extends Controller
             ], 'Onboarding progress retrieved successfully');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to get onboarding progress: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get test questions for an onboarding page
+     */
+    public function getOnboardingPageTest(Request $request, $pageId): JsonResponse
+    {
+        try {
+            $employee = $request->user();
+            
+            $page = OnboardingPage::where('id', $pageId)
+                ->active()
+                ->approved()
+                ->firstOrFail();
+            
+            if (!$page->hasTest()) {
+                return $this->errorResponse('This onboarding page does not have a test');
+            }
+            
+            // Get employee progress for this page
+            $progress = EmployeeOnboardingProgress::where('employee_id', $employee->id)
+                ->where('onboarding_page_id', $pageId)
+                ->first();
+            
+            // Only return test if the page is acknowledged (status is completed or in progress)
+            if (!$progress || $progress->status === 'not_started') {
+                return $this->errorResponse('You must acknowledge the document first');
+            }
+            
+            // Get test questions without correct answers
+            $questions = collect($page->getTestQuestions())->map(function($question) {
+                return [
+                    'id' => $question['id'],
+                    'question' => $question['question'],
+                    'options' => $question['options']
+                ];
+            });
+            
+            return $this->successResponse([
+                'page_id' => $page->id,
+                'page_title' => $page->title,
+                'questions' => $questions,
+                'passing_score' => $page->getPassingScore(),
+                'test_attempts' => $progress->test_attempts ?? 0
+            ], 'Test questions retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to get test questions: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Submit test answers for an onboarding page
+     */
+    public function submitOnboardingPageTest(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'page_id' => 'required|exists:onboarding_pages,id',
+                'answers' => 'required|array'
+            ]);
+            
+            $employee = $request->user();
+            $pageId = $request->page_id;
+            $answers = $request->answers;
+            
+            $page = OnboardingPage::where('id', $pageId)
+                ->active()
+                ->approved()
+                ->firstOrFail();
+            
+            if (!$page->hasTest()) {
+                return $this->errorResponse('This onboarding page does not have a test');
+            }
+            
+            // Get or create progress record
+            $progress = EmployeeOnboardingProgress::firstOrCreate(
+                [
+                    'employee_id' => $employee->id,
+                    'onboarding_page_id' => $pageId
+                ],
+                [
+                    'status' => 'in_progress',
+                    'test_status' => 'pending',
+                    'test_attempts' => 0
+                ]
+            );
+            
+            // Validate answers
+            $result = $page->validateTestAnswers($answers);
+            
+            // Increment test attempts
+            $progress->increment('test_attempts');
+            $attemptNumber = $progress->test_attempts;
+            
+            // Save test result
+            $testResult = \App\Models\OnboardingPageTestResult::create([
+                'employee_id' => $employee->id,
+                'onboarding_page_id' => $pageId,
+                'attempt_number' => $attemptNumber,
+                'score' => $result['score'],
+                'answers' => $answers,
+                'passed' => $result['passed'],
+                'completed_at' => now()
+            ]);
+            
+            // Update progress based on result
+            if ($result['passed']) {
+                $progress->update([
+                    'status' => 'completed',
+                    'test_status' => 'passed',
+                    'test_score' => $result['score'],
+                    'completed_at' => now()
+                ]);
+            } else {
+                $progress->update([
+                    'test_status' => 'failed',
+                    'test_score' => $result['score']
+                ]);
+            }
+            
+            return $this->successResponse([
+                'passed' => $result['passed'],
+                'score' => $result['score'],
+                'correct_answers' => $result['correct'],
+                'total_questions' => $result['total'],
+                'passing_score' => $page->getPassingScore(),
+                'attempt_number' => $attemptNumber,
+                'can_retake' => !$result['passed']
+            ], $result['passed'] ? 'Test passed successfully!' : 'Test failed. You can try again.');
+        } catch (\Exception $e) {
+            \Log::error('Failed to submit test', [
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage()
+            ]);
+            return $this->errorResponse('Failed to submit test: ' . $e->getMessage());
         }
     }
 

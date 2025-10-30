@@ -20,6 +20,9 @@ class OnboardingPage extends Model
         'approved_by',
         'approved_at',
         'rejection_reason',
+        'has_test',
+        'test_questions',
+        'passing_score',
     ];
 
     protected $casts = [
@@ -28,6 +31,9 @@ class OnboardingPage extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'approved_at' => 'datetime',
+        'has_test' => 'boolean',
+        'test_questions' => 'array',
+        'passing_score' => 'integer',
     ];
 
     /**
@@ -107,6 +113,52 @@ class OnboardingPage extends Model
             ->where('employee_id', $employeeId)
             ->where('status', 'completed')
             ->exists();
+    }
+
+    public function hasTest()
+    {
+        return $this->has_test && !empty($this->test_questions);
+    }
+
+    public function getTestQuestions()
+    {
+        return $this->test_questions ?? [];
+    }
+
+    public function getPassingScore()
+    {
+        return $this->passing_score ?? 80;
+    }
+
+    public function validateTestAnswers($answers)
+    {
+        if (!$this->hasTest()) {
+            return ['passed' => true, 'score' => 100, 'total' => 0, 'correct' => 0];
+        }
+
+        $questions = $this->getTestQuestions();
+        $totalQuestions = count($questions);
+        $correctAnswers = 0;
+
+        foreach ($questions as $index => $question) {
+            $questionId = $question['id'] ?? $index;
+            $correctAnswer = $question['correctAnswer'] ?? null;
+            $userAnswer = $answers[$questionId] ?? null;
+
+            if ($correctAnswer !== null && $userAnswer === $correctAnswer) {
+                $correctAnswers++;
+            }
+        }
+
+        $score = $totalQuestions > 0 ? round(($correctAnswers / $totalQuestions) * 100) : 0;
+        $passed = $score >= $this->getPassingScore();
+
+        return [
+            'passed' => $passed,
+            'score' => $score,
+            'total' => $totalQuestions,
+            'correct' => $correctAnswers
+        ];
     }
 
 }

@@ -576,7 +576,14 @@ class AdminController extends Controller
                 'content' => 'required|string',
                 'icon' => 'nullable|string|max:50',
                 'order' => 'nullable|integer|min:1',
-                'active' => 'nullable|boolean'
+                'active' => 'nullable|boolean',
+                'has_test' => 'nullable|boolean',
+                'test_questions' => 'nullable|array',
+                'test_questions.*.id' => 'required',
+                'test_questions.*.question' => 'required|string',
+                'test_questions.*.options' => 'required|array|size:4',
+                'test_questions.*.correctAnswer' => 'required|integer|min:0|max:3',
+                'passing_score' => 'nullable|integer|min:0|max:100'
             ]);
 
             $user = $request->user();
@@ -598,7 +605,10 @@ class AdminController extends Controller
                 'approval_status' => $approvalStatus,
                 'created_by' => $user->id,
                 'approved_by' => $approvedBy,
-                'approved_at' => $approvedAt
+                'approved_at' => $approvedAt,
+                'has_test' => $request->has_test ?? false,
+                'test_questions' => $request->test_questions ?? null,
+                'passing_score' => $request->passing_score ?? 80
             ]);
             
             // Create notification for admin/owner when manager/hiring_manager submits for approval
@@ -652,7 +662,14 @@ class AdminController extends Controller
                 'content' => 'required|string',
                 'icon' => 'nullable|string|max:50',
                 'order' => 'nullable|integer|min:1',
-                'active' => 'nullable|boolean'
+                'active' => 'nullable|boolean',
+                'has_test' => 'nullable|boolean',
+                'test_questions' => 'nullable|array',
+                'test_questions.*.id' => 'required',
+                'test_questions.*.question' => 'required|string',
+                'test_questions.*.options' => 'required|array|size:4',
+                'test_questions.*.correctAnswer' => 'required|integer|min:0|max:3',
+                'passing_score' => 'nullable|integer|min:0|max:100'
             ]);
 
             $page = OnboardingPage::findOrFail($id);
@@ -841,6 +858,43 @@ class AdminController extends Controller
             );
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to get pending count: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get test results for a specific onboarding page
+     */
+    public function getOnboardingPageTestResults(Request $request, $id): JsonResponse
+    {
+        try {
+            $page = OnboardingPage::findOrFail($id);
+            
+            if (!$page->hasTest()) {
+                return $this->errorResponse('This onboarding page does not have a test');
+            }
+            
+            $results = \App\Models\OnboardingPageTestResult::where('onboarding_page_id', $id)
+                ->with(['employee:id,full_name,email'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function($result) {
+                    return [
+                        'id' => $result->id,
+                        'employee' => $result->employee,
+                        'attempt_number' => $result->attempt_number,
+                        'score' => $result->score,
+                        'passed' => $result->passed,
+                        'completed_at' => $result->completed_at->toISOString()
+                    ];
+                });
+            
+            return $this->successResponse([
+                'page_title' => $page->title,
+                'passing_score' => $page->getPassingScore(),
+                'results' => $results
+            ], 'Test results retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to get test results: ' . $e->getMessage());
         }
     }
 

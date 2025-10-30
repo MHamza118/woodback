@@ -15,12 +15,17 @@ class EmployeeOnboardingProgress extends Model
         'status',
         'signature',
         'completed_at',
+        'test_status',
+        'test_score',
+        'test_attempts',
     ];
 
     protected $casts = [
         'completed_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'test_score' => 'integer',
+        'test_attempts' => 'integer',
     ];
 
     /**
@@ -81,5 +86,20 @@ class EmployeeOnboardingProgress extends Model
             'signature' => $signature,
             'completed_at' => now(),
         ]);
+    }
+
+    public function requiresTest()
+    {
+        return $this->test_status === 'pending';
+    }
+
+    public function isTestPassed()
+    {
+        return $this->test_status === 'passed';
+    }
+
+    public function canRetakeTest()
+    {
+        return $this->test_status === 'failed' || $this->test_status === 'pending';
     }
 }

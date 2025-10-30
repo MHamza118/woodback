@@ -79,6 +79,8 @@ Route::prefix('employee')->middleware(['check.employee.status'])->group(function
             Route::get('onboarding-pages', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getOnboardingPages']);
             Route::post('onboarding-pages/complete', [App\Http\Controllers\Api\V1\EmployeeController::class, 'completeOnboardingPage']);
             Route::get('onboarding-progress', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getOnboardingProgress']);
+            Route::get('onboarding-pages/{pageId}/test', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getOnboardingPageTest']);
+            Route::post('onboarding-pages/test/submit', [App\Http\Controllers\Api\V1\EmployeeController::class, 'submitOnboardingPageTest']);
             
             // Training routes
             Route::prefix('training')->group(function () {
@@ -207,6 +209,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::patch('/{id}/toggle-status', [App\Http\Controllers\Api\V1\AdminController::class, 'toggleOnboardingPageStatus']);
                 Route::post('/{id}/approve', [App\Http\Controllers\Api\V1\AdminController::class, 'approveOnboardingPage']);
                 Route::post('/{id}/reject', [App\Http\Controllers\Api\V1\AdminController::class, 'rejectOnboardingPage']);
+                Route::get('/{id}/test-results', [App\Http\Controllers\Api\V1\AdminController::class, 'getOnboardingPageTestResults']);
             });
             
             // Admin training module management routes
