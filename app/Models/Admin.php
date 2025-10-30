@@ -25,6 +25,7 @@ class Admin extends Authenticatable
         'status',
         'notifications_enabled',
         'onboarding_notifications_enabled',
+        'is_interviewer',
         'profile_data',
         'last_login_at',
     ];
@@ -41,6 +42,7 @@ class Admin extends Authenticatable
         'password' => 'hashed',
         'notifications_enabled' => 'boolean',
         'onboarding_notifications_enabled' => 'boolean',
+        'is_interviewer' => 'boolean',
     ];
 
     protected $dates = ['deleted_at'];
@@ -276,6 +278,23 @@ class Admin extends Authenticatable
     public function scopeByRole($query, $role)
     {
         return $query->where('role', $role);
+    }
+
+    /**
+     * Scope for interviewers only
+     */
+    public function scopeInterviewers($query)
+    {
+        return $query->where('is_interviewer', true)
+                     ->where('status', self::STATUS_ACTIVE);
+    }
+
+    /**
+     * Check if admin is designated as interviewer
+     */
+    public function isInterviewer()
+    {
+        return $this->is_interviewer === true;
     }
 
     /**

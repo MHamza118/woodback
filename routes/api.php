@@ -62,6 +62,9 @@ Route::prefix('employee')->middleware(['check.employee.status'])->group(function
     Route::post('location', [App\Http\Controllers\Api\V1\EmployeeController::class, 'submitLocation']);
     Route::get('questionnaire', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getQuestionnaire']);
     Route::post('questionnaire', [App\Http\Controllers\Api\V1\EmployeeController::class, 'submitQuestionnaire']);
+    
+    // Get interviewers for questionnaire (accessible during onboarding)
+    Route::get('interviewers', [App\Http\Controllers\Api\V1\AdminController::class, 'getInterviewers']);
     Route::get('welcome', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getWelcomePage']);
     Route::get('confirmation', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getConfirmationPage']);
     Route::get('dashboard', [App\Http\Controllers\Api\V1\EmployeeController::class, 'dashboard']);

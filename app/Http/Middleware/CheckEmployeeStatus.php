@@ -35,37 +35,23 @@ class CheckEmployeeStatus
                 ], 401);
             }
             
-            // Check if employee is paused
             if ($employee->isPaused()) {
-                // Revoke token
                 $request->user()->currentAccessToken()->delete();
-                
-                $reason = $employee->getStatusReason();
-                $message = $reason 
-                    ? "Your account has been paused. Reason: {$reason}. You have been logged out." 
-                    : 'Your account has been paused. Please contact your manager. You have been logged out.';
                 
                 return response()->json([
                     'success' => false,
-                    'message' => $message,
+                    'message' => 'Your account has been paused. Please contact your manager. You have been logged out.',
                     'force_logout' => true,
                     'status' => 'paused'
                 ], 401);
             }
             
-            // Check if employee is inactive
             if ($employee->isInactive()) {
-                // Revoke token
                 $request->user()->currentAccessToken()->delete();
-                
-                $reason = $employee->getStatusReason();
-                $message = $reason 
-                    ? "Your account is inactive. Reason: {$reason}. You have been logged out." 
-                    : 'Your account is inactive. Please contact your manager. You have been logged out.';
                 
                 return response()->json([
                     'success' => false,
-                    'message' => $message,
+                    'message' => 'Your account is inactive. Please contact your manager. You have been logged out.',
                     'force_logout' => true,
                     'status' => 'inactive'
                 ], 401);

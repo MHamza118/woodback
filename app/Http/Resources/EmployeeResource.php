@@ -72,6 +72,7 @@ class EmployeeResource extends JsonResource
                 ];
             }),
             'rejection_reason' => $this->when($this->status === 'rejected', $this->rejection_reason),
+            'status_reason' => $this->getStatusReason(),
             // Training-related data
             'training_assignments' => $this->when($this->trainingAssignments, function () {
                 return $this->trainingAssignments->map(function ($assignment) {

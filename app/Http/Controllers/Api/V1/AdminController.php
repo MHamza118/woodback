@@ -211,6 +211,25 @@ class AdminController extends Controller
     }
 
     /**
+     * Get all interviewers (admins marked as interviewers)
+     */
+    public function getInterviewers(Request $request): JsonResponse
+    {
+        try {
+            $interviewers = Admin::interviewers()
+                ->select('id', 'first_name', 'last_name', 'email', 'role')
+                ->orderBy('first_name')
+                ->get();
+            
+            return $this->successResponse([
+                'interviewers' => $interviewers
+            ], 'Interviewers retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to get interviewers: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Get all admin users (role-based access)
      */
     public function getAdminUsers(Request $request): JsonResponse
@@ -249,7 +268,8 @@ class AdminController extends Controller
                 'role' => 'required|in:owner,admin,manager,hiring_manager,expo',
                 'location_id' => 'nullable|exists:locations,id',
                 'department' => 'nullable|string',
-                'notes' => 'nullable|string'
+                'notes' => 'nullable|string',
+                'is_interviewer' => 'nullable|boolean'
             ]);
 
             $admin = $request->user();
@@ -278,7 +298,8 @@ class AdminController extends Controller
                 'phone' => 'nullable|string',
                 'role' => 'sometimes|required|in:owner,admin,manager,hiring_manager,expo',
                 'location_id' => 'nullable|exists:locations,id',
-                'department' => 'nullable|string'
+                'department' => 'nullable|string',
+                'is_interviewer' => 'nullable|boolean'
             ]);
 
             $adminUser = Admin::findOrFail($id);
@@ -307,6 +328,9 @@ class AdminController extends Controller
             }
             if (isset($validatedData['department'])) {
                 $adminUser->department = $validatedData['department'];
+            }
+            if (isset($validatedData['is_interviewer'])) {
+                $adminUser->is_interviewer = $validatedData['is_interviewer'];
             }
             
             $adminUser->save();

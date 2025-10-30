@@ -30,6 +30,7 @@ class AdminResource extends JsonResource
             'status' => $this->status,
             'notifications_enabled' => $this->notifications_enabled ?? true,
             'onboarding_notifications_enabled' => $this->onboarding_notifications_enabled ?? true,
+            'is_interviewer' => $this->is_interviewer ?? false,
             'profile_data' => $this->profile_data,
             'last_login_at' => $this->last_login_at?->toISOString(),
             'email_verified_at' => $this->email_verified_at?->toISOString(),

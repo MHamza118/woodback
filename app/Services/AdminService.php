@@ -87,6 +87,7 @@ class AdminService
             'location_id' => $userData['location_id'] ?? null,
             'department' => $userData['department'] ?? null,
             'notes' => $userData['notes'] ?? null,
+            'is_interviewer' => $userData['is_interviewer'] ?? false,
             'status' => Admin::STATUS_ACTIVE,
             'profile_data' => [
                 'permissions' => Admin::getDefaultPermissions($userData['role']),

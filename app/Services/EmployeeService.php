@@ -93,26 +93,15 @@ class EmployeeService
             ]);
         }
 
-        // Check if employee account is paused or inactive
         if ($employee->isPaused()) {
-            $reason = $employee->getStatusReason();
-            $message = $reason 
-                ? "Your account is currently paused. Reason: {$reason}" 
-                : 'Your account is currently paused. Please contact your manager for assistance.';
-            
             throw ValidationException::withMessages([
-                'email' => [$message]
+                'email' => ['Your account is currently paused. Please contact your manager for assistance.']
             ]);
         }
 
         if ($employee->isInactive()) {
-            $reason = $employee->getStatusReason();
-            $message = $reason 
-                ? "Your account is inactive. Reason: {$reason}" 
-                : 'Your account is inactive. Please contact your manager for assistance.';
-            
             throw ValidationException::withMessages([
-                'email' => [$message]
+                'email' => ['Your account is inactive. Please contact your manager for assistance.']
             ]);
         }
 
