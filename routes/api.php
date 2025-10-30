@@ -378,6 +378,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::get('/conversations/{id}/messages', [App\Http\Controllers\Api\V1\MessageController::class, 'index']);
                 Route::post('/conversations/{id}/messages', [App\Http\Controllers\Api\V1\MessageController::class, 'store']);
                 Route::post('/messages/private', [App\Http\Controllers\Api\V1\MessageController::class, 'sendPrivateMessage']);
+                Route::get('/employees', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getEmployeesList']);
             });
             
             // Employee recognition routes

@@ -524,5 +524,37 @@ class PerformanceManagementController extends Controller
             return $this->errorResponse('Failed to retrieve performance dashboard: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Get all employees list for chat (Employee)
+     * Returns basic employee info for employee-to-employee chat
+     */
+    public function getEmployeesList(Request $request): JsonResponse
+    {
+        try {
+            // Get all active employees
+            $employees = Employee::where('stage', '!=', 'rejected')
+                ->whereIn('status', ['approved', 'active', 'ACTIVE'])
+                ->select('id', 'email', 'first_name', 'last_name', 'profile_data')
+                ->get();
+
+            // Format response with basic employee info
+            $formattedEmployees = $employees->map(function ($employee) {
+                $profileData = $employee->profile_data ?? [];
+                
+                return [
+                    'id' => $employee->id,
+                    'email' => $employee->email,
+                    'first_name' => $employee->first_name ?? ($profileData['firstName'] ?? 'Employee'),
+                    'last_name' => $employee->last_name ?? ($profileData['lastName'] ?? ''),
+                    'designation' => $profileData['designation'] ?? null,
+                ];
+            });
+
+            return $this->successResponse($formattedEmployees, 'Employees list retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve employees list: ' . $e->getMessage());
+        }
+    }
 }
 
