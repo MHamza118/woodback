@@ -23,6 +23,7 @@ class EmployeePersonalInfoRequest extends FormRequest
             'zip_code' => 'sometimes|required|string|max:20',
             'country' => 'sometimes|required|string|max:100',
             'requested_hours' => 'sometimes|required|integer|min:1|max:40',
+            'flexible_hours' => 'sometimes|boolean',
             'emergency_contact' => 'sometimes|nullable|string|max:255',
             'emergency_phone' => 'sometimes|nullable|string|regex:/^\+1 \(\d{3}\) \d{3}-\d{4}$/|max:18',
         ];
