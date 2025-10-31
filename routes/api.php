@@ -186,8 +186,9 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::get('/{id}', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'show']);
             });
             
-            // File download route (separate from employee prefix for clarity)
+            // File management routes (separate from employee prefix for clarity)
             Route::get('/files/{id}/download', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'downloadFile']);
+            Route::delete('/files/{id}', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'deleteFile']);
             
             // Admin questionnaire management routes
             Route::prefix('questionnaires')->group(function () {

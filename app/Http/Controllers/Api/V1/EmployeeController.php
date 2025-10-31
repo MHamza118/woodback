@@ -217,6 +217,12 @@ class EmployeeController extends Controller
                         $filename = time() . '_' . $questionIndex . '_' . $file->getClientOriginalName();
                         $path = $file->storeAs('employee_documents', $filename, 'public');
                         
+                        // Extract question text from responses for this file
+                        $questionText = null;
+                        if (isset($responses[$questionIndex]) && is_array($responses[$questionIndex])) {
+                            $questionText = $responses[$questionIndex]['question'] ?? null;
+                        }
+                        
                         // Create file upload record
                         $fileUpload = \App\Models\EmployeeFileUpload::create([
                             'employee_id' => $request->user()->id,
@@ -227,7 +233,8 @@ class EmployeeController extends Controller
                             'mime_type' => $file->getMimeType(),
                             'file_size' => $file->getSize(),
                             'file_extension' => $file->getClientOriginalExtension(),
-                            'upload_status' => 'pending'
+                            'upload_status' => 'pending',
+                            'notes' => $questionText
                         ]);
                         
                         $uploadedFiles[$questionIndex] = $fileUpload;

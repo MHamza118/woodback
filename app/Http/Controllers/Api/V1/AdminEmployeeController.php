@@ -560,4 +560,34 @@ class AdminEmployeeController extends Controller
             return $this->errorResponse('Failed to upload file: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Delete an employee file upload
+     */
+    public function deleteFile(string $id): JsonResponse
+    {
+        try {
+            // Find the file record in the database
+            $file = EmployeeFileUpload::findOrFail($id);
+            
+            // Use the 'public' disk since files are stored there
+            $disk = Storage::disk('public');
+            
+            // Delete file from storage if it exists
+            if ($disk->exists($file->file_path)) {
+                $disk->delete($file->file_path);
+            }
+            
+            // Delete database record
+            $file->delete();
+            
+            return $this->successResponse(
+                null,
+                'File deleted successfully'
+            );
+            
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to delete file: ' . $e->getMessage());
+        }
+    }
 }
