@@ -868,6 +868,64 @@ class EmployeeController extends Controller
                     'test_score' => $result['score'],
                     'completed_at' => now()
                 ]);
+                
+                // Check if all onboarding is now complete and send notification
+                $allPages = OnboardingPage::active()->approved()->get();
+                $allPageIds = $allPages->pluck('id')->toArray();
+                
+                $completedCount = EmployeeOnboardingProgress::where('employee_id', $employee->id)
+                    ->whereIn('onboarding_page_id', $allPageIds)
+                    ->where('status', 'completed')
+                    ->count();
+                
+                if ($completedCount === $allPages->count() && $allPages->count() > 0) {
+                    try {
+                        // Check if notification already exists for this employee's completion
+                        $recentNotifications = TableNotification::where('type', TableNotification::TYPE_ONBOARDING_COMPLETE)
+                            ->where('created_at', '>=', now()->subMinutes(5))
+                            ->get();
+                        
+                        $existingNotification = false;
+                        foreach ($recentNotifications as $notification) {
+                            if (isset($notification->data['employee_id']) && $notification->data['employee_id'] == $employee->id) {
+                                $existingNotification = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!$existingNotification) {
+                            // Get all admins with onboarding notifications enabled
+                            $enabledAdmins = Admin::where('onboarding_notifications_enabled', true)
+                                ->where('role', '!=', 'expo')
+                                ->get();
+                            
+                            // Create individual notification for each admin with notifications enabled
+                            foreach ($enabledAdmins as $admin) {
+                                TableNotification::create([
+                                    'type' => TableNotification::TYPE_ONBOARDING_COMPLETE,
+                                    'title' => 'All Onboarding Documents Completed',
+                                    'message' => $employee->full_name . ' has completed all ' . $allPages->count() . ' onboarding documents',
+                                    'order_number' => 'N/A',
+                                    'priority' => TableNotification::PRIORITY_MEDIUM,
+                                    'recipient_type' => TableNotification::RECIPIENT_ADMIN,
+                                    'recipient_id' => $admin->id,
+                                    'data' => [
+                                        'employee_id' => $employee->id,
+                                        'employee_name' => $employee->full_name,
+                                        'total_documents' => $allPages->count(),
+                                        'completed_at' => now()->toISOString()
+                                    ],
+                                    'is_read' => false
+                                ]);
+                            }
+                        }
+                    } catch (\Exception $notificationError) {
+                        \Log::error('Failed to create onboarding completion notification after test', [
+                            'employee_id' => $employee->id,
+                            'error' => $notificationError->getMessage()
+                        ]);
+                    }
+                }
             } else {
                 $progress->update([
                     'test_status' => 'failed',
