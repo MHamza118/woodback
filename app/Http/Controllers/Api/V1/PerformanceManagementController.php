@@ -8,6 +8,7 @@ use App\Http\Resources\PerformanceInteractionResource;
 use App\Models\Employee;
 use App\Models\PerformanceReport;
 use App\Models\PerformanceInteraction;
+use App\Models\PerformanceReviewSchedule;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -185,6 +186,28 @@ class PerformanceManagementController extends Controller
             ]);
 
             $report->load('employee');
+
+            // Check if this report satisfies a pending schedule and mark it as completed
+            if ($request->has('schedule_id') && $request->schedule_id) {
+                $schedule = PerformanceReviewSchedule::find($request->schedule_id);
+                if ($schedule && !$schedule->completed) {
+                    $schedule->markCompleted($report->id);
+                }
+            } else {
+                // Try to find a matching pending schedule (within 14 days of scheduled date)
+                $schedule = PerformanceReviewSchedule::where('employee_id', $request->employee_id)
+                    ->where('completed', false)
+                    ->whereBetween('scheduled_date', [
+                        now()->subDays(14)->toDateString(),
+                        now()->addDays(14)->toDateString()
+                    ])
+                    ->orderBy('scheduled_date', 'asc')
+                    ->first();
+                    
+                if ($schedule) {
+                    $schedule->markCompleted($report->id);
+                }
+            }
 
             DB::commit();
 
@@ -555,6 +578,143 @@ class PerformanceManagementController extends Controller
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to retrieve employees list: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Get pending performance review schedules (Admin)
+     */
+    public function getPendingReviews(Request $request): JsonResponse
+    {
+        try {
+            $query = PerformanceReviewSchedule::with(['employee'])
+                ->where('completed', false)
+                ->orderBy('scheduled_date', 'asc');
+
+            // Filter by employee if specified
+            if ($request->has('employee_id')) {
+                $query->where('employee_id', $request->employee_id);
+            }
+
+            // Filter by urgency
+            if ($request->has('urgency')) {
+                if ($request->urgency === 'overdue') {
+                    $query->where('scheduled_date', '<', now()->toDateString());
+                } elseif ($request->urgency === 'due_soon') {
+                    $query->whereBetween('scheduled_date', [
+                        now()->toDateString(),
+                        now()->addDays(7)->toDateString()
+                    ]);
+                }
+            }
+
+            $schedules = $query->get();
+
+            // Format response with employee details
+            $formattedSchedules = $schedules->map(function ($schedule) {
+                $employee = $schedule->employee;
+                $personalInfo = $employee->personal_info ?? [];
+                $firstName = $personalInfo['firstName'] ?? $employee->first_name ?? '';
+                $lastName = $personalInfo['lastName'] ?? $employee->last_name ?? '';
+                $employeeName = trim($firstName . ' ' . $lastName) ?: $employee->email;
+
+                $daysOverdue = now()->diffInDays($schedule->scheduled_date, false);
+                $urgencyStatus = $schedule->urgency_status;
+
+                return [
+                    'id' => $schedule->id,
+                    'employee_id' => $schedule->employee_id,
+                    'employee_name' => $employeeName,
+                    'employee_email' => $employee->email,
+                    'review_type' => $schedule->review_type,
+                    'review_type_label' => $this->getReviewTypeLabel($schedule->review_type),
+                    'scheduled_date' => $schedule->scheduled_date->toDateString(),
+                    'first_shift_date' => $schedule->first_shift_date->toDateString(),
+                    'days_since_first_shift' => now()->diffInDays($schedule->first_shift_date),
+                    'days_overdue' => $daysOverdue,
+                    'urgency_status' => $urgencyStatus,
+                ];
+            });
+
+            return $this->successResponse(
+                $formattedSchedules,
+                'Pending reviews retrieved successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve pending reviews: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get count of pending performance reviews (Admin)
+     */
+    public function getReviewNotificationCount(Request $request): JsonResponse
+    {
+        try {
+            $total = PerformanceReviewSchedule::where('completed', false)->count();
+            $overdue = PerformanceReviewSchedule::overdue()->count();
+            $dueSoon = PerformanceReviewSchedule::dueSoon(7)->count();
+
+            return $this->successResponse([
+                'total' => $total,
+                'overdue' => $overdue,
+                'due_soon' => $dueSoon,
+            ], 'Notification count retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve notification count: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get all review schedules for a specific employee (Admin)
+     */
+    public function getEmployeeSchedules(string $employeeId): JsonResponse
+    {
+        try {
+            $employee = Employee::find($employeeId);
+            
+            if (!$employee) {
+                return $this->notFoundResponse('Employee not found');
+            }
+
+            $schedules = PerformanceReviewSchedule::where('employee_id', $employeeId)
+                ->with('performanceReport')
+                ->orderBy('scheduled_date', 'desc')
+                ->get();
+
+            $formattedSchedules = $schedules->map(function ($schedule) {
+                return [
+                    'id' => $schedule->id,
+                    'review_type' => $schedule->review_type,
+                    'review_type_label' => $this->getReviewTypeLabel($schedule->review_type),
+                    'scheduled_date' => $schedule->scheduled_date->toDateString(),
+                    'first_shift_date' => $schedule->first_shift_date->toDateString(),
+                    'completed' => $schedule->completed,
+                    'completed_at' => $schedule->completed_at?->toISOString(),
+                    'performance_report_id' => $schedule->performance_report_id,
+                    'urgency_status' => $schedule->urgency_status,
+                ];
+            });
+
+            return $this->successResponse(
+                $formattedSchedules,
+                'Employee review schedules retrieved successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve employee schedules: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Helper method to get readable review type label
+     */
+    private function getReviewTypeLabel($reviewType): string
+    {
+        return match($reviewType) {
+            'one_week' => '1 Week Review',
+            'one_month' => '1 Month Review',
+            'quarterly' => 'Quarterly Review',
+            default => ucfirst(str_replace('_', ' ', $reviewType)),
+        };
     }
 }
 

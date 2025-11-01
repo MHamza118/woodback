@@ -6,6 +6,8 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Http\Request;
 use Illuminate\Cache\RateLimiting\Limit;
+use App\Models\TimeEntry;
+use App\Observers\TimeEntryObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -45,6 +47,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register observers
+        TimeEntry::observe(TimeEntryObserver::class);
+        
         // Configure API rate limiter
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(400)->by($request->user()?->id ?: $request->ip());

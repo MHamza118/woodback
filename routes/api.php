@@ -342,6 +342,11 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/interactions', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'createInteraction']);
                 Route::get('/interactions/{id}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getEmployeeInteractions']);
                 Route::delete('/interactions/{id}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'deleteInteraction']);
+                
+                // Performance Review Schedules
+                Route::get('/pending-reviews', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getPendingReviews']);
+                Route::get('/review-notifications', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getReviewNotificationCount']);
+                Route::get('/schedules/{employeeId}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getEmployeeSchedules']);
             });
         });
 

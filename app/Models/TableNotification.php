@@ -51,8 +51,10 @@ class TableNotification extends Model
     const TYPE_TICKET_STATUS_UPDATE = 'ticket_status_update';
     const TYPE_TICKET_RESPONSE = 'ticket_response';
     const TYPE_TICKET_ARCHIVED = 'ticket_archived';
+    const TYPE_PERFORMANCE_REVIEW_OVERDUE = 'performance_review_overdue';
+    const TYPE_PERFORMANCE_REVIEW_DUE_SOON = 'performance_review_due_soon';
 
-    // Priority constants  
+    // Priority constants
     const PRIORITY_HIGH = 'high';
     const PRIORITY_MEDIUM = 'medium';
     const PRIORITY_LOW = 'low';
@@ -80,7 +82,9 @@ class TableNotification extends Model
             self::TYPE_NEW_TICKET,
             self::TYPE_TICKET_STATUS_UPDATE,
             self::TYPE_TICKET_RESPONSE,
-            self::TYPE_TICKET_ARCHIVED
+            self::TYPE_TICKET_ARCHIVED,
+            self::TYPE_PERFORMANCE_REVIEW_OVERDUE,
+            self::TYPE_PERFORMANCE_REVIEW_DUE_SOON
         ];
     }
 
