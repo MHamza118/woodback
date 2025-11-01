@@ -13,6 +13,9 @@ use App\Models\RewardType;
 use App\Models\BadgeType;
 use App\Models\EmployeePerformance;
 use App\Models\Employee;
+use App\Models\Conversation;
+use App\Models\ConversationParticipant;
+use App\Models\PrivateMessage;
 use Illuminate\Validation\ValidationException;
 
 class EmployeeRecognitionController extends Controller
@@ -197,6 +200,20 @@ class EmployeeRecognitionController extends Controller
             ]);
 
             $shoutout->load(['employee', 'recognizedBy']);
+
+            // Send shout-out as chat message to employee
+            try {
+                $this->sendShoutoutChatMessage(
+                    $request->employee_id, 
+                    $shoutout->employee->full_name,
+                    $request->category, 
+                    $request->message, 
+                    $request->user()->name
+                );
+            } catch (\Exception $chatError) {
+                // Log error but don't fail the shout-out creation
+                \Log::error('Failed to send shout-out chat message: ' . $chatError->getMessage());
+            }
 
             return $this->successResponse([
                 'shoutout' => [
@@ -880,5 +897,64 @@ class EmployeeRecognitionController extends Controller
                 $performance->incrementBadge();
                 break;
         }
+    }
+
+    /**
+     * Send shout-out as a chat message to the employee
+     */
+    private function sendShoutoutChatMessage($employeeId, $employeeName, $category, $message, $adminName)
+    {
+        // Find or create private conversation between admin and employee
+        $conversation = Conversation::where('type', 'private')
+            ->whereHas('participants', function ($query) {
+                $query->where('participant_id', 'admin');
+            })
+            ->whereHas('participants', function ($query) use ($employeeId) {
+                $query->where('participant_id', $employeeId);
+            })
+            ->first();
+
+        if (!$conversation) {
+            // Create new private conversation
+            $conversation = Conversation::create([
+                'name' => 'Private Chat',
+                'type' => 'private',
+                'created_by' => 'admin'
+            ]);
+
+            // Add admin participant
+            ConversationParticipant::create([
+                'conversation_id' => $conversation->id,
+                'participant_id' => 'admin',
+                'participant_type' => 'admin',
+                'joined_at' => now()
+            ]);
+
+            // Add employee participant
+            ConversationParticipant::create([
+                'conversation_id' => $conversation->id,
+                'participant_id' => (string)$employeeId,
+                'participant_type' => 'employee',
+                'joined_at' => now()
+            ]);
+        }
+
+        // Format the shout-out message with proper line breaks and clear labels
+        $chatMessage = "🎉 Shout-out to {$employeeName}\n\n";
+        $chatMessage .= "Category: {$category}\n\n";
+        $chatMessage .= "Message: {$message}\n\n";
+        $chatMessage .= "From: {$adminName}";
+
+        // Create the private message
+        PrivateMessage::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => 'admin',
+            'sender_type' => 'admin',
+            'sender_name' => 'Management',
+            'content' => $chatMessage,
+            'attachments' => null,
+            'has_attachments' => false,
+            'is_read' => false
+        ]);
     }
 }
