@@ -33,9 +33,9 @@ class EmployeeQuestionnaireRequest extends FormRequest
             // When files are present, responses comes as JSON string
             $rules['responses'] = 'required|string';
             
-            // Add file validation rules
+            // Add file validation rules - accept all common file types including camera captures
             for ($i = 0; $i < 20; $i++) {
-                $rules["file_{$i}"] = 'sometimes|file|max:10240|mimes:pdf,jpg,jpeg,png,gif,doc,docx,heic,heif,webp';
+                $rules["file_{$i}"] = 'sometimes|file|max:10240';
             }
         } else {
             // Normal array submission
