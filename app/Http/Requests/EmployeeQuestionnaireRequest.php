@@ -35,7 +35,7 @@ class EmployeeQuestionnaireRequest extends FormRequest
             
             // Add file validation rules - accept all common file types including camera captures
             for ($i = 0; $i < 20; $i++) {
-                $rules["file_{$i}"] = 'sometimes|file|max:10240';
+                $rules["file_{$i}"] = 'sometimes|file|max:30720'; // 30MB in KB
             }
         } else {
             // Normal array submission
