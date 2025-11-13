@@ -22,25 +22,12 @@ class EmployeeQuestionnaireRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'responses' => 'required',
+            'responses' => 'required'
         ];
         
-        // Handle FormData submissions (when files are present)
-        if ($this->hasFile('file_0') || $this->hasFile('file_1') || $this->hasFile('file_2') || 
-            $this->hasFile('file_3') || $this->hasFile('file_4') || $this->hasFile('file_5') ||
-            $this->hasFile('file_6') || $this->hasFile('file_7') || $this->hasFile('file_8') ||
-            $this->hasFile('file_9') || $this->hasFile('file_10') || $this->hasFile('file_11')) {
-            // When files are present, responses comes as JSON string
-            $rules['responses'] = 'required|string';
-            
-            // Add file validation rules - accept all common file types including camera captures
-            for ($i = 0; $i < 20; $i++) {
-                $rules["file_{$i}"] = 'sometimes|file|max:30720'; // 30MB in KB
-            }
-        } else {
-            // Normal array submission
-            $rules['responses'] = 'required|array';
-            $rules['responses.*'] = 'required';
+        // Add file validation rules
+        for ($i = 0; $i < 20; $i++) {
+            $rules["file_{$i}"] = 'sometimes|file|max:30720';
         }
         
         return $rules;
