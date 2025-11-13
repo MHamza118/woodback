@@ -97,7 +97,7 @@ class QuestionnaireSeeder extends Seeder
                     'question' => 'Driver\'s License',
                     'type' => 'file',
                     'description' => 'Click to upload your driver\'s license',
-                    'accept' => '.pdf,.jpg,.jpeg,.png,.gif,.doc,.docx',
+                    'accept' => '.pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.heic,.heif,.webp,image/*',
                     'max_size' => '10MB',
                     'required' => true
                 ]

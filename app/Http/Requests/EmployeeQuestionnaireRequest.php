@@ -35,7 +35,7 @@ class EmployeeQuestionnaireRequest extends FormRequest
             
             // Add file validation rules
             for ($i = 0; $i < 20; $i++) {
-                $rules["file_{$i}"] = 'sometimes|file|max:10240|mimes:pdf,jpg,jpeg,png,gif,doc,docx';
+                $rules["file_{$i}"] = 'sometimes|file|max:10240|mimes:pdf,jpg,jpeg,png,gif,doc,docx,heic,heif,webp';
             }
         } else {
             // Normal array submission
