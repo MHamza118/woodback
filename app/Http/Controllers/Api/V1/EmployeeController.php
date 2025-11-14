@@ -198,12 +198,6 @@ class EmployeeController extends Controller
     public function submitQuestionnaire(EmployeeQuestionnaireRequest $request): JsonResponse
     {
         try {
-            \Log::info('Questionnaire submission started', [
-                'employee_id' => $request->user()->id,
-                'has_files' => !empty($request->allFiles()),
-                'file_count' => count($request->allFiles())
-            ]);
-            
             $responses = $request->responses;
             
             // If responses is a JSON string (from FormData), decode it
@@ -216,28 +210,13 @@ class EmployeeController extends Controller
             $allFiles = $request->allFiles();
             
             if (!empty($allFiles)) {
-                \Log::info('Processing file uploads', [
-                    'files' => array_keys($allFiles)
-                ]);
-                
                 foreach ($allFiles as $fieldName => $file) {
                     if (strpos($fieldName, 'file_') === 0) {
                         $questionIndex = str_replace('file_', '', $fieldName);
                         
-                        \Log::info('Processing file', [
-                            'field_name' => $fieldName,
-                            'question_index' => $questionIndex,
-                            'original_name' => $file->getClientOriginalName(),
-                            'mime_type' => $file->getMimeType(),
-                            'size' => $file->getSize(),
-                            'extension' => $file->getClientOriginalExtension()
-                        ]);
-                        
-                        // CRITICAL FIX: Handle camera files that may not have proper extensions
                         $originalName = $file->getClientOriginalName();
                         $extension = $file->getClientOriginalExtension();
                         
-                        // If no extension, detect from MIME type
                         if (empty($extension) || $extension === 'bin') {
                             $mimeType = $file->getMimeType();
                             $extension = match($mimeType) {
@@ -248,37 +227,22 @@ class EmployeeController extends Controller
                                 'image/heic' => 'heic',
                                 'image/heif' => 'heif',
                                 'application/pdf' => 'pdf',
-                                default => 'jpg' // Default to jpg for unknown image types
+                                default => 'jpg'
                             };
                             
-                            // Append extension to filename if missing
                             if (!str_contains($originalName, '.')) {
                                 $originalName = $originalName . '.' . $extension;
                             }
-                            
-                            \Log::info('Extension detected from MIME', [
-                                'mime_type' => $mimeType,
-                                'detected_extension' => $extension,
-                                'new_filename' => $originalName
-                            ]);
                         }
                         
-                        // Store the file with timestamp prefix
                         $filename = time() . '_' . $questionIndex . '_' . $originalName;
                         $path = $file->storeAs('employee_documents', $filename, 'public');
                         
-                        \Log::info('File stored successfully', [
-                            'filename' => $filename,
-                            'path' => $path
-                        ]);
-                        
-                        // Extract question text from responses for this file
                         $questionText = null;
                         if (isset($responses[$questionIndex]) && is_array($responses[$questionIndex])) {
                             $questionText = $responses[$questionIndex]['question'] ?? null;
                         }
                         
-                        // Create file upload record with corrected extension
                         $fileUpload = \App\Models\EmployeeFileUpload::create([
                             'employee_id' => $request->user()->id,
                             'field_name' => 'question_' . $questionIndex,
@@ -292,10 +256,6 @@ class EmployeeController extends Controller
                             'notes' => $questionText
                         ]);
                         
-                        \Log::info('File upload record created', [
-                            'upload_id' => $fileUpload->id
-                        ]);
-                        
                         $uploadedFiles[$questionIndex] = $fileUpload;
                     }
                 }
@@ -306,22 +266,12 @@ class EmployeeController extends Controller
                 $responses,
                 $uploadedFiles
             );
-
-            \Log::info('Questionnaire submission completed successfully', [
-                'employee_id' => $request->user()->id
-            ]);
             
             return $this->successResponse(
                 new EmployeeResource($employee),
                 'Questionnaire submitted successfully. Please wait for admin approval.'
             );
         } catch (\Exception $e) {
-            \Log::error('Questionnaire submission failed', [
-                'employee_id' => $request->user()->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            
             return $this->errorResponse('Failed to submit questionnaire: ' . $e->getMessage(), 500);
         }
     }

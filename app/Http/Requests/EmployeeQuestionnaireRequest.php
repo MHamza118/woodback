@@ -25,8 +25,6 @@ class EmployeeQuestionnaireRequest extends FormRequest
             'responses' => 'required'
         ];
         
-        // Add file validation rules - be VERY permissive for mobile camera uploads
-        // Only validate size, not mime type (mobile cameras can send weird mime types)
         for ($i = 0; $i < 20; $i++) {
             $rules["file_{$i}"] = 'sometimes|file|max:30720';
         }
