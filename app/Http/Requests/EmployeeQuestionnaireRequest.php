@@ -25,10 +25,10 @@ class EmployeeQuestionnaireRequest extends FormRequest
             'responses' => 'required'
         ];
         
-        // Add file validation rules - accept all common image and document formats
-        // Including mobile camera formats (HEIC, HEIF, WEBP)
+        // Add file validation rules - be VERY permissive for mobile camera uploads
+        // Only validate size, not mime type (mobile cameras can send weird mime types)
         for ($i = 0; $i < 20; $i++) {
-            $rules["file_{$i}"] = 'sometimes|file|max:30720|mimes:jpg,jpeg,png,gif,pdf,doc,docx,heic,heif,webp';
+            $rules["file_{$i}"] = 'sometimes|file|max:30720';
         }
         
         return $rules;

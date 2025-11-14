@@ -233,8 +233,38 @@ class EmployeeController extends Controller
                             'extension' => $file->getClientOriginalExtension()
                         ]);
                         
-                        // Store the file
-                        $filename = time() . '_' . $questionIndex . '_' . $file->getClientOriginalName();
+                        // CRITICAL FIX: Handle camera files that may not have proper extensions
+                        $originalName = $file->getClientOriginalName();
+                        $extension = $file->getClientOriginalExtension();
+                        
+                        // If no extension, detect from MIME type
+                        if (empty($extension) || $extension === 'bin') {
+                            $mimeType = $file->getMimeType();
+                            $extension = match($mimeType) {
+                                'image/jpeg', 'image/jpg' => 'jpg',
+                                'image/png' => 'png',
+                                'image/gif' => 'gif',
+                                'image/webp' => 'webp',
+                                'image/heic' => 'heic',
+                                'image/heif' => 'heif',
+                                'application/pdf' => 'pdf',
+                                default => 'jpg' // Default to jpg for unknown image types
+                            };
+                            
+                            // Append extension to filename if missing
+                            if (!str_contains($originalName, '.')) {
+                                $originalName = $originalName . '.' . $extension;
+                            }
+                            
+                            \Log::info('Extension detected from MIME', [
+                                'mime_type' => $mimeType,
+                                'detected_extension' => $extension,
+                                'new_filename' => $originalName
+                            ]);
+                        }
+                        
+                        // Store the file with timestamp prefix
+                        $filename = time() . '_' . $questionIndex . '_' . $originalName;
                         $path = $file->storeAs('employee_documents', $filename, 'public');
                         
                         \Log::info('File stored successfully', [
@@ -248,16 +278,16 @@ class EmployeeController extends Controller
                             $questionText = $responses[$questionIndex]['question'] ?? null;
                         }
                         
-                        // Create file upload record
+                        // Create file upload record with corrected extension
                         $fileUpload = \App\Models\EmployeeFileUpload::create([
                             'employee_id' => $request->user()->id,
                             'field_name' => 'question_' . $questionIndex,
-                            'original_filename' => $file->getClientOriginalName(),
+                            'original_filename' => $originalName,
                             'stored_filename' => $filename,
                             'file_path' => $path,
                             'mime_type' => $file->getMimeType(),
                             'file_size' => $file->getSize(),
-                            'file_extension' => $file->getClientOriginalExtension(),
+                            'file_extension' => $extension,
                             'upload_status' => 'pending',
                             'notes' => $questionText
                         ]);
