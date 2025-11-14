@@ -25,9 +25,10 @@ class EmployeeQuestionnaireRequest extends FormRequest
             'responses' => 'required'
         ];
         
-        // Add file validation rules
+        // Add file validation rules - accept all common image and document formats
+        // Including mobile camera formats (HEIC, HEIF, WEBP)
         for ($i = 0; $i < 20; $i++) {
-            $rules["file_{$i}"] = 'sometimes|file|max:30720';
+            $rules["file_{$i}"] = 'sometimes|file|max:30720|mimes:jpg,jpeg,png,gif,pdf,doc,docx,heic,heif,webp';
         }
         
         return $rules;

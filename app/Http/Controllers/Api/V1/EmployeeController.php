@@ -198,6 +198,12 @@ class EmployeeController extends Controller
     public function submitQuestionnaire(EmployeeQuestionnaireRequest $request): JsonResponse
     {
         try {
+            \Log::info('Questionnaire submission started', [
+                'employee_id' => $request->user()->id,
+                'has_files' => !empty($request->allFiles()),
+                'file_count' => count($request->allFiles())
+            ]);
+            
             $responses = $request->responses;
             
             // If responses is a JSON string (from FormData), decode it
@@ -208,14 +214,33 @@ class EmployeeController extends Controller
             // Handle file uploads if present
             $uploadedFiles = [];
             $allFiles = $request->allFiles();
+            
             if (!empty($allFiles)) {
+                \Log::info('Processing file uploads', [
+                    'files' => array_keys($allFiles)
+                ]);
+                
                 foreach ($allFiles as $fieldName => $file) {
                     if (strpos($fieldName, 'file_') === 0) {
                         $questionIndex = str_replace('file_', '', $fieldName);
                         
+                        \Log::info('Processing file', [
+                            'field_name' => $fieldName,
+                            'question_index' => $questionIndex,
+                            'original_name' => $file->getClientOriginalName(),
+                            'mime_type' => $file->getMimeType(),
+                            'size' => $file->getSize(),
+                            'extension' => $file->getClientOriginalExtension()
+                        ]);
+                        
                         // Store the file
                         $filename = time() . '_' . $questionIndex . '_' . $file->getClientOriginalName();
                         $path = $file->storeAs('employee_documents', $filename, 'public');
+                        
+                        \Log::info('File stored successfully', [
+                            'filename' => $filename,
+                            'path' => $path
+                        ]);
                         
                         // Extract question text from responses for this file
                         $questionText = null;
@@ -237,6 +262,10 @@ class EmployeeController extends Controller
                             'notes' => $questionText
                         ]);
                         
+                        \Log::info('File upload record created', [
+                            'upload_id' => $fileUpload->id
+                        ]);
+                        
                         $uploadedFiles[$questionIndex] = $fileUpload;
                     }
                 }
@@ -248,12 +277,22 @@ class EmployeeController extends Controller
                 $uploadedFiles
             );
 
+            \Log::info('Questionnaire submission completed successfully', [
+                'employee_id' => $request->user()->id
+            ]);
+            
             return $this->successResponse(
                 new EmployeeResource($employee),
                 'Questionnaire submitted successfully. Please wait for admin approval.'
             );
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to submit questionnaire: ' . $e->getMessage());
+            \Log::error('Questionnaire submission failed', [
+                'employee_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return $this->errorResponse('Failed to submit questionnaire: ' . $e->getMessage(), 500);
         }
     }
 
