@@ -4,17 +4,13 @@ namespace Database\Seeders;
 
 use App\Models\Questionnaire;
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class QuestionnaireSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        // Create a default admin user if none exists
+        // Create a default admin user if not exists
         $admin = User::firstOrCreate(
             ['email' => 'admin@restaurant.com'],
             [
@@ -24,12 +20,11 @@ class QuestionnaireSeeder extends Seeder
             ]
         );
 
-        // Create default onboarding questionnaire
-        Questionnaire::create([
+        // Define updated data
+        $data = [
             'title' => 'Employee Onboarding Questionnaire',
             'description' => 'Please complete this questionnaire to help us understand your background and preferences.',
             'questions' => [
-
                 [
                     'question' => 'First Name',
                     'type' => 'input',
@@ -92,6 +87,12 @@ class QuestionnaireSeeder extends Seeder
             'is_active' => true,
             'order_index' => 1,
             'created_by' => $admin->id
-        ]);
+        ];
+
+        // UPDATE OR INSERT — GUARANTEED UPDATE
+        Questionnaire::updateOrCreate(
+            ['title' => 'Employee Onboarding Questionnaire'], // match existing
+            $data                                           // update data
+        );
     }
 }
