@@ -233,8 +233,20 @@ class EmployeeService
     public function submitLocation(string $employeeId, string $location): Employee
     {
         $employee = $this->employeeRepository->findById($employeeId);
-        if (!$employee || $employee->stage !== Employee::STAGE_INTERVIEW) {
-            throw new \Exception('Employee not in correct stage');
+        if (!$employee) {
+            throw new \Exception('Employee not found');
+        }
+
+        // Allow location submission from interview, location_selected, or questionnaire_completed stages
+        // This handles cases where employees need to update or set their location
+        $allowedStages = [
+            Employee::STAGE_INTERVIEW,
+            Employee::STAGE_LOCATION_SELECTED,
+            Employee::STAGE_QUESTIONNAIRE_COMPLETED
+        ];
+
+        if (!in_array($employee->stage, $allowedStages)) {
+            throw new \Exception('Employee not in correct stage for location submission');
         }
 
         return $this->employeeRepository->updateLocation($employeeId, $location);
@@ -332,9 +344,16 @@ class EmployeeService
         // If employee is still in interview stage, move them to location_selected
         // This handles cases where the location selection step was skipped or not completed
         if ($employee->stage === Employee::STAGE_INTERVIEW) {
-            // Set a default location if none exists
-            $defaultLocation = $employee->location ?? 'Main Location';
-            $employee = $this->employeeRepository->updateLocation($employeeId, $defaultLocation);
+            // Only set default location if no location exists
+            if (empty($employee->location)) {
+                // Default to Bartlesville location if none selected
+                $defaultLocation = 'Bartlesville - Woodfire.food';
+                $employee = $this->employeeRepository->updateLocation($employeeId, $defaultLocation);
+            } else {
+                // Location already set via submitLocation API, just update stage
+                $employee->update(['stage' => Employee::STAGE_LOCATION_SELECTED]);
+                $employee = $employee->fresh();
+            }
         }
 
         return $employee;

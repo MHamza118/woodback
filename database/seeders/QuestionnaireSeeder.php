@@ -61,16 +61,6 @@ class QuestionnaireSeeder extends Seeder
                     'required' => false
                 ],
                 [
-                    'question' => 'You will be added to the 7shifts software, look for an email and text. Your assigned shift will be sent to you through this software.',
-                    'type' => 'info',
-                    'required' => false
-                ],
-                [
-                    'question' => 'Have you ever used the 7shifts scheduling and task list software before?',
-                    'type' => 'boolean',
-                    'required' => true
-                ],
-                [
                     'question' => 'Have you been hired for front of house or back of house?',
                     'type' => 'single_choice',
                     'options' => ['Front of House', 'Back of House'],
