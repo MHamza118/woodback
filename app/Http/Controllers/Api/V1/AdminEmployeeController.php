@@ -76,7 +76,7 @@ class AdminEmployeeController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         try {
-            $employee = Employee::with(['fileUploads', 'approvedBy', 'trainingAssignments.module', 'trainingProgress'])->find($id);
+            $employee = Employee::with(['fileUploads', 'approvedBy', 'assignedInterviewer', 'trainingAssignments.module', 'trainingProgress'])->find($id);
 
             if (!$employee) {
                 return $this->notFoundResponse('Employee not found');
@@ -232,6 +232,31 @@ class AdminEmployeeController extends Controller
             );
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to delete employee: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Assign interviewer to employee (Super Admin only)
+     */
+    public function assignInterviewer(Request $request, string $id): JsonResponse
+    {
+        $request->validate([
+            'interviewer_id' => 'nullable|exists:admins,id'
+        ]);
+
+        try {
+            $employee = $this->employeeService->assignInterviewer($id, $request->interviewer_id);
+
+            if (!$employee) {
+                return $this->notFoundResponse('Employee not found');
+            }
+
+            return $this->successResponse(
+                new EmployeeResource($employee),
+                'Interviewer assigned successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to assign interviewer: ' . $e->getMessage());
         }
     }
 

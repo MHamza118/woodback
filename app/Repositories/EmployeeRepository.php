@@ -45,7 +45,7 @@ class EmployeeRepository implements EmployeeRepositoryInterface
     public function getAllWithFilters(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         $query = $this->model->query()
-            ->with(['fileUploads', 'approvedBy']);
+            ->with(['fileUploads', 'approvedBy', 'assignedInterviewer']);
 
         if (isset($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -88,7 +88,7 @@ class EmployeeRepository implements EmployeeRepositoryInterface
     public function getPendingApproval(): Collection
     {
         return $this->model->pendingApproval()
-            ->with(['fileUploads', 'approvedBy'])
+            ->with(['fileUploads', 'approvedBy', 'assignedInterviewer'])
             ->orderBy('created_at', 'asc')
             ->get();
     }

@@ -422,6 +422,37 @@ class EmployeeService
     }
 
     /**
+     * Assign interviewer to employee (Super Admin only)
+     */
+    public function assignInterviewer(string $employeeId, ?string $interviewerId): ?Employee
+    {
+        $employee = $this->employeeRepository->findById($employeeId);
+        if (!$employee) {
+            throw new \Exception('Employee not found');
+        }
+
+        // Validate that the interviewer exists and is marked as interviewer
+        if ($interviewerId) {
+            $interviewer = \App\Models\Admin::find($interviewerId);
+            if (!$interviewer) {
+                throw new \Exception('Interviewer not found');
+            }
+            if (!$interviewer->is_interviewer) {
+                throw new \Exception('Selected admin is not marked as an interviewer');
+            }
+        }
+
+        // Update the assigned interviewer
+        $employee->assigned_interviewer_id = $interviewerId;
+        $employee->save();
+
+        // Reload with relationships
+        $employee->load('assignedInterviewer');
+
+        return $employee;
+    }
+
+    /**
      * Delete employee permanently from the database
      */
     public function deleteEmployee(string $employeeId): bool

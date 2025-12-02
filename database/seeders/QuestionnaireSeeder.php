@@ -29,12 +29,7 @@ class QuestionnaireSeeder extends Seeder
             'title' => 'Employee Onboarding Questionnaire',
             'description' => 'Please complete this questionnaire to help us understand your background and preferences.',
             'questions' => [
-                [
-                    'question' => 'Who conducted your Interview?',
-                    'type' => 'single_choice',
-                    'options' => ['David', 'Camren', 'Adrienne', 'Other'],
-                    'required' => true
-                ],
+
                 [
                     'question' => 'First Name',
                     'type' => 'input',

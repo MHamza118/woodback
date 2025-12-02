@@ -28,6 +28,7 @@ class Employee extends Authenticatable
         'assignments',
         'approved_at',
         'approved_by',
+        'assigned_interviewer_id',
         'rejection_reason'
     ];
 
@@ -66,6 +67,14 @@ class Employee extends Authenticatable
     public function approvedBy()
     {
         return $this->belongsTo(Admin::class, 'approved_by');
+    }
+
+    /**
+     * Get the interviewer assigned to this employee
+     */
+    public function assignedInterviewer()
+    {
+        return $this->belongsTo(Admin::class, 'assigned_interviewer_id');
     }
 
     /**

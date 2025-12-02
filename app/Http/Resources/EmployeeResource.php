@@ -71,6 +71,14 @@ class EmployeeResource extends JsonResource
                     'email' => $this->approvedBy->email,
                 ];
             }),
+            'assigned_interviewer_id' => $this->assigned_interviewer_id,
+            'assigned_interviewer' => $this->when($this->assignedInterviewer, function () {
+                return [
+                    'id' => $this->assignedInterviewer->id,
+                    'name' => $this->assignedInterviewer->name ?? $this->assignedInterviewer->full_name,
+                    'email' => $this->assignedInterviewer->email,
+                ];
+            }),
             'rejection_reason' => $this->when($this->status === 'rejected', $this->rejection_reason),
             'status_reason' => $this->getStatusReason(),
             // Training-related data
