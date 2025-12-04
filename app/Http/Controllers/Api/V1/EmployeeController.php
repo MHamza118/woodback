@@ -767,6 +767,18 @@ class EmployeeController extends Controller
             ]);
             
             if ($completedCount === $allPages->count() && $allPages->count() > 0) {
+                // Set onboarding_pages_completed_at timestamp if not already set
+                if (!$employee->onboarding_pages_completed_at) {
+                    $employee->update([
+                        'onboarding_pages_completed_at' => now()
+                    ]);
+                    
+                    \Log::info('Onboarding pages completion timestamp set', [
+                        'employee_id' => $employee->id,
+                        'completed_at' => now()->toISOString()
+                    ]);
+                }
+                
                 try {
                     // Check if notification already exists for this employee's completion (check recent notifications)
                     $recentNotifications = TableNotification::where('type', TableNotification::TYPE_ONBOARDING_COMPLETE)
@@ -1012,6 +1024,18 @@ class EmployeeController extends Controller
                     ->count();
                 
                 if ($completedCount === $allPages->count() && $allPages->count() > 0) {
+                    // Set onboarding_pages_completed_at timestamp if not already set
+                    if (!$employee->onboarding_pages_completed_at) {
+                        $employee->update([
+                            'onboarding_pages_completed_at' => now()
+                        ]);
+                        
+                        \Log::info('Onboarding pages completion timestamp set after test', [
+                            'employee_id' => $employee->id,
+                            'completed_at' => now()->toISOString()
+                        ]);
+                    }
+                    
                     try {
                         // Check if notification already exists for this employee's completion
                         $recentNotifications = TableNotification::where('type', TableNotification::TYPE_ONBOARDING_COMPLETE)

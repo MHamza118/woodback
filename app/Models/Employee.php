@@ -29,7 +29,8 @@ class Employee extends Authenticatable
         'approved_at',
         'approved_by',
         'assigned_interviewer_id',
-        'rejection_reason'
+        'rejection_reason',
+        'onboarding_pages_completed_at'
     ];
 
     protected $hidden = [
@@ -40,6 +41,7 @@ class Employee extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'approved_at' => 'datetime',
+        'onboarding_pages_completed_at' => 'datetime',
         'questionnaire_responses' => 'array',
         'profile_data' => 'array',
         'assignments' => 'array',

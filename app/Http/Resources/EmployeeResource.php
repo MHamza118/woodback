@@ -81,6 +81,7 @@ class EmployeeResource extends JsonResource
             'onboarding_pages_progress' => $this->getOnboardingPageProgress(),
             'is_personal_info_complete' => $this->isPersonalInfoComplete(),
             'approved_at' => $this->approved_at?->toISOString(),
+            'onboarding_pages_completed_at' => $this->onboarding_pages_completed_at?->toISOString(),
             'approved_by' => $this->when($this->approvedBy, function () {
                 return [
                     'id' => $this->approvedBy->id,
