@@ -29,7 +29,7 @@ class TicketController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             $query = Ticket::with(['employee', 'responses']);
 
             // Apply filters
@@ -57,9 +57,9 @@ class TicketController extends Controller
 
             // Sort by priority (urgent first) then by created date (newest first)
             $query->orderByRaw("
-                CASE priority 
+                CASE priority
                     WHEN 'urgent' THEN 4
-                    WHEN 'high' THEN 3  
+                    WHEN 'high' THEN 3
                     WHEN 'medium' THEN 2
                     WHEN 'low' THEN 1
                     ELSE 2
@@ -91,7 +91,7 @@ class TicketController extends Controller
     {
         try {
             $employee = $request->user();
-            
+
             $query = Ticket::with(['publicResponses'])
                 ->byEmployee($employee->id);
 
@@ -112,9 +112,9 @@ class TicketController extends Controller
 
             // Sort by priority (urgent first) then by created date (newest first)
             $query->orderByRaw("
-                CASE priority 
+                CASE priority
                     WHEN 'urgent' THEN 4
-                    WHEN 'high' THEN 3  
+                    WHEN 'high' THEN 3
                     WHEN 'medium' THEN 2
                     WHEN 'low' THEN 1
                     ELSE 2
@@ -160,7 +160,7 @@ class TicketController extends Controller
                 'message' => $employee->name . ' submitted a new ' . $request->priority . ' priority ticket: ' . $request->title,
                 'recipient_type' => TableNotification::RECIPIENT_ADMIN,
                 'recipient_id' => null, // null means all admins
-                'priority' => $request->priority === 'urgent' ? TableNotification::PRIORITY_HIGH : 
+                'priority' => $request->priority === 'urgent' ? TableNotification::PRIORITY_HIGH :
                               ($request->priority === 'high' ? TableNotification::PRIORITY_HIGH : TableNotification::PRIORITY_MEDIUM),
                 'data' => [
                     'ticket_id' => $ticket->id,
@@ -431,6 +431,58 @@ class TicketController extends Controller
             return $this->errorResponse('Failed to add response: ' . $e->getMessage());
         }
     }
+
+    // Add this new method after addResponse()
+public function employeeAddResponse(CreateTicketResponseRequest $request, $id): JsonResponse
+{
+    try {
+        $ticket = Ticket::findOrFail($id);
+        $employee = $request->user();
+
+        // Verify employee owns the ticket
+        if ($ticket->employee_id !== $employee->id) {
+            return $this->errorResponse('Unauthorized: You cannot respond to this ticket', 403);
+        }
+
+        DB::beginTransaction();
+
+        $response = TicketResponse::create([
+            'ticket_id' => $ticket->id,
+            'message' => $request->message,
+            'responded_by' => $employee->name, // Use actual employee name
+            'internal' => false // Employees can't create internal notes
+        ]);
+
+        // Notify admins about employee response
+        TableNotification::create([
+            'type' => TableNotification::TYPE_TICKET_RESPONSE,
+            'title' => 'New Employee Response',
+            'message' => 'Employee responded to ticket: ' . $ticket->title,
+            'recipient_type' => TableNotification::RECIPIENT_ADMIN,
+            'priority' => TableNotification::PRIORITY_MEDIUM,
+            'data' => [
+                'ticket_id' => $ticket->id,
+                'ticket_title' => $ticket->title,
+                'response_message' => $request->message
+            ]
+        ]);
+
+        DB::commit();
+
+        return $this->successResponse(
+            new TicketResponseResource($response),
+            'Response added successfully',
+            201
+        );
+    } catch (\Exception $e) {
+        DB::rollBack();
+        if ($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+            return $this->notFoundResponse('Ticket not found');
+        }
+        return $this->errorResponse('Failed to add response: ' . $e->getMessage());
+    }
+}
+
 
     /**
      * Get ticket statistics (Admin only)

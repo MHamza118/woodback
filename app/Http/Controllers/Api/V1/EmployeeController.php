@@ -211,8 +211,14 @@ class EmployeeController extends Controller
             
             if (!empty($allFiles)) {
                 foreach ($allFiles as $fieldName => $file) {
+                    // Check for both single file pattern (file_X) and multiple file pattern (file_X_Y)
                     if (strpos($fieldName, 'file_') === 0) {
-                        $questionIndex = str_replace('file_', '', $fieldName);
+                        // Extract question index and file index
+                        $parts = explode('_', $fieldName);
+                        $questionIndex = $parts[1] ?? null;
+                        $fileIndex = $parts[2] ?? 0; // Default to 0 for single files
+                        
+                        if ($questionIndex === null) continue;
                         
                         $originalName = $file->getClientOriginalName();
                         $extension = $file->getClientOriginalExtension();
@@ -235,7 +241,7 @@ class EmployeeController extends Controller
                             }
                         }
                         
-                        $filename = time() . '_' . $questionIndex . '_' . $originalName;
+                        $filename = time() . '_' . $questionIndex . '_' . $fileIndex . '_' . $originalName;
                         $path = $file->storeAs('employee_documents', $filename, 'public');
                         
                         $questionText = null;
@@ -253,10 +259,15 @@ class EmployeeController extends Controller
                             'file_size' => $file->getSize(),
                             'file_extension' => $extension,
                             'upload_status' => 'pending',
-                            'notes' => $questionText
+                            'notes' => $questionText,
+                            'question_index' => $questionIndex
                         ]);
                         
-                        $uploadedFiles[$questionIndex] = $fileUpload;
+                        // Store files in array grouped by question index
+                        if (!isset($uploadedFiles[$questionIndex])) {
+                            $uploadedFiles[$questionIndex] = [];
+                        }
+                        $uploadedFiles[$questionIndex][] = $fileUpload;
                     }
                 }
             }

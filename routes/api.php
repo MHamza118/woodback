@@ -21,14 +21,14 @@ Route::prefix('v1')->group(function () {
         Route::post('login', [App\Http\Controllers\Api\V1\AuthController::class, 'login']);
         Route::post('customer/register', [App\Http\Controllers\Api\V1\CustomerController::class, 'register']);
         Route::post('customer/login', [App\Http\Controllers\Api\V1\AuthController::class, 'customerLogin']);
-        
+
         // Employee authentication routes
         Route::post('employee/register', [App\Http\Controllers\Api\V1\EmployeeController::class, 'register']);
         Route::post('employee/login', [App\Http\Controllers\Api\V1\EmployeeController::class, 'employeeLogin']);
-        
+
         // Admin authentication routes
         Route::post('admin/login', [App\Http\Controllers\Api\V1\AdminController::class, 'login']);
-        
+
         // Logout route (protected)
         Route::middleware('auth:sanctum')->post('logout', [App\Http\Controllers\Api\V1\AuthController::class, 'logout']);
     });
@@ -62,26 +62,26 @@ Route::prefix('employee')->middleware(['check.employee.status'])->group(function
     Route::post('location', [App\Http\Controllers\Api\V1\EmployeeController::class, 'submitLocation']);
     Route::get('questionnaire', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getQuestionnaire']);
     Route::post('questionnaire', [App\Http\Controllers\Api\V1\EmployeeController::class, 'submitQuestionnaire']);
-    
+
     // Get interviewers for questionnaire (accessible during onboarding)
     Route::get('interviewers', [App\Http\Controllers\Api\V1\AdminController::class, 'getInterviewers']);
     Route::get('welcome', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getWelcomePage']);
     Route::get('confirmation', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getConfirmationPage']);
     Route::get('dashboard', [App\Http\Controllers\Api\V1\EmployeeController::class, 'dashboard']);
-    
+
     // Employee FAQ routes
     Route::prefix('faqs')->group(function () {
         Route::get('/', [App\Http\Controllers\Api\V1\FaqController::class, 'index']);
         Route::get('/categories', [App\Http\Controllers\Api\V1\FaqController::class, 'categories']);
     });
-            
+
             // Onboarding routes
             Route::get('onboarding-pages', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getOnboardingPages']);
             Route::post('onboarding-pages/complete', [App\Http\Controllers\Api\V1\EmployeeController::class, 'completeOnboardingPage']);
             Route::get('onboarding-progress', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getOnboardingProgress']);
             Route::get('onboarding-pages/{pageId}/test', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getOnboardingPageTest']);
             Route::post('onboarding-pages/test/submit', [App\Http\Controllers\Api\V1\EmployeeController::class, 'submitOnboardingPageTest']);
-            
+
             // Training routes
             Route::prefix('training')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getTrainingModules']);
@@ -89,15 +89,15 @@ Route::prefix('employee')->middleware(['check.employee.status'])->group(function
                 Route::get('/{moduleId}/content', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getTrainingContent']);
                 Route::post('/{moduleId}/complete', [App\Http\Controllers\Api\V1\EmployeeController::class, 'completeTraining']);
             });
-            
+
             // Alias routes for frontend compatibility
             Route::get('training-modules', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getTrainingModules']);
             Route::post('training-modules/unlock', [App\Http\Controllers\Api\V1\EmployeeController::class, 'unlockTrainingModule']);
             Route::get('training-modules/{moduleId}/content', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getTrainingContent']);
             Route::post('training-modules/{moduleId}/complete', [App\Http\Controllers\Api\V1\EmployeeController::class, 'completeTraining']);
-            
+
             Route::post('logout', [App\Http\Controllers\Api\V1\EmployeeController::class, 'logout']);
-            
+
             // Time Tracking routes
             Route::post('clock-in', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'clockIn']);
             Route::post('clock-out', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'clockOut']);
@@ -111,18 +111,18 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
     Route::get('dashboard', [App\Http\Controllers\Api\V1\AdminController::class, 'dashboard']);
     Route::get('profile', [App\Http\Controllers\Api\V1\AdminController::class, 'profile']);
     Route::post('logout', [App\Http\Controllers\Api\V1\AdminController::class, 'logout']);
-    
+
     // Notification preferences (Expo only)
     Route::get('notification-preferences', [App\Http\Controllers\Api\V1\AdminController::class, 'getNotificationPreferences']);
     Route::put('notification-preferences', [App\Http\Controllers\Api\V1\AdminController::class, 'toggleNotifications']);
-    
+
     // Onboarding notification preferences
     Route::put('toggle-onboarding-notifications', [App\Http\Controllers\Api\V1\AdminController::class, 'toggleOnboardingNotifications']);
-    
+
     // Welcome message settings
     Route::get('welcome-message', [App\Http\Controllers\Api\V1\AdminController::class, 'getWelcomeMessage']);
     Route::put('welcome-message', [App\Http\Controllers\Api\V1\AdminController::class, 'updateWelcomeMessage']);
-    
+
     // Admin FAQ management routes
     Route::prefix('faqs')->group(function () {
         Route::get('/', [App\Http\Controllers\Api\V1\FaqController::class, 'adminIndex']);
@@ -134,7 +134,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
         Route::delete('/{id}', [App\Http\Controllers\Api\V1\FaqController::class, 'destroy']);
         Route::patch('/{id}/toggle-status', [App\Http\Controllers\Api\V1\FaqController::class, 'toggleActive']);
     });
-            
+
             // Admin user management routes (role-based permissions)
             Route::prefix('users')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\AdminController::class, 'getAdminUsers']);
@@ -143,10 +143,10 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::put('/{id}/permissions', [App\Http\Controllers\Api\V1\AdminController::class, 'updateAdminPermissions']);
                 Route::delete('/{id}', [App\Http\Controllers\Api\V1\AdminController::class, 'deactivateAdminUser']);
             });
-            
+
             // Roles and permissions reference
             Route::get('roles-permissions', [App\Http\Controllers\Api\V1\AdminController::class, 'getRolesAndPermissions']);
-            
+
             // Location management routes
             Route::prefix('locations')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\AdminController::class, 'getLocations']);
@@ -154,7 +154,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::put('/{id}', [App\Http\Controllers\Api\V1\AdminController::class, 'updateLocation']);
                 Route::delete('/{id}', [App\Http\Controllers\Api\V1\AdminController::class, 'deleteLocation']);
             });
-            
+
             // Admin customer management routes
             Route::get('customers', [App\Http\Controllers\Api\V1\CustomerController::class, 'index']);
             Route::post('customers', [App\Http\Controllers\Api\V1\AdminController::class, 'createCustomer']);
@@ -162,7 +162,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
             Route::get('customers/{id}', [App\Http\Controllers\Api\V1\CustomerController::class, 'show']);
             Route::put('customers/{id}', [App\Http\Controllers\Api\V1\AdminController::class, 'updateCustomer']);
             Route::delete('customers/{id}', [App\Http\Controllers\Api\V1\CustomerController::class, 'destroy']);
-            
+
             // Admin employee management routes
             Route::prefix('employees')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'index']);
@@ -187,11 +187,11 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 // Get single employee - must come last among /{id} routes
                 Route::get('/{id}', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'show']);
             });
-            
+
             // File management routes (separate from employee prefix for clarity)
             Route::get('/files/{id}/download', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'downloadFile']);
             Route::delete('/files/{id}', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'deleteFile']);
-            
+
             // Admin questionnaire management routes
             Route::prefix('questionnaires')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'questionnaires']);
@@ -201,7 +201,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::delete('/{id}', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'deleteQuestionnaire']);
                 Route::post('/{id}/toggle', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'toggleQuestionnaireStatus']);
             });
-            
+
             // Admin onboarding page management routes
             Route::prefix('onboarding-pages')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\AdminController::class, 'getOnboardingPages']);
@@ -214,7 +214,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/{id}/reject', [App\Http\Controllers\Api\V1\AdminController::class, 'rejectOnboardingPage']);
                 Route::get('/{id}/test-results', [App\Http\Controllers\Api\V1\AdminController::class, 'getOnboardingPageTestResults']);
             });
-            
+
             // Admin training module management routes
             Route::prefix('training-modules')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\TrainingModuleController::class, 'index']);
@@ -224,18 +224,18 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::get('/{id}', [App\Http\Controllers\Api\V1\TrainingModuleController::class, 'show']);
                 Route::put('/{id}', [App\Http\Controllers\Api\V1\TrainingModuleController::class, 'update']);
                 Route::delete('/{id}', [App\Http\Controllers\Api\V1\TrainingModuleController::class, 'destroy']);
-                
+
                 // Assignment management
                 Route::post('/{id}/assign', [App\Http\Controllers\Api\V1\TrainingModuleController::class, 'assignToEmployees']);
                 Route::get('/{id}/assignments', [App\Http\Controllers\Api\V1\TrainingModuleController::class, 'getAssignments']);
                 Route::post('/{id}/reset-progress', [App\Http\Controllers\Api\V1\TrainingModuleController::class, 'resetProgress']);
                 Route::post('/{id}/remove-assignments', [App\Http\Controllers\Api\V1\TrainingModuleController::class, 'removeAssignments']);
-                
+
                 // QR Code management
                 Route::get('/{id}/qr-code', [App\Http\Controllers\Api\V1\TrainingModuleController::class, 'generateQrCode']);
                 Route::post('/{id}/regenerate-qr', [App\Http\Controllers\Api\V1\TrainingModuleController::class, 'regenerateQrCode']);
             });
-            
+
             // Admin ticket management routes
             Route::prefix('tickets')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\TicketController::class, 'index']);
@@ -255,7 +255,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::get('/{id}', [App\Http\Controllers\Api\V1\TimeOffController::class, 'show']);
                 Route::post('/{id}/status', [App\Http\Controllers\Api\V1\TimeOffController::class, 'updateStatus']);
             });
-            
+
             // Admin table tracking management routes
             Route::prefix('table-tracking')->group(function () {
                 Route::get('/orders', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'getAllOrders']);
@@ -263,18 +263,18 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::put('/orders/{orderNumber}/status', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'updateOrderStatus']);
                 Route::put('/orders/{orderNumber}/delivered', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'markDelivered']);
                 Route::delete('/orders/{orderNumber}', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'deleteOrder']);
-                
+
                 Route::get('/mappings', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'getAllMappings']);
                 Route::post('/manual-mapping', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'submitManualMapping']);
                 Route::put('/mappings/{orderNumber}/clear', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'clearMapping']);
-                
+
                 Route::get('/analytics', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'getAnalytics']);
-                
+
                 Route::get('/notifications', [App\Http\Controllers\Api\V1\TableNotificationController::class, 'getAdminNotifications']);
                 Route::put('/notifications/{notificationId}/read', [App\Http\Controllers\Api\V1\TableNotificationController::class, 'markAdminNotificationAsRead']);
                 Route::delete('/notifications/{notificationId}', [App\Http\Controllers\Api\V1\TableNotificationController::class, 'deleteAdminNotification']);
             });
-            
+
             // Admin communication routes
             Route::prefix('communication')->group(function () {
                 Route::get('/conversations', [App\Http\Controllers\Api\V1\ConversationController::class, 'index']);
@@ -287,64 +287,64 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/messages/group', [App\Http\Controllers\Api\V1\MessageController::class, 'sendGroupMessage']);
                 Route::post('/messages/private', [App\Http\Controllers\Api\V1\MessageController::class, 'sendPrivateMessage']);
             });
-            
+
             // Admin employee recognition routes
             Route::prefix('recognition')->group(function () {
                 Route::get('/stats', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getStats']);
                 Route::get('/activity', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getRecentActivity']);
                 Route::get('/top-performers', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getTopPerformers']);
-                
+
                 // Shoutouts
                 Route::get('/shoutouts', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getAllShoutouts']);
                 Route::post('/shoutouts', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'createShoutout']);
                 Route::delete('/shoutouts/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'deleteShoutout']);
-                
+
                 // Rewards
                 Route::get('/rewards', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getAllRewards']);
                 Route::post('/rewards', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'giveReward']);
-                
+
                 // Reward Types
                 Route::get('/reward-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getRewardTypes']);
                 Route::post('/reward-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'createRewardType']);
                 Route::put('/reward-types/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'updateRewardType']);
                 Route::delete('/reward-types/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'deleteRewardType']);
-                
+
                 // Badges
                 Route::get('/badges', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getAllBadges']);
                 Route::post('/badges', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'awardBadge']);
-                
+
                 // Badge Types
                 Route::get('/badge-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getBadgeTypes']);
                 Route::post('/badge-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'createBadgeType']);
                 Route::put('/badge-types/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'updateBadgeType']);
                 Route::delete('/badge-types/{id}', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'deleteBadgeType']);
             });
-            
+
             // Admin time tracking routes
             Route::prefix('time-tracking')->group(function () {
                 Route::get('/live-roster', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getLiveRoster']);
                 Route::get('/time-entries', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getAllTimeEntries']);
                 Route::get('/time-entries/{employeeId}', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getEmployeeTimeEntries']);
             });
-            
+
             // Admin performance management routes
             Route::prefix('performance')->group(function () {
                 // Overview and employee listing
                 Route::get('/employees', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'index']);
-                
+
                 // Performance Reports
                 Route::get('/reports', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getAllReports']);
                 Route::post('/reports', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'createReport']);
                 Route::get('/reports/{id}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getEmployeeReports']);
                 Route::put('/reports/{id}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'updateReport']);
                 Route::delete('/reports/{id}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'deleteReport']);
-                
+
                 // Performance Interactions/Feedback
                 Route::get('/interactions', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getAllInteractions']);
                 Route::post('/interactions', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'createInteraction']);
                 Route::get('/interactions/{id}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getEmployeeInteractions']);
                 Route::delete('/interactions/{id}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'deleteInteraction']);
-                
+
                 // Performance Review Schedules
                 Route::get('/pending-reviews', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getPendingReviews']);
                 Route::get('/review-notifications', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getReviewNotificationCount']);
@@ -359,6 +359,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/', [App\Http\Controllers\Api\V1\TicketController::class, 'store']);
                 Route::get('/configuration', [App\Http\Controllers\Api\V1\TicketController::class, 'configuration']);
                 Route::get('/{id}', [App\Http\Controllers\Api\V1\TicketController::class, 'show']);
+                Route::post('/{id}/responses', [App\Http\Controllers\Api\V1\TicketController::class, 'employeeAddResponse']);
             });
 
             // Employee time-off routes
@@ -368,22 +369,22 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::get('/{id}', [App\Http\Controllers\Api\V1\TimeOffController::class, 'show']);
                 Route::post('/{id}/cancel', [App\Http\Controllers\Api\V1\TimeOffController::class, 'cancel']);
             });
-            
+
             // Employee table tracking routes
             Route::prefix('table-tracking')->group(function () {
                 Route::get('/orders', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'getEmployeeOrders']);
                 Route::get('/mappings', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'getEmployeeMappings']);
-                
+
                 // Employee can update order status and mark delivered
                 Route::put('/orders/{orderNumber}/status', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'updateEmployeeOrderStatus']);
                 Route::put('/orders/{orderNumber}/delivered', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'markEmployeeDelivered']);
-                
+
                 Route::get('/notifications', [App\Http\Controllers\Api\V1\TableNotificationController::class, 'getEmployeeNotifications']);
                 Route::put('/notifications/{notificationId}/read', [App\Http\Controllers\Api\V1\TableNotificationController::class, 'markEmployeeNotificationAsRead']);
                 Route::put('/notifications/mark-all-read', [App\Http\Controllers\Api\V1\TableNotificationController::class, 'markAllEmployeeNotificationsAsRead']);
                 Route::delete('/notifications/{notificationId}', [App\Http\Controllers\Api\V1\TableNotificationController::class, 'deleteEmployeeNotification']);
             });
-            
+
             // Employee communication routes
             Route::prefix('communication')->group(function () {
                 Route::get('/conversations', [App\Http\Controllers\Api\V1\ConversationController::class, 'index']);
@@ -394,7 +395,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/messages/private', [App\Http\Controllers\Api\V1\MessageController::class, 'sendPrivateMessage']);
                 Route::get('/employees', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getEmployeesList']);
             });
-            
+
             // Employee recognition routes
             Route::prefix('recognition')->group(function () {
                 Route::get('/my-shoutouts', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getMyShoutouts']);
@@ -402,12 +403,12 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::get('/my-badges', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getMyBadges']);
                 Route::get('/my-performance', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getMyPerformance']);
                 Route::post('/rewards/{id}/redeem', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'redeemReward']);
-                
+
                 // Public reference data
                 Route::get('/reward-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getRewardTypes']);
                 Route::get('/badge-types', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getBadgeTypes']);
             });
-            
+
             // Employee performance routes
             Route::prefix('performance')->group(function () {
                 Route::get('/dashboard', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getMyPerformanceDashboard']);
@@ -415,17 +416,17 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::get('/interactions', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getMyInteractions']);
             });
         });
-        
+
         // File download routes
         Route::get('files/{id}/download', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'downloadFile']);
-        
+
         // Example CRUD routes
         Route::apiResource('posts', App\Http\Controllers\Api\V1\PostController::class);
     });
-    
+
     // Public routes (no auth required)
     Route::get('tickets/configuration', [App\Http\Controllers\Api\V1\TicketController::class, 'configuration']);
-    
+
     // Table tracking public routes (no auth required)
     Route::post('table-tracking/submit', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'submitTableMapping']);
     Route::get('table-tracking/settings', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'getTableSettings']);

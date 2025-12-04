@@ -33,11 +33,12 @@ class TicketResource extends JsonResource
             'archived_at' => $this->when($this->archived_at, $this->archived_at?->toISOString()),
             'created_at' => $this->created_at->toISOString(),
             'updated_at' => $this->updated_at->toISOString(),
-            
-            // Include responses when loaded
-            'responses' => TicketResponseResource::collection($this->whenLoaded('responses')),
-            'public_responses' => TicketResponseResource::collection($this->whenLoaded('publicResponses')),
-            
+            // Unified responses for admin/employee
+            'responses' => $this->relationLoaded('responses')
+                ? TicketResponseResource::collection($this->responses)
+                : ($this->relationLoaded('publicResponses')
+                    ? TicketResponseResource::collection($this->publicResponses)
+                    : []),
             // Include employee data when needed
             'employee' => $this->when($this->relationLoaded('employee') && $this->employee, [
                 'id' => $this->employee->id,

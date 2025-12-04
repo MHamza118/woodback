@@ -318,12 +318,31 @@ class EmployeeService
 
         // If files were uploaded, include them in the response data
         if (!empty($uploadedFiles)) {
-            foreach ($uploadedFiles as $questionIndex => $fileUpload) {
+            foreach ($uploadedFiles as $questionIndex => $fileUploads) {
                 // Update the response to include file information
                 if (isset($responses[$questionIndex])) {
-                    $responses[$questionIndex]['file_upload_id'] = $fileUpload->id;
-                    $responses[$questionIndex]['file_path'] = $fileUpload->file_path;
-                    $responses[$questionIndex]['original_filename'] = $fileUpload->original_filename;
+                    // Check if it's an array of files or a single file
+                    if (is_array($fileUploads)) {
+                        // Multiple files
+                        $fileIds = [];
+                        $filePaths = [];
+                        $fileNames = [];
+                        
+                        foreach ($fileUploads as $fileUpload) {
+                            $fileIds[] = $fileUpload->id;
+                            $filePaths[] = $fileUpload->file_path;
+                            $fileNames[] = $fileUpload->original_filename;
+                        }
+                        
+                        $responses[$questionIndex]['file_upload_ids'] = $fileIds;
+                        $responses[$questionIndex]['file_paths'] = $filePaths;
+                        $responses[$questionIndex]['original_filenames'] = $fileNames;
+                    } else {
+                        // Single file (backward compatibility)
+                        $responses[$questionIndex]['file_upload_id'] = $fileUploads->id;
+                        $responses[$questionIndex]['file_path'] = $fileUploads->file_path;
+                        $responses[$questionIndex]['original_filename'] = $fileUploads->original_filename;
+                    }
                 }
             }
         }
