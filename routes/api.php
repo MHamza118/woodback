@@ -58,6 +58,8 @@ Route::prefix('employee')->middleware(['check.employee.status'])->group(function
     Route::get('profile', [App\Http\Controllers\Api\V1\EmployeeController::class, 'profile']);
     Route::get('check-status', [App\Http\Controllers\Api\V1\EmployeeController::class, 'checkStatus']);
     Route::put('personal-info', [App\Http\Controllers\Api\V1\EmployeeController::class, 'updatePersonalInfo']);
+    Route::post('personal-info', [App\Http\Controllers\Api\V1\EmployeeController::class, 'updatePersonalInfo']); // For file uploads
+    Route::delete('documents/{documentId}', [App\Http\Controllers\Api\V1\EmployeeController::class, 'deleteDocument']);
     Route::get('qr', [App\Http\Controllers\Api\V1\EmployeeController::class, 'generateQR']);
     Route::post('location', [App\Http\Controllers\Api\V1\EmployeeController::class, 'submitLocation']);
     Route::get('questionnaire', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getQuestionnaire']);

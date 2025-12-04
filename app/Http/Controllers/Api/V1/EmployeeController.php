@@ -241,7 +241,11 @@ class EmployeeController extends Controller
                             }
                         }
                         
-                        $filename = time() . '_' . $questionIndex . '_' . $fileIndex . '_' . $originalName;
+                        // Truncate original name for storage to prevent "Data too long" errors
+                        $nameWithoutExt = pathinfo($originalName, PATHINFO_FILENAME);
+                        // Limit to 50 chars and slugify for safety
+                        $safeName = \Illuminate\Support\Str::slug(substr($nameWithoutExt, 0, 50)); 
+                        $filename = time() . '_' . $questionIndex . '_' . $fileIndex . '_' . $safeName . '.' . $extension;
                         $path = $file->storeAs('employee_documents', $filename, 'public');
                         
                         $questionText = null;
@@ -529,9 +533,74 @@ class EmployeeController extends Controller
     public function updatePersonalInfo(EmployeePersonalInfoRequest $request): JsonResponse
     {
         try {
+            // Handle file uploads if present
+            $uploadedFiles = [];
+            if ($request->hasFile('documents')) {
+                $documents = $request->file('documents');
+                
+                foreach ($documents as $index => $file) {
+                    $originalName = $file->getClientOriginalName();
+                    $extension = $file->getClientOriginalExtension();
+                    
+                    // Handle missing extensions
+                    if (empty($extension) || $extension === 'bin') {
+                        $mimeType = $file->getMimeType();
+                        $extension = match($mimeType) {
+                            'image/jpeg', 'image/jpg' => 'jpg',
+                            'image/png' => 'png',
+                            'image/gif' => 'gif',
+                            'image/webp' => 'webp',
+                            'application/pdf' => 'pdf',
+                            'application/msword' => 'doc',
+                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                            default => 'bin'
+                        };
+                        
+                        if (!str_contains($originalName, '.')) {
+                            $originalName = $originalName . '.' . $extension;
+                        }
+                    }
+                    
+                    // Truncate original name for storage to prevent "Data too long" errors
+                    $nameWithoutExt = pathinfo($originalName, PATHINFO_FILENAME);
+                    // Limit to 50 chars and slugify for safety
+                    $safeName = \Illuminate\Support\Str::slug(substr($nameWithoutExt, 0, 50)); 
+                    $filename = time() . '_' . $index . '_' . $safeName . '.' . $extension;
+                    $path = $file->storeAs('employee_documents', $filename, 'public');
+                    
+                    $fileUpload = \App\Models\EmployeeFileUpload::create([
+                        'employee_id' => $request->user()->id,
+                        'field_name' => 'personal_info_document_' . $index,
+                        'original_filename' => $originalName,
+                        'stored_filename' => $filename,
+                        'file_path' => $path,
+                        'mime_type' => $file->getMimeType(),
+                        'file_size' => $file->getSize(),
+                        'file_extension' => $extension,
+                        'upload_status' => 'verified', // Auto-verify personal info documents
+                        'notes' => 'Personal information document'
+                    ]);
+                    
+                    $uploadedFiles[] = $fileUpload;
+                }
+            }
+            
+            // Get validated data and exclude 'documents' field
+            $validatedData = $request->validated();
+            unset($validatedData['documents']); // Remove documents from personal info data
+            
+            // Convert FormData string values to proper types
+            if (isset($validatedData['requested_hours'])) {
+                $validatedData['requested_hours'] = (int) $validatedData['requested_hours'];
+            }
+            if (isset($validatedData['flexible_hours'])) {
+                // Convert string "true"/"false" or "1"/"0" to boolean
+                $validatedData['flexible_hours'] = filter_var($validatedData['flexible_hours'], FILTER_VALIDATE_BOOLEAN);
+            }
+            
             $employee = $this->employeeService->updatePersonalInfo(
                 $request->user()->id,
-                $request->validated()
+                $validatedData
             );
 
             return $this->successResponse(
@@ -540,6 +609,33 @@ class EmployeeController extends Controller
             );
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to update personal information: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete employee document
+     */
+    public function deleteDocument(Request $request, $documentId): JsonResponse
+    {
+        try {
+            $employee = $request->user();
+            
+            // Find the document and verify ownership
+            $document = \App\Models\EmployeeFileUpload::where('id', $documentId)
+                ->where('employee_id', $employee->id)
+                ->firstOrFail();
+            
+            // Delete the physical file
+            if (\Storage::disk('public')->exists($document->file_path)) {
+                \Storage::disk('public')->delete($document->file_path);
+            }
+            
+            // Delete the database record
+            $document->delete();
+            
+            return $this->successResponse(null, 'Document deleted successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to delete document: ' . $e->getMessage());
         }
     }
 

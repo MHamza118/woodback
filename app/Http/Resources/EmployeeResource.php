@@ -46,6 +46,22 @@ class EmployeeResource extends JsonResource
             'profile_data' => $this->profile_data,
             'assignments' => $this->assignments,
             'personal_info' => $this->when(isset($this->personal_info), $this->personal_info) ?: ($this->profile_data['personal_info'] ?? null),
+            'file_uploads' => $this->when($this->fileUploads, function () {
+                return $this->fileUploads->map(function ($file) {
+                    return [
+                        'id' => $file->id,
+                        'original_filename' => $file->original_filename,
+                        'file_path' => $file->file_path,
+                        'mime_type' => $file->mime_type,
+                        'file_size' => $file->file_size,
+                        'file_extension' => $file->file_extension,
+                        'field_name' => $file->field_name,
+                        'upload_status' => $file->upload_status,
+                        'question_index' => $file->question_index ?? null,
+                        'uploaded_at' => $file->created_at ? $file->created_at->toISOString() : null,
+                    ];
+                });
+            }),
             'questionnaire_files' => $this->when($this->fileUploads, function () {
                 return $this->fileUploads->map(function ($file) {
                     return [
@@ -54,6 +70,7 @@ class EmployeeResource extends JsonResource
                         'file_path' => $file->file_path,
                         'mime_type' => $file->mime_type,
                         'file_size' => $file->file_size,
+                        'file_extension' => $file->file_extension,
                         'field_name' => $file->field_name,
                         'question_index' => $file->question_index ?? null,
                         'uploaded_at' => $file->created_at ? $file->created_at->toISOString() : null,

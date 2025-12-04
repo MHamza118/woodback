@@ -449,7 +449,7 @@ public function employeeAddResponse(CreateTicketResponseRequest $request, $id): 
         $response = TicketResponse::create([
             'ticket_id' => $ticket->id,
             'message' => $request->message,
-            'responded_by' => $employee->name, // Use actual employee name
+            'responded_by' => $employee->full_name, // Use actual employee name
             'internal' => false // Employees can't create internal notes
         ]);
 

@@ -22,10 +22,14 @@ class EmployeePersonalInfoRequest extends FormRequest
             'state' => 'sometimes|required|string|max:100',
             'zip_code' => 'sometimes|required|string|max:20',
             'country' => 'sometimes|required|string|max:100',
-            'requested_hours' => 'sometimes|required|integer|min:1|max:40',
-            'flexible_hours' => 'sometimes|boolean',
+            'requested_hours' => 'sometimes|required|numeric|min:1|max:40', // Changed to numeric to accept strings
+            'flexible_hours' => 'sometimes', // Accept any value, will convert in controller
             'emergency_contact' => 'sometimes|nullable|string|max:255',
             'emergency_phone' => 'sometimes|nullable|string|regex:/^\+1 \(\d{3}\) \d{3}-\d{4}$/|max:18',
+            
+            // Document uploads
+            'documents' => 'sometimes|array',
+            'documents.*' => 'file|mimes:jpeg,jpg,png,gif,webp,pdf,doc,docx|max:10240', // 10MB max
         ];
     }
 
