@@ -49,6 +49,11 @@ class OneSignalService
      */
     public function sendToUsers($userIds, $title, $message, $data = [], $url = null)
     {
+        // Ensure all user IDs are strings (OneSignal requirement)
+        $userIds = array_map(function($id) {
+            return (string)$id;
+        }, $userIds);
+
         $payload = [
             'app_id' => $this->appId,
             'include_external_user_ids' => $userIds,
