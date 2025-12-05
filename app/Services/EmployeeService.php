@@ -64,6 +64,9 @@ class EmployeeService
                 ],
                 'is_read' => false
             ]);
+
+            // Send OneSignal push notification to admins
+            $employee->sendNewEmployeeSignupNotification($employee);
         } catch (\Exception $e) {
             // Log error but don't fail employee registration
             \Log::error('Failed to create employee signup notification: ' . $e->getMessage());

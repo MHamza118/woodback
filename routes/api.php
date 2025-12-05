@@ -419,6 +419,18 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
             });
         });
 
+        // OneSignal push notification routes
+        Route::prefix('notifications')->group(function () {
+            Route::get('/config', [App\Http\Controllers\Api\V1\OneSignalController::class, 'getConfig']);
+            Route::post('/register', [App\Http\Controllers\Api\V1\OneSignalController::class, 'registerUser']);
+            Route::put('/update-tags', [App\Http\Controllers\Api\V1\OneSignalController::class, 'updateUserTags']);
+            
+            // Admin only routes
+            Route::middleware(['admin'])->group(function () {
+                Route::post('/send-test', [App\Http\Controllers\Api\V1\OneSignalController::class, 'sendTestNotification']);
+            });
+        });
+
         // File download routes
         Route::get('files/{id}/download', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'downloadFile']);
 
