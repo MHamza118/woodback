@@ -9,12 +9,20 @@ use App\Models\GroupMessage;
 use App\Models\PrivateMessage;
 use App\Models\Employee;
 use App\Traits\ApiResponseTrait;
+use App\Services\OneSignalService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class MessageController extends Controller
 {
     use ApiResponseTrait;
+
+    protected $oneSignalService;
+
+    public function __construct(OneSignalService $oneSignalService)
+    {
+        $this->oneSignalService = $oneSignalService;
+    }
 
     /**
      * Get all messages for a conversation (routes to appropriate message type)
@@ -134,6 +142,9 @@ class MessageController extends Controller
                 return $this->errorResponse('Invalid conversation type', 400);
             }
 
+            // Send OneSignal push notification to other participants
+            $this->sendPushNotificationToParticipants($conversation, $message, $userId, $senderName);
+
             return $this->successResponse([
                 'id' => $message->id,
                 'senderId' => $message->sender_id,
@@ -247,6 +258,9 @@ class MessageController extends Controller
                 'is_read' => false
             ]);
 
+            // Send OneSignal push notification to recipient
+            $this->sendPushNotificationToParticipants($conversation, $message, $userId, $senderName);
+
             return $this->successResponse([
                 'id' => $message->id,
                 'conversationId' => $conversation->id,
@@ -322,5 +336,68 @@ class MessageController extends Controller
         }
         
         return 'Employee';
+    }
+
+    /**
+     * Send push notification to conversation participants (except sender)
+     */
+    private function sendPushNotificationToParticipants($conversation, $message, $senderId, $senderName): void
+    {
+        try {
+            // Get all participants except the sender
+            $participants = ConversationParticipant::where('conversation_id', $conversation->id)
+                ->where('participant_id', '!=', $senderId)
+                ->get();
+
+            if ($participants->isEmpty()) {
+                return;
+            }
+
+            // Collect recipient user IDs (only employees, not 'admin' string)
+            $recipientIds = [];
+            foreach ($participants as $participant) {
+                // Skip if participant is 'admin' string (not a numeric ID)
+                if ($participant->participant_id !== 'admin' && is_numeric($participant->participant_id)) {
+                    $recipientIds[] = (int)$participant->participant_id;
+                }
+            }
+
+            if (empty($recipientIds)) {
+                return;
+            }
+
+            // Prepare notification content
+            $title = $senderName;
+            $messageContent = $message->content;
+            
+            // Truncate message if too long
+            if (strlen($messageContent) > 100) {
+                $messageContent = substr($messageContent, 0, 100) . '...';
+            }
+
+            // Add attachment indicator if message has attachments
+            if ($message->has_attachments) {
+                $messageContent .= ' 📎';
+            }
+
+            // Send push notification via OneSignal
+            $this->oneSignalService->sendToUsers(
+                $recipientIds,
+                $title,
+                $messageContent,
+                [
+                    'type' => 'chat_message',
+                    'conversation_id' => $conversation->id,
+                    'message_id' => $message->id,
+                    'sender_id' => $senderId,
+                    'sender_name' => $senderName
+                ],
+                config('app.url') . '/messages/' . $conversation->id
+            );
+
+        } catch (\Exception $e) {
+            // Log error but don't fail the message send
+            \Log::error('Failed to send push notification for message: ' . $e->getMessage());
+        }
     }
 }
