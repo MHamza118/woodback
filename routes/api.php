@@ -33,6 +33,9 @@ Route::prefix('v1')->group(function () {
         Route::middleware('auth:sanctum')->post('logout', [App\Http\Controllers\Api\V1\AuthController::class, 'logout']);
     });
 
+    // Public OneSignal config route (no auth required)
+    Route::get('notifications/config', [App\Http\Controllers\Api\V1\OneSignalController::class, 'getConfig']);
+
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
         // User profile routes
@@ -419,9 +422,8 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
             });
         });
 
-        // OneSignal push notification routes
+        // OneSignal push notification routes (authenticated)
         Route::prefix('notifications')->group(function () {
-            Route::get('/config', [App\Http\Controllers\Api\V1\OneSignalController::class, 'getConfig']);
             Route::post('/register', [App\Http\Controllers\Api\V1\OneSignalController::class, 'registerUser']);
             Route::put('/update-tags', [App\Http\Controllers\Api\V1\OneSignalController::class, 'updateUserTags']);
             
