@@ -344,12 +344,24 @@ class MessageController extends Controller
     private function sendPushNotificationToParticipants($conversation, $message, $senderId, $senderName): void
     {
         try {
+            \Log::info('Attempting to send push notification', [
+                'conversation_id' => $conversation->id,
+                'sender_id' => $senderId,
+                'sender_name' => $senderName
+            ]);
+
             // Get all participants except the sender
             $participants = ConversationParticipant::where('conversation_id', $conversation->id)
                 ->where('participant_id', '!=', $senderId)
                 ->get();
 
+            \Log::info('Found participants', [
+                'count' => $participants->count(),
+                'participants' => $participants->pluck('participant_id')->toArray()
+            ]);
+
             if ($participants->isEmpty()) {
+                \Log::warning('No participants found for notification');
                 return;
             }
 
@@ -362,7 +374,12 @@ class MessageController extends Controller
                 }
             }
 
+            \Log::info('Recipient IDs for notification', [
+                'recipient_ids' => $recipientIds
+            ]);
+
             if (empty($recipientIds)) {
+                \Log::warning('No valid recipient IDs found (all were admin or non-numeric)');
                 return;
             }
 
@@ -380,8 +397,14 @@ class MessageController extends Controller
                 $messageContent .= ' 📎';
             }
 
+            \Log::info('Sending OneSignal notification', [
+                'recipient_ids' => $recipientIds,
+                'title' => $title,
+                'message' => $messageContent
+            ]);
+
             // Send push notification via OneSignal
-            $this->oneSignalService->sendToUsers(
+            $result = $this->oneSignalService->sendToUsers(
                 $recipientIds,
                 $title,
                 $messageContent,
@@ -395,9 +418,13 @@ class MessageController extends Controller
                 config('app.url') . '/messages/' . $conversation->id
             );
 
+            \Log::info('OneSignal notification result', ['result' => $result]);
+
         } catch (\Exception $e) {
             // Log error but don't fail the message send
-            \Log::error('Failed to send push notification for message: ' . $e->getMessage());
+            \Log::error('Failed to send push notification for message: ' . $e->getMessage(), [
+                'exception' => $e->getTraceAsString()
+            ]);
         }
     }
 }
