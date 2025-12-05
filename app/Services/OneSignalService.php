@@ -46,6 +46,7 @@ class OneSignalService
 
     /**
      * Send notification to specific users by external user IDs
+     * This will send to ALL devices of each user (using tags instead of external_user_ids)
      */
     public function sendToUsers($userIds, $title, $message, $data = [], $url = null)
     {
@@ -54,9 +55,24 @@ class OneSignalService
             return (string)$id;
         }, $userIds);
 
+        // Build filters to target all devices with matching user_id tags
+        // This allows multiple devices per user to receive notifications
+        $filters = [];
+        foreach ($userIds as $index => $userId) {
+            if ($index > 0) {
+                $filters[] = ['operator' => 'OR'];
+            }
+            $filters[] = [
+                'field' => 'tag',
+                'key' => 'user_id',
+                'relation' => '=',
+                'value' => $userId
+            ];
+        }
+
         $payload = [
             'app_id' => $this->appId,
-            'include_external_user_ids' => $userIds,
+            'filters' => $filters,
             'headings' => ['en' => $title],
             'contents' => ['en' => $message],
         ];
