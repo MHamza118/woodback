@@ -367,19 +367,24 @@ class MessageController extends Controller
 
             // Collect recipient user IDs (only employees, not 'admin' string)
             $recipientIds = [];
+            $sendToAdmin = false;
+            
             foreach ($participants as $participant) {
-                // Skip if participant is 'admin' string (not a numeric ID)
-                if ($participant->participant_id !== 'admin' && is_numeric($participant->participant_id)) {
+                if ($participant->participant_id === 'admin') {
+                    // Admin participant found - send to all admins via role tag
+                    $sendToAdmin = true;
+                } elseif (is_numeric($participant->participant_id)) {
                     $recipientIds[] = (int)$participant->participant_id;
                 }
             }
 
             \Log::info('Recipient IDs for notification', [
-                'recipient_ids' => $recipientIds
+                'recipient_ids' => $recipientIds,
+                'send_to_admin' => $sendToAdmin
             ]);
 
-            if (empty($recipientIds)) {
-                \Log::warning('No valid recipient IDs found (all were admin or non-numeric)');
+            if (empty($recipientIds) && !$sendToAdmin) {
+                \Log::warning('No valid recipient IDs found');
                 return;
             }
 
@@ -399,26 +404,46 @@ class MessageController extends Controller
 
             \Log::info('Sending OneSignal notification', [
                 'recipient_ids' => $recipientIds,
+                'send_to_admin' => $sendToAdmin,
                 'title' => $title,
                 'message' => $messageContent
             ]);
 
-            // Send push notification via OneSignal
-            $result = $this->oneSignalService->sendToUsers(
-                $recipientIds,
-                $title,
-                $messageContent,
-                [
-                    'type' => 'chat_message',
-                    'conversation_id' => $conversation->id,
-                    'message_id' => $message->id,
-                    'sender_id' => $senderId,
-                    'sender_name' => $senderName
-                ],
-                config('app.url') . '/messages/' . $conversation->id
-            );
+            // Send to admin role if admin is a participant
+            if ($sendToAdmin) {
+                $result = $this->oneSignalService->sendToTags(
+                    ['role' => 'admin'],
+                    $title,
+                    $messageContent,
+                    [
+                        'type' => 'chat_message',
+                        'conversation_id' => $conversation->id,
+                        'message_id' => $message->id,
+                        'sender_id' => $senderId,
+                        'sender_name' => $senderName
+                    ],
+                    config('app.url') . '/messages/' . $conversation->id
+                );
+                \Log::info('OneSignal notification sent to admins', ['result' => $result]);
+            }
 
-            \Log::info('OneSignal notification result', ['result' => $result]);
+            // Send push notification via OneSignal to specific users
+            if (!empty($recipientIds)) {
+                $result = $this->oneSignalService->sendToUsers(
+                    $recipientIds,
+                    $title,
+                    $messageContent,
+                    [
+                        'type' => 'chat_message',
+                        'conversation_id' => $conversation->id,
+                        'message_id' => $message->id,
+                        'sender_id' => $senderId,
+                        'sender_name' => $senderName
+                    ],
+                    config('app.url') . '/messages/' . $conversation->id
+                );
+                \Log::info('OneSignal notification sent to users', ['result' => $result]);
+            }
 
         } catch (\Exception $e) {
             // Log error but don't fail the message send

@@ -128,12 +128,34 @@ class GroupMessageController extends Controller
                     ->get();
 
                 $recipientIds = [];
+                $sendToAdmin = false;
+                
                 foreach ($participants as $participant) {
-                    if ($participant->participant_id !== 'admin' && is_numeric($participant->participant_id)) {
+                    if ($participant->participant_id === 'admin') {
+                        $sendToAdmin = true;
+                    } elseif (is_numeric($participant->participant_id)) {
                         $recipientIds[] = (int)$participant->participant_id;
                     }
                 }
 
+                // Send to admin role if admin is a participant
+                if ($sendToAdmin) {
+                    $this->oneSignalService->sendToTags(
+                        ['role' => 'admin'],
+                        $senderName,
+                        $request->content,
+                        [
+                            'type' => 'group_message',
+                            'conversation_id' => $conversationId,
+                            'message_id' => $message->id,
+                            'sender_id' => $userId,
+                            'sender_name' => $senderName
+                        ],
+                        config('app.url') . '/messages/' . $conversationId
+                    );
+                }
+
+                // Send to specific users
                 if (!empty($recipientIds)) {
                     $this->oneSignalService->sendToUsers(
                         $recipientIds,
