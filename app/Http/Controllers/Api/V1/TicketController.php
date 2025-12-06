@@ -173,16 +173,17 @@ class TicketController extends Controller
                 ]
             ]);
 
+            // TODO: Re-enable OneSignal notification after testing
             // Send OneSignal push notification to admins (don't fail if this errors)
-            try {
-                $this->sendNewTicketNotification($ticket);
-            } catch (\Exception $notificationError) {
-                // Log but don't fail the ticket creation
-                \Log::warning('Failed to send OneSignal notification for ticket', [
-                    'ticket_id' => $ticket->id,
-                    'error' => $notificationError->getMessage()
-                ]);
-            }
+            // try {
+            //     $this->sendNewTicketNotification($ticket);
+            // } catch (\Exception $notificationError) {
+            //     // Log but don't fail the ticket creation
+            //     \Log::warning('Failed to send OneSignal notification for ticket', [
+            //         'ticket_id' => $ticket->id,
+            //         'error' => $notificationError->getMessage()
+            //     ]);
+            // }
 
             DB::commit();
 
