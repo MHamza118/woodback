@@ -173,6 +173,9 @@ class TicketController extends Controller
                 ]
             ]);
 
+            // Send OneSignal push notification to admins
+            $this->sendNewTicketNotification($ticket);
+
             DB::commit();
 
             return $this->successResponse(
