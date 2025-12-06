@@ -8,12 +8,20 @@ use App\Models\ConversationParticipant;
 use App\Models\GroupMessage;
 use App\Models\Employee;
 use App\Traits\ApiResponseTrait;
+use App\Services\OneSignalService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class GroupMessageController extends Controller
 {
     use ApiResponseTrait;
+
+    protected $oneSignalService;
+
+    public function __construct(OneSignalService $oneSignalService)
+    {
+        $this->oneSignalService = $oneSignalService;
+    }
 
     /**
      * Get all group messages for a conversation
@@ -112,6 +120,38 @@ class GroupMessageController extends Controller
                 'attachments' => $request->attachments,
                 'has_attachments' => $request->has_attachments ?? false
             ]);
+
+            // Send OneSignal push notification to other participants
+            try {
+                $participants = ConversationParticipant::where('conversation_id', $conversationId)
+                    ->where('participant_id', '!=', $userId)
+                    ->get();
+
+                $recipientIds = [];
+                foreach ($participants as $participant) {
+                    if ($participant->participant_id !== 'admin' && is_numeric($participant->participant_id)) {
+                        $recipientIds[] = (int)$participant->participant_id;
+                    }
+                }
+
+                if (!empty($recipientIds)) {
+                    $this->oneSignalService->sendToUsers(
+                        $recipientIds,
+                        $senderName,
+                        $request->content,
+                        [
+                            'type' => 'group_message',
+                            'conversation_id' => $conversationId,
+                            'message_id' => $message->id,
+                            'sender_id' => $userId,
+                            'sender_name' => $senderName
+                        ],
+                        config('app.url') . '/messages/' . $conversationId
+                    );
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to send OneSignal notification for group message: ' . $e->getMessage());
+            }
 
             return $this->successResponse([
                 'id' => $message->id,
