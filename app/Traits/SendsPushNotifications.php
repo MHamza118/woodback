@@ -34,13 +34,17 @@ trait SendsPushNotifications
     {
         $oneSignal = new OneSignalService();
         
+        // Get employee name
+        $employeeName = $ticket->employee ? $ticket->employee->name : 'Employee';
+        
         $title = 'New Support Ticket';
-        $message = "New ticket from {$ticket->customer_name}: {$ticket->subject}";
+        $message = "New ticket from {$employeeName}: {$ticket->title}";
         
         $data = [
             'type' => 'new_ticket',
             'ticket_id' => $ticket->id,
-            'customer_name' => $ticket->customer_name,
+            'employee_name' => $employeeName,
+            'ticket_title' => $ticket->title,
             'url' => '/admin/dashboard#tickets'
         ];
 
