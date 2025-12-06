@@ -116,7 +116,7 @@ class OneSignalService
      */
     public function sendToAdmins($title, $message, $data = [], $url = null)
     {
-        return $this->sendToTags(['role' => 'admin'], $title, $message, $data, $url);
+        return $this->sendToTags(['role' => 'owner'], $title, $message, $data, $url);
     }
 
     /**

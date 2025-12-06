@@ -141,7 +141,7 @@ class GroupMessageController extends Controller
                 // Send to admin role if admin is a participant
                 if ($sendToAdmin) {
                     $this->oneSignalService->sendToTags(
-                        ['role' => 'admin'],
+                        ['role' => 'owner'],
                         $senderName,
                         $request->content,
                         [
