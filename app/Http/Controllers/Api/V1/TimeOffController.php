@@ -243,6 +243,30 @@ class TimeOffController extends Controller
 
             $record->load('employee');
 
+            // Send OneSignal push notification to employee
+            if (in_array($request->status, ['approved', 'rejected'])) {
+                try {
+                    \Log::info('Sending OneSignal notification for time-off response', [
+                        'request_id' => $record->id,
+                        'employee_id' => $record->employee_id,
+                        'status' => $request->status
+                    ]);
+                    
+                    $record->sendTimeOffResponseNotification($record->employee, $record, $request->status);
+                    
+                    \Log::info('OneSignal notification sent for time-off response', [
+                        'request_id' => $record->id,
+                        'employee_id' => $record->employee_id
+                    ]);
+                } catch (\Exception $notificationError) {
+                    \Log::error('Failed to send OneSignal notification for time-off response', [
+                        'request_id' => $record->id,
+                        'employee_id' => $record->employee_id,
+                        'error' => $notificationError->getMessage()
+                    ]);
+                }
+            }
+
             DB::commit();
 
             return $this->successResponse(new TimeOffRequestResource($record), 'Time-off status updated');

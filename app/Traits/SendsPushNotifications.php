@@ -276,6 +276,46 @@ trait SendsPushNotifications
     }
 
     /**
+     * Send push notification when admin responds to time off request
+     */
+    public function sendTimeOffResponseNotification($employee, $timeOffRequest, $status)
+    {
+        $oneSignal = new OneSignalService();
+        
+        $startDate = $timeOffRequest->start_date->format('M d, Y');
+        $endDate = $timeOffRequest->end_date->format('M d, Y');
+        $dateRange = $startDate === $endDate ? $startDate : "{$startDate} - {$endDate}";
+        
+        $typeLabel = TimeOffRequest::TYPES[$timeOffRequest->type] ?? $timeOffRequest->type;
+        
+        $titles = [
+            'approved' => 'Time Off Request Approved',
+            'rejected' => 'Time Off Request Rejected'
+        ];
+        
+        $messages = [
+            'approved' => "Your {$typeLabel} request for {$dateRange} has been approved",
+            'rejected' => "Your {$typeLabel} request for {$dateRange} has been rejected"
+        ];
+        
+        $title = $titles[$status] ?? 'Time Off Request Updated';
+        $message = $messages[$status] ?? "Your time off request status has been updated to {$status}";
+        
+        $data = [
+            'type' => 'time_off_response',
+            'request_id' => $timeOffRequest->id,
+            'status' => $status,
+            'time_off_type' => $timeOffRequest->type,
+            'start_date' => $timeOffRequest->start_date->toDateString(),
+            'end_date' => $timeOffRequest->end_date->toDateString(),
+            'url' => '/employee/dashboard#time-off'
+        ];
+
+        // Send to specific employee
+        return $oneSignal->sendToEmployee($employee->id, $title, $message, $data, config('app.url') . '/employee/dashboard#time-off');
+    }
+
+    /**
      * Send custom push notification
      */
     public function sendCustomPushNotification($title, $message, $recipients = 'all', $data = [], $url = null)
