@@ -26,6 +26,11 @@ class QuestionnaireSeeder extends Seeder
             'description' => 'Please complete this questionnaire to help us understand your background and preferences.',
             'questions' => [
                 [
+                    'question' => 'Who conducted your interview?',
+                    'type' => 'input',
+                    'required' => true
+                ],
+                [
                     'question' => 'First Name',
                     'type' => 'input',
                     'required' => true
