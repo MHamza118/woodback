@@ -66,10 +66,22 @@ class EmployeeService
             ]);
 
             // Send OneSignal push notification to admins
-            $employee->sendNewEmployeeSignupNotification($employee);
+            \Log::info('Attempting to send OneSignal notification for employee signup', [
+                'employee_id' => $employee->id,
+                'employee_name' => $employeeName
+            ]);
+            
+            $result = $employee->sendNewEmployeeSignupNotification($employee);
+            
+            \Log::info('OneSignal notification result for employee signup', [
+                'result' => $result,
+                'employee_id' => $employee->id
+            ]);
         } catch (\Exception $e) {
             // Log error but don't fail employee registration
-            \Log::error('Failed to create employee signup notification: ' . $e->getMessage());
+            \Log::error('Failed to create employee signup notification: ' . $e->getMessage(), [
+                'exception' => $e->getTraceAsString()
+            ]);
         }
 
         return $employee;
