@@ -174,7 +174,7 @@ trait SendsPushNotifications
             case 'all':
                 return $oneSignal->sendToAll($title, $message, $data, $url);
             case 'admins':
-                return $oneSignal->sendToTags(['role' => 'admin'], $title, $message, $data, $url);
+                return $oneSignal->sendToTags(['role' => 'owner'], $title, $message, $data, $url);
             case 'employees':
                 return $oneSignal->sendToTags(['role' => 'employee'], $title, $message, $data, $url);
             case 'expo':

@@ -8,6 +8,7 @@ use App\Models\ConversationParticipant;
 use App\Models\GroupMessage;
 use App\Models\PrivateMessage;
 use App\Models\Employee;
+use App\Models\TableNotification;
 use App\Traits\ApiResponseTrait;
 use App\Services\OneSignalService;
 use Illuminate\Http\Request;
@@ -144,6 +145,9 @@ class MessageController extends Controller
 
             // Send OneSignal push notification to other participants
             $this->sendPushNotificationToParticipants($conversation, $message, $userId, $senderName);
+
+            // Create bell icon notifications for recipients
+            $this->createMessageNotifications($conversation, $message, $userId, $senderName, $userType);
 
             return $this->successResponse([
                 'id' => $message->id,
@@ -450,6 +454,54 @@ class MessageController extends Controller
             \Log::error('Failed to send push notification for message: ' . $e->getMessage(), [
                 'exception' => $e->getTraceAsString()
             ]);
+        }
+    }
+
+    /**
+     * Create bell icon notifications for message recipients
+     */
+    private function createMessageNotifications($conversation, $message, $senderId, $senderName, $senderType)
+    {
+        try {
+            // Get all participants except the sender
+            $participants = ConversationParticipant::where('conversation_id', $conversation->id)
+                ->where('participant_id', '!=', $senderId)
+                ->get();
+
+            // Truncate message content for notification
+            $messagePreview = strlen($message->content) > 50 
+                ? substr($message->content, 0, 50) . '...' 
+                : $message->content;
+
+            foreach ($participants as $participant) {
+                // Determine recipient type (admin or employee)
+                $recipientType = $participant->participant_type === 'admin' 
+                    ? TableNotification::RECIPIENT_ADMIN 
+                    : TableNotification::RECIPIENT_EMPLOYEE;
+
+                // Create notification
+                TableNotification::create([
+                    'type' => TableNotification::TYPE_NEW_MESSAGE,
+                    'title' => 'New Message from ' . $senderName,
+                    'message' => $messagePreview,
+                    'order_number' => null,
+                    'recipient_type' => $recipientType,
+                    'recipient_id' => $participant->participant_id,
+                    'priority' => TableNotification::PRIORITY_MEDIUM,
+                    'data' => [
+                        'conversation_id' => $conversation->id,
+                        'conversation_name' => $conversation->name,
+                        'message_id' => $message->id,
+                        'sender_id' => $senderId,
+                        'sender_name' => $senderName,
+                        'sender_type' => $senderType
+                    ],
+                    'is_read' => false
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Log error but don't fail the message send
+            \Log::error('Failed to create message notifications: ' . $e->getMessage());
         }
     }
 }

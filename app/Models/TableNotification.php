@@ -53,6 +53,7 @@ class TableNotification extends Model
     const TYPE_TICKET_ARCHIVED = 'ticket_archived';
     const TYPE_PERFORMANCE_REVIEW_OVERDUE = 'performance_review_overdue';
     const TYPE_PERFORMANCE_REVIEW_DUE_SOON = 'performance_review_due_soon';
+    const TYPE_NEW_MESSAGE = 'new_message';
 
     // Priority constants
     const PRIORITY_HIGH = 'high';
@@ -84,7 +85,8 @@ class TableNotification extends Model
             self::TYPE_TICKET_RESPONSE,
             self::TYPE_TICKET_ARCHIVED,
             self::TYPE_PERFORMANCE_REVIEW_OVERDUE,
-            self::TYPE_PERFORMANCE_REVIEW_DUE_SOON
+            self::TYPE_PERFORMANCE_REVIEW_DUE_SOON,
+            self::TYPE_NEW_MESSAGE
         ];
     }
 
