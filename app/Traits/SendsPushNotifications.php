@@ -180,8 +180,30 @@ trait SendsPushNotifications
             'url' => '/admin/dashboard#performance'
         ];
 
-        // Send to admins and managers
-        return $oneSignal->sendToTags(['role' => 'admin'], $title, $message, $data, config('app.url') . '/admin/dashboard#performance');
+        // Send to all admin roles (owner, admin, manager, hiring_manager)
+        return $oneSignal->sendToMultipleRoles(['owner', 'admin', 'manager', 'hiring_manager'], $title, $message, $data, config('app.url') . '/admin/dashboard#performance');
+    }
+
+    /**
+     * Send push notification when admin creates performance report for employee
+     */
+    public function sendPerformanceReportCreatedNotification($employee, $reportType, $overallRating)
+    {
+        $oneSignal = new OneSignalService();
+        
+        $title = 'New Performance Review';
+        $message = "Your {$reportType} has been completed. Overall rating: {$overallRating}/5";
+        
+        $data = [
+            'type' => 'performance_report_created',
+            'employee_id' => $employee->id,
+            'report_type' => $reportType,
+            'overall_rating' => $overallRating,
+            'url' => '/employee/dashboard#performance'
+        ];
+
+        // Send to specific employee
+        return $oneSignal->sendToEmployee($employee->id, $title, $message, $data, config('app.url') . '/employee/dashboard#performance');
     }
 
     /**

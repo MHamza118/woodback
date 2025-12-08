@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use App\Traits\SendsPushNotifications;
 
 class PerformanceReviewSchedule extends Model
 {
-    use HasFactory;
+    use HasFactory, SendsPushNotifications;
 
     protected $fillable = [
         'employee_id',

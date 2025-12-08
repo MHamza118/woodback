@@ -209,6 +209,33 @@ class PerformanceManagementController extends Controller
                 }
             }
 
+            // Send OneSignal push notification to employee
+            try {
+                \Log::info('Sending OneSignal notification for performance report', [
+                    'report_id' => $report->id,
+                    'employee_id' => $report->employee_id,
+                    'report_type' => $report->type,
+                    'overall_rating' => $report->overall_rating
+                ]);
+                
+                $report->sendPerformanceReportCreatedNotification(
+                    $report->employee,
+                    $report->type,
+                    $report->overall_rating
+                );
+                
+                \Log::info('OneSignal notification sent for performance report', [
+                    'report_id' => $report->id,
+                    'employee_id' => $report->employee_id
+                ]);
+            } catch (\Exception $notificationError) {
+                \Log::error('Failed to send OneSignal notification for performance report', [
+                    'report_id' => $report->id,
+                    'employee_id' => $report->employee_id,
+                    'error' => $notificationError->getMessage()
+                ]);
+            }
+
             DB::commit();
 
             return $this->successResponse(

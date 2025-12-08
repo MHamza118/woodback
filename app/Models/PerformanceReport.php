@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\SendsPushNotifications;
 
 class PerformanceReport extends Model
 {
-    use HasFactory;
+    use HasFactory, SendsPushNotifications;
 
     protected $table = 'performance_reports';
 

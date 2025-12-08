@@ -123,6 +123,23 @@ class CheckPerformanceReviewNotifications extends Command
         ]);
 
         $this->line("Created {$urgencyType} notification for {$employeeName} - {$reviewTypeLabel}");
+
+        // Send OneSignal push notification to all admins
+        try {
+            $this->line("Sending OneSignal notification for {$urgencyType} performance review...");
+            
+            $schedule->sendPerformanceReviewNotification($employee, $urgencyType);
+            
+            $this->line("OneSignal notification sent successfully");
+        } catch (\Exception $notificationError) {
+            $this->error("Failed to send OneSignal notification: {$notificationError->getMessage()}");
+            \Log::error('Failed to send OneSignal notification for performance review', [
+                'schedule_id' => $schedule->id,
+                'employee_id' => $employee->id,
+                'urgency_type' => $urgencyType,
+                'error' => $notificationError->getMessage()
+            ]);
+        }
     }
 
     /**
