@@ -456,6 +456,35 @@ class PerformanceManagementController extends Controller
 
             $interaction->load('employee');
 
+            // Send OneSignal push notification to employee
+            try {
+                \Log::info('Sending OneSignal notification for performance feedback', [
+                    'interaction_id' => $interaction->id,
+                    'employee_id' => $interaction->employee_id,
+                    'feedback_type' => $interaction->type,
+                    'subject' => $interaction->subject,
+                    'priority' => $interaction->priority
+                ]);
+                
+                $interaction->sendPerformanceFeedbackNotification(
+                    $interaction->employee,
+                    $interaction->type,
+                    $interaction->subject,
+                    $interaction->priority
+                );
+                
+                \Log::info('OneSignal notification sent for performance feedback', [
+                    'interaction_id' => $interaction->id,
+                    'employee_id' => $interaction->employee_id
+                ]);
+            } catch (\Exception $notificationError) {
+                \Log::error('Failed to send OneSignal notification for performance feedback', [
+                    'interaction_id' => $interaction->id,
+                    'employee_id' => $interaction->employee_id,
+                    'error' => $notificationError->getMessage()
+                ]);
+            }
+
             DB::commit();
 
             return $this->successResponse(

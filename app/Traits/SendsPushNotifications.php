@@ -207,6 +207,38 @@ trait SendsPushNotifications
     }
 
     /**
+     * Send push notification when admin gives feedback/interaction to employee
+     */
+    public function sendPerformanceFeedbackNotification($employee, $feedbackType, $subject, $priority)
+    {
+        $oneSignal = new OneSignalService();
+        
+        // Customize title based on feedback type
+        $titles = [
+            'recognition' => 'Recognition from Management',
+            'coaching' => 'Coaching Feedback',
+            'correction' => 'Performance Feedback',
+            'development' => 'Development Opportunity',
+            'general' => 'New Feedback'
+        ];
+        
+        $title = $titles[$feedbackType] ?? 'New Feedback';
+        $message = "You received {$feedbackType} feedback: {$subject}";
+        
+        $data = [
+            'type' => 'performance_feedback',
+            'employee_id' => $employee->id,
+            'feedback_type' => $feedbackType,
+            'subject' => $subject,
+            'priority' => $priority,
+            'url' => '/employee/dashboard#performance'
+        ];
+
+        // Send to specific employee
+        return $oneSignal->sendToEmployee($employee->id, $title, $message, $data, config('app.url') . '/employee/dashboard#performance');
+    }
+
+    /**
      * Send push notification for time off requests
      */
     public function sendTimeOffRequestNotification($employee, $request)
