@@ -241,23 +241,37 @@ trait SendsPushNotifications
     /**
      * Send push notification for time off requests
      */
-    public function sendTimeOffRequestNotification($employee, $request)
+    public function sendTimeOffRequestNotification($employee, $timeOffRequest)
     {
         $oneSignal = new OneSignalService();
         
+        $employeeName = trim(($employee->first_name ?? '') . ' ' . ($employee->last_name ?? ''));
+        if (empty($employeeName)) {
+            $employeeName = $employee->email;
+        }
+
+        $startDate = $timeOffRequest->start_date->format('M d, Y');
+        $endDate = $timeOffRequest->end_date->format('M d, Y');
+        $dateRange = $startDate === $endDate ? $startDate : "{$startDate} - {$endDate}";
+        
+        $typeLabel = TimeOffRequest::TYPES[$timeOffRequest->type] ?? $timeOffRequest->type;
+        
         $title = 'New Time Off Request';
-        $message = "{$employee->first_name} {$employee->last_name} has requested time off from {$request->start_date} to {$request->end_date}";
+        $message = "{$employeeName} requested {$typeLabel} for {$dateRange}";
         
         $data = [
             'type' => 'time_off_request',
-            'request_id' => $request->id,
+            'request_id' => $timeOffRequest->id,
             'employee_id' => $employee->id,
-            'employee_name' => "{$employee->first_name} {$employee->last_name}",
+            'employee_name' => $employeeName,
+            'time_off_type' => $timeOffRequest->type,
+            'start_date' => $timeOffRequest->start_date->toDateString(),
+            'end_date' => $timeOffRequest->end_date->toDateString(),
             'url' => '/admin/dashboard#time-off'
         ];
 
-        // Send to admins and managers
-        return $oneSignal->sendToTags(['role' => 'admin'], $title, $message, $data, config('app.url') . '/admin/dashboard#time-off');
+        // Send to all admin roles (owner, admin, manager, hiring_manager)
+        return $oneSignal->sendToMultipleRoles(['owner', 'admin', 'manager', 'hiring_manager'], $title, $message, $data, config('app.url') . '/admin/dashboard#time-off');
     }
 
     /**

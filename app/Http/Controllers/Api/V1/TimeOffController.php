@@ -100,6 +100,30 @@ class TimeOffController extends Controller
                 \Log::error('Failed to create time-off notification: ' . $e->getMessage());
             }
 
+            // Send OneSignal push notification to all admins
+            try {
+                \Log::info('Sending OneSignal notification for time-off request', [
+                    'request_id' => $timeOff->id,
+                    'employee_id' => $employee->id,
+                    'type' => $timeOff->type,
+                    'start_date' => $timeOff->start_date,
+                    'end_date' => $timeOff->end_date
+                ]);
+                
+                $timeOff->sendTimeOffRequestNotification($employee, $timeOff);
+                
+                \Log::info('OneSignal notification sent for time-off request', [
+                    'request_id' => $timeOff->id,
+                    'employee_id' => $employee->id
+                ]);
+            } catch (\Exception $notificationError) {
+                \Log::error('Failed to send OneSignal notification for time-off request', [
+                    'request_id' => $timeOff->id,
+                    'employee_id' => $employee->id,
+                    'error' => $notificationError->getMessage()
+                ]);
+            }
+
             DB::commit();
 
             return $this->successResponse(new TimeOffRequestResource($timeOff), 'Time-off request submitted', 201);
