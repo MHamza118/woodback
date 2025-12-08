@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use App\Services\OneSignalService;
+use App\Models\TimeOffRequest;
 
 trait SendsPushNotifications
 {
