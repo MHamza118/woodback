@@ -112,11 +112,48 @@ class OneSignalService
     }
 
     /**
+     * Send notification to users with multiple role options (OR condition)
+     */
+    public function sendToMultipleRoles($roles, $title, $message, $data = [], $url = null)
+    {
+        $filters = [];
+        
+        foreach ($roles as $index => $role) {
+            if ($index > 0) {
+                $filters[] = ['operator' => 'OR'];
+            }
+            $filters[] = [
+                'field' => 'tag',
+                'key' => 'role',
+                'relation' => '=',
+                'value' => $role
+            ];
+        }
+
+        $payload = [
+            'app_id' => $this->appId,
+            'filters' => $filters,
+            'headings' => ['en' => $title],
+            'contents' => ['en' => $message],
+        ];
+
+        if (!empty($data)) {
+            $payload['data'] = $data;
+        }
+
+        if ($url) {
+            $payload['url'] = $url;
+        }
+
+        return $this->sendNotification($payload);
+    }
+
+    /**
      * Send notification to admin users
      */
     public function sendToAdmins($title, $message, $data = [], $url = null)
     {
-        return $this->sendToTags(['role' => 'owner'], $title, $message, $data, $url);
+        return $this->sendToMultipleRoles(['owner', 'admin', 'manager', 'hiring_manager'], $title, $message, $data, $url);
     }
 
     /**

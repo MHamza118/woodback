@@ -23,8 +23,8 @@ trait SendsPushNotifications
             'url' => '/admin/dashboard#employees'
         ];
 
-        // Send to admins only
-        return $oneSignal->sendToTags(['role' => 'owner'], $title, $message, $data, config('app.url') . '/admin/dashboard#employees');
+        // Send to all admin roles (owner, admin, manager, hiring_manager)
+        return $oneSignal->sendToMultipleRoles(['owner', 'admin', 'manager', 'hiring_manager'], $title, $message, $data, config('app.url') . '/admin/dashboard#employees');
     }
 
     /**
@@ -48,8 +48,8 @@ trait SendsPushNotifications
             'url' => '/admin/dashboard#tickets'
         ];
 
-        // Send to admins only
-        return $oneSignal->sendToTags(['role' => 'owner'], $title, $message, $data, config('app.url') . '/admin/dashboard#tickets');
+        // Send to all admin roles (owner, admin, manager, hiring_manager)
+        return $oneSignal->sendToMultipleRoles(['owner', 'admin', 'manager', 'hiring_manager'], $title, $message, $data, config('app.url') . '/admin/dashboard#tickets');
     }
 
     /**
