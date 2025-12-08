@@ -24,7 +24,7 @@ trait SendsPushNotifications
         ];
 
         // Send to admins only
-        return $oneSignal->sendToTags(['role' => 'admin'], $title, $message, $data, config('app.url') . '/admin/dashboard#employees');
+        return $oneSignal->sendToTags(['role' => 'owner'], $title, $message, $data, config('app.url') . '/admin/dashboard#employees');
     }
 
     /**
@@ -49,7 +49,7 @@ trait SendsPushNotifications
         ];
 
         // Send to admins only
-        return $oneSignal->sendToTags(['role' => 'admin'], $title, $message, $data, config('app.url') . '/admin/dashboard#tickets');
+        return $oneSignal->sendToTags(['role' => 'owner'], $title, $message, $data, config('app.url') . '/admin/dashboard#tickets');
     }
 
     /**
