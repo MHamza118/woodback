@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use App\Traits\SendsPushNotifications;
 
 class TrainingAssignment extends Model
 {
-    use HasFactory;
+    use HasFactory, SendsPushNotifications;
 
     protected $keyType = 'string';
     public $incrementing = false;

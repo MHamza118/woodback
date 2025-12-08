@@ -229,6 +229,29 @@ class TrainingService
                     ]);
                 }
 
+                // Send OneSignal push notification to employee
+                try {
+                    \Log::info('Sending OneSignal notification for training assignment', [
+                        'assignment_id' => $assignment->id,
+                        'employee_id' => $employeeId,
+                        'module_id' => $module->id,
+                        'module_title' => $module->title
+                    ]);
+                    
+                    $assignment->sendTrainingAssignedNotification($employee, $module);
+                    
+                    \Log::info('OneSignal notification sent for training assignment', [
+                        'assignment_id' => $assignment->id,
+                        'employee_id' => $employeeId
+                    ]);
+                } catch (\Exception $notificationError) {
+                    \Log::error('Failed to send OneSignal notification for training assignment', [
+                        'assignment_id' => $assignment->id,
+                        'employee_id' => $employeeId,
+                        'error' => $notificationError->getMessage()
+                    ]);
+                }
+
                 $assignments[] = [
                     'id' => $assignment->id,
                     'employee' => [
