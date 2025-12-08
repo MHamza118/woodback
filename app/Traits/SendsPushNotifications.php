@@ -53,6 +53,49 @@ trait SendsPushNotifications
     }
 
     /**
+     * Send push notification for ticket response to employee
+     */
+    public function sendTicketResponseToEmployee($ticket, $employeeId, $message)
+    {
+        $oneSignal = new OneSignalService();
+        
+        $title = 'New Response from Management';
+        $notificationMessage = 'You received a response on your ticket "' . $ticket->title . '"';
+        
+        $data = [
+            'type' => 'ticket_response',
+            'ticket_id' => $ticket->id,
+            'ticket_title' => $ticket->title,
+            'url' => '/employee/dashboard#tickets'
+        ];
+
+        // Send to specific employee
+        return $oneSignal->sendToEmployee($employeeId, $title, $notificationMessage, $data, config('app.url') . '/employee/dashboard#tickets');
+    }
+
+    /**
+     * Send push notification for employee ticket response to admins
+     */
+    public function sendEmployeeTicketResponseToAdmins($ticket, $employeeName)
+    {
+        $oneSignal = new OneSignalService();
+        
+        $title = 'New Employee Response';
+        $message = $employeeName . ' responded to ticket: ' . $ticket->title;
+        
+        $data = [
+            'type' => 'ticket_response',
+            'ticket_id' => $ticket->id,
+            'ticket_title' => $ticket->title,
+            'employee_name' => $employeeName,
+            'url' => '/admin/dashboard#tickets'
+        ];
+
+        // Send to all admin roles
+        return $oneSignal->sendToMultipleRoles(['owner', 'admin', 'manager', 'hiring_manager'], $title, $message, $data, config('app.url') . '/admin/dashboard#tickets');
+    }
+
+    /**
      * Send push notification for order updates (for expo users)
      */
     public function sendOrderUpdateNotification($order, $type = 'new_order')

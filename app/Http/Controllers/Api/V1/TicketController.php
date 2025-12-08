@@ -435,6 +435,22 @@ class TicketController extends Controller
                         'response_message' => $request->message
                     ]
                 ]);
+
+                // Send OneSignal push notification to employee
+                try {
+                    \Log::info('Sending OneSignal notification for admin ticket response', [
+                        'ticket_id' => $ticket->id,
+                        'employee_id' => $ticket->employee_id
+                    ]);
+                    
+                    $response->sendTicketResponseToEmployee($ticket, $ticket->employee_id, $request->message);
+                    
+                    \Log::info('OneSignal notification sent for admin ticket response');
+                } catch (\Exception $notificationError) {
+                    \Log::error('Failed to send OneSignal notification for admin ticket response', [
+                        'error' => $notificationError->getMessage()
+                    ]);
+                }
             }
 
             DB::commit();
@@ -487,6 +503,22 @@ public function employeeAddResponse(CreateTicketResponseRequest $request, $id): 
                 'response_message' => $request->message
             ]
         ]);
+
+        // Send OneSignal push notification to all admins
+        try {
+            \Log::info('Sending OneSignal notification for employee ticket response', [
+                'ticket_id' => $ticket->id,
+                'employee_id' => $employee->id
+            ]);
+            
+            $response->sendEmployeeTicketResponseToAdmins($ticket, $employee->full_name);
+            
+            \Log::info('OneSignal notification sent for employee ticket response');
+        } catch (\Exception $notificationError) {
+            \Log::error('Failed to send OneSignal notification for employee ticket response', [
+                'error' => $notificationError->getMessage()
+            ]);
+        }
 
         DB::commit();
 
