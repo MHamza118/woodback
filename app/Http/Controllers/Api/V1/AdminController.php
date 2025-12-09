@@ -379,10 +379,10 @@ class AdminController extends Controller
             $result = $this->adminService->deactivateAdminUser($admin, (int)$id);
             
             return $this->successResponse([
-                'user' => new AdminResource($result['admin']),
+                'user' => $result['admin'] ? new AdminResource($result['admin']) : null,
             ], $result['message']);
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to deactivate user: ' . $e->getMessage());
+            return $this->errorResponse('Failed to delete user: ' . $e->getMessage());
         }
     }
 
