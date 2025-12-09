@@ -187,8 +187,8 @@ class AdminService
             ]);
         }
 
-        // Hard delete the admin user from database
-        $targetAdmin->delete();
+        // Hard delete the admin user from database (permanently remove, not soft delete)
+        $targetAdmin->forceDelete();
 
         return [
             'admin' => null,
