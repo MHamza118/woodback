@@ -180,18 +180,19 @@ class AdminService
             ]);
         }
 
-        // Can't deactivate users of equal or higher role
+        // Can't delete users of equal or higher role
         if ($deactivatingAdmin->getRoleLevel() <= $targetAdmin->getRoleLevel()) {
             throw ValidationException::withMessages([
-                'user' => ['You cannot deactivate users of equal or higher role level.'],
+                'user' => ['You cannot delete users of equal or higher role level.'],
             ]);
         }
 
-        $targetAdmin->update(['status' => Admin::STATUS_INACTIVE]);
+        // Hard delete the admin user from database
+        $targetAdmin->delete();
 
         return [
-            'admin' => $targetAdmin->fresh(),
-            'message' => 'User deactivated successfully'
+            'admin' => null,
+            'message' => 'User deleted successfully'
         ];
     }
 
