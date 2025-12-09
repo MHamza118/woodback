@@ -39,7 +39,7 @@ class EmployeeResource extends JsonResource
             'department' => $this->department,
             'stage' => $this->stage,
             'status' => $this->status,
-            'location' => $this->location,
+            'location' => $this->cleanLocationName($this->location),
             'can_access_dashboard' => $this->canAccessDashboard(),
             'next_stage' => $this->getNextStage(),
             'questionnaire_responses' => $this->questionnaire_responses,
@@ -155,5 +155,16 @@ class EmployeeResource extends JsonResource
             'created_at' => $this->created_at->toISOString(),
             'updated_at' => $this->updated_at->toISOString(),
         ];
+    }
+
+    /**
+     * Clean location name by removing "- Woodfire.food" suffix
+     */
+    private function cleanLocationName($location)
+    {
+        if (is_string($location)) {
+            return preg_replace('/ - Woodfire\.food$/i', '', $location);
+        }
+        return $location;
     }
 }
