@@ -454,6 +454,7 @@ class AdminEmployeeController extends Controller
             'areas.*' => 'string',
             'roles' => 'required|array|min:1',
             'roles.*' => 'required|string',
+            'rolesByArea' => 'nullable|array',
             'primaryDepartment' => 'nullable|string|in:FOH,BOH',
             'primaryArea' => 'nullable|string',
             'primaryRole' => 'nullable|string',
@@ -472,11 +473,12 @@ class AdminEmployeeController extends Controller
                 'departments' => $request->departments,
                 'areas' => $request->areas ?? [],
                 'roles' => $request->roles,
+                'rolesByArea' => $request->rolesByArea ?? [],
                 'primaryDepartment' => $request->primaryDepartment ?? ($request->departments[0] ?? null),
                 'primaryArea' => $request->primaryArea ?? null,
                 'primaryRole' => $request->primaryRole ?? ($request->roles[0] ?? null),
                 'isFlexible' => $request->isFlexible ?? false,
-                'assignedAt' => $employee->assignments['assignedAt'] ?? now()->toISOString(),
+                'assignedAt' => ($employee->assignments && isset($employee->assignments['assignedAt'])) ? $employee->assignments['assignedAt'] : now()->toISOString(),
                 'assignedBy' => $request->user()->id,
                 'lastModified' => now()->toISOString()
             ];

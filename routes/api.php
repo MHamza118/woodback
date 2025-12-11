@@ -261,6 +261,19 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/{id}/status', [App\Http\Controllers\Api\V1\TimeOffController::class, 'updateStatus']);
             });
 
+            // Admin availability management routes
+            Route::prefix('availability')->group(function () {
+                Route::get('/reasons', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getReasons']);
+                Route::post('/reasons', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'storeReason']);
+                Route::put('/reasons/{id}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'updateReason']);
+                Route::delete('/reasons/{id}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'deleteReason']);
+                
+                Route::get('/requests', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getRequests']);
+                Route::post('/requests', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'storeRequest']);
+                Route::post('/requests/{id}/status', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'updateRequestStatus']);
+                Route::delete('/requests/{id}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'deleteRequest']);
+            });
+
             // Admin table tracking management routes
             Route::prefix('table-tracking')->group(function () {
                 Route::get('/orders', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'getAllOrders']);
@@ -373,6 +386,14 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/', [App\Http\Controllers\Api\V1\TimeOffController::class, 'store']);
                 Route::get('/{id}', [App\Http\Controllers\Api\V1\TimeOffController::class, 'show']);
                 Route::post('/{id}/cancel', [App\Http\Controllers\Api\V1\TimeOffController::class, 'cancel']);
+            });
+
+            // Employee availability routes
+            Route::prefix('availability')->group(function () {
+                Route::get('/reasons', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getReasons']);
+                Route::get('/requests', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getRequests']);
+                Route::post('/requests', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'storeRequest']);
+                Route::delete('/requests/{id}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'deleteRequest']);
             });
 
             // Employee table tracking routes

@@ -1,0 +1,289 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Http\Controllers\Controller;
+use App\Models\AvailabilityReason;
+use App\Models\AvailabilityRequest;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+
+class AvailabilityController extends Controller
+{
+    public function getReasons()
+    {
+        try {
+            $reasons = AvailabilityReason::orderBy('created_at', 'desc')->get();
+            
+            return response()->json([
+                'success' => true,
+                'reasons' => $reasons
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch reasons',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function storeReason(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'reason' => 'required|string|max:255',
+                'comment_required' => 'boolean'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $reason = AvailabilityReason::create([
+                'reason' => $request->reason,
+                'comment_required' => $request->comment_required ?? false
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Reason created successfully',
+                'reason' => $reason
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create reason',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function updateReason(Request $request, $id)
+    {
+        try {
+            $reason = AvailabilityReason::findOrFail($id);
+
+            $validator = Validator::make($request->all(), [
+                'reason' => 'required|string|max:255',
+                'comment_required' => 'boolean'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $reason->update([
+                'reason' => $request->reason,
+                'comment_required' => $request->comment_required ?? false
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Reason updated successfully',
+                'reason' => $reason
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update reason',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function deleteReason($id)
+    {
+        try {
+            $reason = AvailabilityReason::findOrFail($id);
+            $reason->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Reason deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete reason',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getRequests(Request $request)
+    {
+        try {
+            $query = AvailabilityRequest::with(['employee', 'approver']);
+
+            // Check if this is an employee request (from employee routes)
+            if ($request->route()->getPrefix() === 'api/v1/employee') {
+                // For employee routes, only show their own requests
+                $query->where('employee_id', $request->user()->id);
+            } else {
+                // For admin routes, allow filtering
+                if ($request->has('employee_id')) {
+                    $query->where('employee_id', $request->employee_id);
+                }
+            }
+
+            if ($request->has('type')) {
+                $query->where('type', $request->type);
+            }
+
+            if ($request->has('status')) {
+                $query->where('status', $request->status);
+            }
+
+            $requests = $query->orderBy('created_at', 'desc')->get();
+
+            return response()->json([
+                'success' => true,
+                'requests' => $requests
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch requests',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function storeRequest(Request $request)
+    {
+        try {
+            // Check if this is an employee request (from employee routes)
+            $isEmployeeRequest = $request->route()->getPrefix() === 'api/v1/employee';
+            
+            $validationRules = [
+                'type' => 'required|in:recurring,temporary',
+                'availability_data' => 'required|array',
+                'effective_from' => 'nullable|date',
+                'effective_to' => 'nullable|date|after_or_equal:effective_from'
+            ];
+
+            // For admin requests, require employee_id. For employee requests, use authenticated user's ID
+            if (!$isEmployeeRequest) {
+                $validationRules['employee_id'] = 'required|exists:employees,id';
+            }
+
+            $validator = Validator::make($request->all(), $validationRules);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Determine employee_id
+            $employeeId = $isEmployeeRequest ? $request->user()->id : $request->employee_id;
+
+            // Check if employee already has a pending request
+            $existingPendingRequest = AvailabilityRequest::where('employee_id', $employeeId)
+                ->where('status', 'pending')
+                ->first();
+
+            if ($existingPendingRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You already have a pending availability request. Please wait for it to be approved or declined before submitting a new one.'
+                ], 422);
+            }
+
+            $availabilityRequest = AvailabilityRequest::create([
+                'employee_id' => $employeeId,
+                'type' => $request->type,
+                'status' => 'pending',
+                'availability_data' => $request->availability_data,
+                'effective_from' => $request->effective_from,
+                'effective_to' => $request->effective_to
+            ]);
+
+            $availabilityRequest->load(['employee', 'approver']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Availability request submitted successfully',
+                'request' => $availabilityRequest
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to submit availability request',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function updateRequestStatus(Request $request, $id)
+    {
+        try {
+            $availabilityRequest = AvailabilityRequest::findOrFail($id);
+
+            $validator = Validator::make($request->all(), [
+                'status' => 'required|in:approved,declined',
+                'admin_notes' => 'nullable|string',
+                'approved_by' => 'required|exists:employees,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $availabilityRequest->update([
+                'status' => $request->status,
+                'approved_by' => $request->approved_by,
+                'approved_at' => now(),
+                'admin_notes' => $request->admin_notes
+            ]);
+
+            $availabilityRequest->load(['employee', 'approver']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Availability request ' . $request->status . ' successfully',
+                'request' => $availabilityRequest
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update request status',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function deleteRequest($id)
+    {
+        try {
+            $availabilityRequest = AvailabilityRequest::findOrFail($id);
+            $availabilityRequest->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Availability request deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete request',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+}
