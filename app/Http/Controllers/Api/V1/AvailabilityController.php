@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\AvailabilityReason;
 use App\Models\AvailabilityRequest;
+use App\Services\AvailabilityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -282,6 +283,168 @@ class AvailabilityController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete request',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get effective availability for an employee on a specific date
+     * Temporary availability overrides recurring availability
+     */
+    public function getEffectiveAvailability(Request $request, $employeeId = null)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'date' => 'nullable|date'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // If employeeId not in route, use authenticated user's ID
+            if ($employeeId === null) {
+                $employeeId = $request->user()->id;
+            }
+
+            $availabilityService = new AvailabilityService();
+            $date = $request->date ?? now()->toDateString();
+            
+            $effectiveness = $availabilityService->getEffectiveAvailability($employeeId, $date);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Effective availability retrieved successfully',
+                'data' => [
+                    'date' => $date,
+                    'availability' => $effectiveness
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve effective availability',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get effective availability for a date range
+     */
+    public function getEffectiveAvailabilityRange(Request $request, $employeeId = null)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'start_date' => 'required|date',
+                'end_date' => 'required|date|after_or_equal:start_date'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // If employeeId not in route, use authenticated user's ID
+            if ($employeeId === null) {
+                $employeeId = $request->user()->id;
+            }
+
+            $availabilityService = new AvailabilityService();
+            $availabilityRange = $availabilityService->getEffectiveAvailabilityRange(
+                $employeeId,
+                $request->start_date,
+                $request->end_date
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Availability range retrieved successfully',
+                'data' => [
+                    'start_date' => $request->start_date,
+                    'end_date' => $request->end_date,
+                    'availability_by_date' => $availabilityRange
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve availability range',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get availability summary for an employee
+     * Shows recurring, active temporary, and upcoming temporary availability
+     */
+    public function getAvailabilitySummary(Request $request, $employeeId = null)
+    {
+        try {
+            // If employeeId not in route, use authenticated user's ID
+            if ($employeeId === null) {
+                $employeeId = $request->user()->id;
+            }
+
+            $availabilityService = new AvailabilityService();
+            $summary = $availabilityService->getEmployeeAvailabilitySummary($employeeId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Availability summary retrieved successfully',
+                'data' => $summary
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve availability summary',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Check if employee is available on a specific date
+     */
+    public function checkAvailability(Request $request, $employeeId)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'date' => 'required|date'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $availabilityService = new AvailabilityService();
+            $isAvailable = $availabilityService->isAvailableOnDate($employeeId, $request->date);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Availability check completed',
+                'data' => [
+                    'date' => $request->date,
+                    'is_available' => $isAvailable
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check availability',
                 'error' => $e->getMessage()
             ], 500);
         }

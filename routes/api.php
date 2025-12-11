@@ -285,6 +285,12 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/requests', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'storeRequest']);
                 Route::post('/requests/{id}/status', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'updateRequestStatus']);
                 Route::delete('/requests/{id}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'deleteRequest']);
+
+                // Effective availability endpoints (temporary overrides recurring)
+                Route::get('/effective/{employeeId}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getEffectiveAvailability']);
+                Route::get('/effective-range/{employeeId}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getEffectiveAvailabilityRange']);
+                Route::get('/summary/{employeeId}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getAvailabilitySummary']);
+                Route::post('/check/{employeeId}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'checkAvailability']);
             });
 
             // Admin table tracking management routes
@@ -407,6 +413,12 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::get('/requests', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getRequests']);
                 Route::post('/requests', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'storeRequest']);
                 Route::delete('/requests/{id}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'deleteRequest']);
+
+                // Effective availability endpoints (temporary overrides recurring)
+                Route::get('/effective', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getEffectiveAvailability']);
+                Route::get('/effective-range', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getEffectiveAvailabilityRange']);
+                Route::get('/summary', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getAvailabilitySummary']);
+                Route::post('/check', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'checkAvailability']);
             });
 
             // Employee notifications routes
