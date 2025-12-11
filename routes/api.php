@@ -409,6 +409,12 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::delete('/requests/{id}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'deleteRequest']);
             });
 
+            // Employee notifications routes
+            Route::get('/notifications', [App\Http\Controllers\Api\V1\TableNotificationController::class, 'getEmployeeNotifications']);
+            Route::put('/notifications/{notificationId}/read', [App\Http\Controllers\Api\V1\TableNotificationController::class, 'markEmployeeNotificationAsRead']);
+            Route::put('/notifications/mark-all-read', [App\Http\Controllers\Api\V1\TableNotificationController::class, 'markAllEmployeeNotificationsAsRead']);
+            Route::delete('/notifications/{notificationId}', [App\Http\Controllers\Api\V1\TableNotificationController::class, 'deleteEmployeeNotification']);
+
             // Employee table tracking routes
             Route::prefix('table-tracking')->group(function () {
                 Route::get('/orders', [App\Http\Controllers\Api\V1\TableTrackingController::class, 'getEmployeeOrders']);

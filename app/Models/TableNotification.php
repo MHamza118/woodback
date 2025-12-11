@@ -54,6 +54,7 @@ class TableNotification extends Model
     const TYPE_PERFORMANCE_REVIEW_OVERDUE = 'performance_review_overdue';
     const TYPE_PERFORMANCE_REVIEW_DUE_SOON = 'performance_review_due_soon';
     const TYPE_NEW_MESSAGE = 'new_message';
+    const TYPE_ROLE_ASSIGNMENT = 'role_assignment';
 
     // Priority constants
     const PRIORITY_HIGH = 'high';
@@ -86,7 +87,8 @@ class TableNotification extends Model
             self::TYPE_TICKET_ARCHIVED,
             self::TYPE_PERFORMANCE_REVIEW_OVERDUE,
             self::TYPE_PERFORMANCE_REVIEW_DUE_SOON,
-            self::TYPE_NEW_MESSAGE
+            self::TYPE_NEW_MESSAGE,
+            self::TYPE_ROLE_ASSIGNMENT
         ];
     }
 

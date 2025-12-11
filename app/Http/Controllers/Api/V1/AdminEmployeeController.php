@@ -10,6 +10,7 @@ use App\Models\Questionnaire;
 use App\Models\EmployeeFileUpload;
 use App\Services\EmployeeService;
 use App\Traits\ApiResponseTrait;
+use App\Traits\SendsPushNotifications;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -18,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 
 class AdminEmployeeController extends Controller
 {
-    use ApiResponseTrait;
+    use ApiResponseTrait, SendsPushNotifications;
 
     protected $employeeService;
 
@@ -486,6 +487,17 @@ class AdminEmployeeController extends Controller
             // Update employee assignments
             $employee->assignments = $assignments;
             $employee->save();
+
+            // Send push notification to employee about role assignment
+            try {
+                $this->sendRoleAssignmentNotification($employee, $assignments);
+            } catch (\Exception $e) {
+                // Log notification error but don't fail the assignment update
+                \Log::error('Failed to send role assignment notification', [
+                    'employee_id' => $employee->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
 
             return $this->successResponse(
                 new EmployeeResource($employee),

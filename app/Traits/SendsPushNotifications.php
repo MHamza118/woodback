@@ -316,6 +316,57 @@ trait SendsPushNotifications
     }
 
     /**
+     * Send push notification for role assignments
+     */
+    public function sendRoleAssignmentNotification($employee, $assignments)
+    {
+        $oneSignal = new OneSignalService();
+        
+        $employeeName = trim(($employee->first_name ?? '') . ' ' . ($employee->last_name ?? ''));
+        if (empty($employeeName)) {
+            $employeeName = $employee->email;
+        }
+
+        // Build department names
+        $departmentNames = [];
+        foreach ($assignments['departments'] as $deptId) {
+            $departmentNames[] = $deptId === 'FOH' ? 'Front of House' : 'Back of House';
+        }
+        $departmentText = implode(' and ', $departmentNames);
+
+        // Count roles
+        $roleCount = count($assignments['roles']);
+        $roleText = $roleCount === 1 ? '1 role' : "{$roleCount} roles";
+
+        $title = 'Role Assignment Updated';
+        $message = "You have been assigned {$roleText} in {$departmentText}. Check your dashboard for details.";
+        
+        $data = [
+            'type' => 'role_assignment',
+            'employee_id' => $employee->id,
+            'departments' => $assignments['departments'],
+            'roles' => $assignments['roles'],
+            'role_count' => $roleCount,
+            'url' => '/employee/dashboard#roles'
+        ];
+
+        // Create database notification
+        \App\Models\TableNotification::create([
+            'type' => \App\Models\TableNotification::TYPE_ROLE_ASSIGNMENT,
+            'title' => $title,
+            'message' => $message,
+            'recipient_type' => \App\Models\TableNotification::RECIPIENT_EMPLOYEE,
+            'recipient_id' => $employee->id,
+            'priority' => \App\Models\TableNotification::PRIORITY_MEDIUM,
+            'data' => $data,
+            'is_read' => false
+        ]);
+
+        // Send push notification to specific employee
+        return $oneSignal->sendToEmployee($employee->id, $title, $message, $data, config('app.url') . '/employee/dashboard#roles');
+    }
+
+    /**
      * Send custom push notification
      */
     public function sendCustomPushNotification($title, $message, $recipients = 'all', $data = [], $url = null)
