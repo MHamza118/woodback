@@ -103,6 +103,9 @@ Route::prefix('employee')->middleware(['check.employee.status'])->group(function
 
             Route::post('logout', [App\Http\Controllers\Api\V1\EmployeeController::class, 'logout']);
 
+            // Department structure for employees (read-only)
+            Route::get('department-structure', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'index']);
+
             // Time Tracking routes
             Route::post('clock-in', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'clockIn']);
             Route::post('clock-out', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'clockOut']);
@@ -196,6 +199,16 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
             // File management routes (separate from employee prefix for clarity)
             Route::get('/files/{id}/download', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'downloadFile']);
             Route::delete('/files/{id}', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'deleteFile']);
+
+            // Department structure management routes
+            Route::prefix('department-structure')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'index']);
+                Route::post('/area', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'updateArea']);
+                Route::post('/role', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'addRole']);
+                Route::delete('/role', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'removeRole']);
+                Route::post('/role', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'addRole']);
+                Route::delete('/role', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'removeRole']);
+            });
 
             // Admin questionnaire management routes
             Route::prefix('questionnaires')->group(function () {
