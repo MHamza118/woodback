@@ -413,6 +413,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
             Route::prefix('availability')->group(function () {
                 Route::get('/reasons', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getReasons']);
                 Route::get('/requests', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getRequests']);
+                Route::get('/requests/updated', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getUpdatedRequests']);
                 Route::post('/requests', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'storeRequest']);
                 Route::delete('/requests/{id}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'deleteRequest']);
 

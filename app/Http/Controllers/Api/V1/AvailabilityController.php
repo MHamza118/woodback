@@ -197,6 +197,38 @@ class AvailabilityController extends Controller
         }
     }
 
+    /**
+     * Get updated availability requests for an employee (for real-time notifications)
+     * Returns requests that were updated in the last X minutes
+     */
+    public function getUpdatedRequests(Request $request)
+    {
+        try {
+            $employeeId = $request->user()->id;
+            $minutesBack = $request->query('minutes', 5); // Default to last 5 minutes
+            $since = now()->subMinutes($minutesBack);
+
+            $updatedRequests = AvailabilityRequest::with(['employee', 'approver'])
+                ->where('employee_id', $employeeId)
+                ->where('status', '!=', 'pending')
+                ->where('updated_at', '>=', $since)
+                ->orderBy('updated_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'requests' => $updatedRequests,
+                'count' => $updatedRequests->count()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch updated requests',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function storeRequest(Request $request)
     {
         try {
@@ -426,6 +458,18 @@ class AvailabilityController extends Controller
                 );
             } catch (\Exception $notifyError) {
                 \Log::error('Failed to notify employee of status update: ' . $notifyError->getMessage());
+            }
+
+            // 3. Broadcast Toast Notification Event to Employee (Real-time)
+            try {
+                event(new \App\Events\AvailabilityRequestStatusUpdated(
+                    $availabilityRequest,
+                    $availabilityRequest->employee_id,
+                    $availabilityRequest->status,
+                    $availabilityRequest->admin_notes
+                ));
+            } catch (\Exception $e) {
+                \Log::error('Failed to broadcast availability status update event: ' . $e->getMessage());
             }
 
             return response()->json([
