@@ -389,4 +389,25 @@ trait SendsPushNotifications
                 return ['success' => false, 'error' => 'Invalid recipients'];
         }
     }
+    /**
+     * Send push notification for new availability request
+     */
+    public function sendNewAvailabilityRequestNotification($employee, $availabilityRequest)
+    {
+        $oneSignal = new OneSignalService();
+        
+        $title = 'New Availability Request';
+        $message = "{$employee->first_name} {$employee->last_name} submitted a new availability request effective from {$availabilityRequest->effective_from}";
+        
+        $data = [
+            'type' => 'new_availability_request',
+            'request_id' => $availabilityRequest->id,
+            'employee_id' => $employee->id,
+            'employee_name' => "{$employee->first_name} {$employee->last_name}",
+            'url' => '/admin/dashboard#availability'
+        ];
+
+        // Send to all admin roles (owner, admin, manager, hiring_manager)
+        return $oneSignal->sendToMultipleRoles(['owner', 'admin', 'manager', 'hiring_manager'], $title, $message, $data, config('app.url') . '/admin/dashboard#availability');
+    }
 }

@@ -148,6 +148,10 @@ class AvailabilityController extends Controller
                 $query->where('status', $request->status);
             }
 
+            if ($request->has('status')) {
+                $query->where('status', $request->status);
+            }
+
             $requests = $query->orderBy('created_at', 'desc')->get();
 
             return response()->json([
@@ -234,7 +238,40 @@ class AvailabilityController extends Controller
 
             $availabilityRequest->load(['employee', 'approver']);
 
-            // Send Notification if Admin set the availability
+            // Send Notification if Employee submitted the request
+            if ($isEmployeeRequest) {
+                // 1. Send Bell Notification (Database) to Admins
+                try {
+                    $employee = $request->user();
+                    $employeeName = $employee->first_name . ' ' . $employee->last_name;
+                    $message = "{$employeeName} submitted a new availability request effective from {$availabilityRequest->effective_from}.";
+
+                    \App\Models\TableNotification::create([
+                        'type' => 'new_availability_request', 
+                        'title' => "New Availability Request",
+                        'message' => $message,
+                        'recipient_type' => \App\Models\TableNotification::RECIPIENT_ADMIN,
+                        'priority' => \App\Models\TableNotification::PRIORITY_MEDIUM,
+                        'data' => [
+                            'request_id' => $availabilityRequest->id,
+                            'employee_id' => $employee->id,
+                            'employee_name' => $employeeName,
+                            'effective_from' => $availabilityRequest->effective_from
+                        ]
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::error('Failed to create admin availability notification: ' . $e->getMessage());
+                }
+
+                // 2. Send Push Notification (OneSignal) to Admins
+                try {
+                    $request->user()->sendNewAvailabilityRequestNotification($request->user(), $availabilityRequest);
+                } catch (\Exception $notifyError) {
+                    \Log::error('Failed to notify admins of new availability request: ' . $notifyError->getMessage());
+                }
+            }
+
+            // Send Notification if Admin set the availability (Existing Code)
             if (!$isEmployeeRequest) {
                 try {
                     $oneSignal = new \App\Services\OneSignalService();
@@ -296,6 +333,46 @@ class AvailabilityController extends Controller
             ]);
 
             $availabilityRequest->load(['employee', 'approver']);
+
+            // 1. Send Bell Notification (Database)
+            $statusCap = ucfirst($availabilityRequest->status);
+            $message = "Your availability request from " . $availabilityRequest->effective_from . " has been {$availabilityRequest->status}.";
+            
+            if ($availabilityRequest->status === 'declined' && $availabilityRequest->admin_notes) {
+                $message .= " Reason: " . $availabilityRequest->admin_notes;
+            }
+
+            try {
+                \App\Models\TableNotification::create([
+                    'type' => 'availability_update', // Using string since column is VARCHAR
+                    'title' => "Availability Request {$statusCap}",
+                    'message' => $message,
+                    'recipient_type' => \App\Models\TableNotification::RECIPIENT_EMPLOYEE,
+                    'recipient_id' => $availabilityRequest->employee_id,
+                    'priority' => \App\Models\TableNotification::PRIORITY_MEDIUM,
+                    'data' => [
+                        'request_id' => $availabilityRequest->id,
+                        'status' => $availabilityRequest->status,
+                        'admin_notes' => $availabilityRequest->admin_notes,
+                        'approved_by' => $request->user()->name
+                    ]
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Failed to create availability notification: ' . $e->getMessage());
+            }
+
+            // 2. Send Push Notification (OneSignal)
+            try {
+                $oneSignal = new \App\Services\OneSignalService();
+                $oneSignal->sendToEmployee(
+                    $availabilityRequest->employee_id,
+                    "Availability Request {$statusCap}",
+                    $message,
+                    ['type' => 'availability_update', 'request_id' => $availabilityRequest->id]
+                );
+            } catch (\Exception $notifyError) {
+                \Log::error('Failed to notify employee of status update: ' . $notifyError->getMessage());
+            }
 
             return response()->json([
                 'success' => true,
