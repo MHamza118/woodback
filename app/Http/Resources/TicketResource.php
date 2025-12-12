@@ -21,9 +21,7 @@ class TicketResource extends JsonResource
                 return trim("{$this->employee->first_name} {$this->employee->last_name}");
             }),
             'admin_id' => $this->admin_id,
-            'admin_name' => $this->when($this->relationLoaded('admin') && $this->admin, function () {
-                return $this->admin->name; 
-            }),
+            'admin_name' => $this->admin?->name ?? (\App\Models\Admin::find($this->admin_id)?->name),
             'title' => $this->title,
             'description' => $this->description,
             'category' => $this->category,
