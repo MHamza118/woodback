@@ -167,6 +167,36 @@ class AvailabilityController extends Controller
         }
     }
 
+    /**
+     * Get new pending availability requests (for real-time notifications)
+     * Returns only pending requests created in the last X minutes
+     */
+    public function getNewRequests(Request $request)
+    {
+        try {
+            $minutesBack = $request->query('minutes', 5); // Default to last 5 minutes
+            $since = now()->subMinutes($minutesBack);
+
+            $newRequests = AvailabilityRequest::with(['employee', 'approver'])
+                ->where('status', 'pending')
+                ->where('created_at', '>=', $since)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'requests' => $newRequests,
+                'count' => $newRequests->count()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch new requests',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function storeRequest(Request $request)
     {
         try {
@@ -271,6 +301,26 @@ class AvailabilityController extends Controller
                     $request->user()->sendNewAvailabilityRequestNotification($request->user(), $availabilityRequest);
                 } catch (\Exception $notifyError) {
                     \Log::error('Failed to notify admins of new availability request: ' . $notifyError->getMessage());
+                }
+
+                // 3. Broadcast Toast Notification Event to Admins (Real-time)
+                try {
+                    $employee = $request->user();
+                    $employeeName = $employee->first_name . ' ' . $employee->last_name;
+                    
+                    // Broadcast to all admin users
+                    \Illuminate\Support\Facades\Broadcast::channel('admin-availability-requests', function () {
+                        return true;
+                    });
+                    
+                    // Emit event for real-time toast notification
+                    event(new \App\Events\NewAvailabilityRequest(
+                        $availabilityRequest,
+                        $employeeName,
+                        $employee->id
+                    ));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to broadcast availability request event: ' . $e->getMessage());
                 }
             }
 
