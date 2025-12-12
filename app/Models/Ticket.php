@@ -30,7 +30,8 @@ class Ticket extends Model
         'archived' => 'boolean',
         'archived_at' => 'datetime',
         'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'updated_at' => 'datetime',
+        'created_by_admin' => 'boolean'
     ];
 
     /**
@@ -155,6 +156,11 @@ class Ticket extends Model
               ->orWhere('description', 'LIKE', "%{$searchTerm}%")
               ->orWhereHas('employee', function ($empQuery) use ($searchTerm) {
                   $empQuery->where('first_name', 'LIKE', "%{$searchTerm}%")
+                           ->orWhere('last_name', 'LIKE', "%{$searchTerm}%")
+                           ->orWhere('email', 'LIKE', "%{$searchTerm}%");
+              })
+              ->orWhereHas('admin', function ($adminQuery) use ($searchTerm) {
+                  $adminQuery->where('first_name', 'LIKE', "%{$searchTerm}%")
                            ->orWhere('last_name', 'LIKE', "%{$searchTerm}%")
                            ->orWhere('email', 'LIKE', "%{$searchTerm}%");
               });

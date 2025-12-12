@@ -30,7 +30,7 @@ class TicketController extends Controller
         try {
             $user = $request->user();
 
-            $query = Ticket::with(['employee', 'responses']);
+            $query = Ticket::with(['employee', 'admin', 'responses']);
 
             // Apply filters
             if ($request->has('status') && $request->status !== 'all') {
@@ -209,12 +209,42 @@ class TicketController extends Controller
 
     /**
      * Create a new ticket by admin (Admin only)
-     * For now, admins cannot create tickets directly - they can only manage employee tickets
-     * This endpoint is disabled until the database schema is updated to support admin-created tickets
      */
     public function storeAdminTicket(CreateTicketRequest $request): JsonResponse
     {
-        return $this->errorResponse('Admin ticket creation is not yet available. Please use the employee ticket system.', 403);
+        try {
+            $admin = $request->user();
+
+            DB::beginTransaction();
+
+            $ticket = Ticket::create([
+                'employee_id' => null, // Admin created ticket has no employee_id initially
+                'admin_id' => $admin->id,
+                'created_by_admin' => true,
+                'title' => $request->title,
+                'description' => $request->description,
+                'category' => $request->category,
+                'priority' => $request->priority,
+                'location' => $request->location,
+                'status' => 'open'
+            ]);
+
+            $ticket->load(['admin']);
+
+            // No need to notify admin since they created it
+            // Potentially notify other admins? For now, we'll keep it simple as per requirements.
+
+            DB::commit();
+
+            return $this->successResponse(
+                new TicketResource($ticket),
+                'Ticket created successfully',
+                201
+            );
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return $this->errorResponse('Failed to create ticket: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -233,7 +263,7 @@ class TicketController extends Controller
                     ->findOrFail($id);
             } else {
                 // Admin can see all tickets with all responses
-                $ticket = Ticket::with(['employee', 'responses'])
+                $ticket = Ticket::with(['employee', 'admin', 'responses'])
                     ->findOrFail($id);
             }
 

@@ -20,6 +20,10 @@ class TicketResource extends JsonResource
             'employee_name' => $this->when($this->relationLoaded('employee') && $this->employee, function () {
                 return trim("{$this->employee->first_name} {$this->employee->last_name}");
             }),
+            'admin_id' => $this->admin_id,
+            'admin_name' => $this->when($this->relationLoaded('admin') && $this->admin, function () {
+                return $this->admin->name; 
+            }),
             'title' => $this->title,
             'description' => $this->description,
             'category' => $this->category,
@@ -29,6 +33,7 @@ class TicketResource extends JsonResource
             'status' => $this->status,
             'status_label' => $this->status_label,
             'location' => $this->location,
+            'created_by_admin' => $this->created_by_admin,
             'archived' => $this->archived,
             'archived_at' => $this->when($this->archived_at, $this->archived_at?->toISOString()),
             'created_at' => $this->created_at->toISOString(),
@@ -40,12 +45,14 @@ class TicketResource extends JsonResource
                     ? TicketResponseResource::collection($this->publicResponses)
                     : []),
             // Include employee data when needed
-            'employee' => $this->when($this->relationLoaded('employee') && $this->employee, [
-                'id' => $this->employee->id,
-                'name' => trim("{$this->employee->first_name} {$this->employee->last_name}"),
-                'email' => $this->employee->email,
-                'location' => $this->employee->location
-            ])
+            'employee' => $this->when($this->relationLoaded('employee') && $this->employee, function () {
+                return [
+                    'id' => $this->employee->id,
+                    'name' => trim("{$this->employee->first_name} {$this->employee->last_name}"),
+                    'email' => $this->employee->email,
+                    'location' => $this->employee->location
+                ];
+            })
         ];
     }
 }
