@@ -30,7 +30,7 @@ class TicketController extends Controller
         try {
             $user = $request->user();
 
-            $query = Ticket::with(['employee', 'admin', 'responses']);
+            $query = Ticket::with(['employee', 'responses']);
 
             // Apply filters
             if ($request->has('status') && $request->status !== 'all') {
@@ -209,39 +209,12 @@ class TicketController extends Controller
 
     /**
      * Create a new ticket by admin (Admin only)
+     * For now, admins cannot create tickets directly - they can only manage employee tickets
+     * This endpoint is disabled until the database schema is updated to support admin-created tickets
      */
     public function storeAdminTicket(CreateTicketRequest $request): JsonResponse
     {
-        try {
-            $admin = $request->user();
-
-            DB::beginTransaction();
-
-            $ticket = Ticket::create([
-                'employee_id' => null, // Admin-created tickets don't have an employee_id
-                'admin_id' => $admin->id,
-                'title' => $request->title,
-                'description' => $request->description,
-                'category' => $request->category,
-                'priority' => $request->priority,
-                'location' => $request->location,
-                'status' => 'open',
-                'created_by_admin' => true
-            ]);
-
-            $ticket->load(['admin']);
-
-            DB::commit();
-
-            return $this->successResponse(
-                new TicketResource($ticket),
-                'Ticket created successfully',
-                201
-            );
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return $this->errorResponse('Failed to create ticket: ' . $e->getMessage());
-        }
+        return $this->errorResponse('Admin ticket creation is not yet available. Please use the employee ticket system.', 403);
     }
 
     /**
@@ -255,12 +228,12 @@ class TicketController extends Controller
 
             if ($isEmployee) {
                 // Employee can only see their own tickets with public responses
-                $ticket = Ticket::with(['employee', 'admin', 'publicResponses'])
+                $ticket = Ticket::with(['employee', 'publicResponses'])
                     ->byEmployee($user->id)
                     ->findOrFail($id);
             } else {
                 // Admin can see all tickets with all responses
-                $ticket = Ticket::with(['employee', 'admin', 'responses'])
+                $ticket = Ticket::with(['employee', 'responses'])
                     ->findOrFail($id);
             }
 

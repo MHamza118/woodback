@@ -8,12 +8,15 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     * This rolls back the nullable change to employee_id
+     * All existing tickets have employee_id values, so no data will be lost
      */
     public function up(): void
     {
         Schema::table('tickets', function (Blueprint $table) {
-            // Make employee_id nullable to support admin-created tickets
-            $table->foreignId('employee_id')->nullable()->change();
+            // Revert employee_id back to NOT nullable
+            // This is safe because all existing tickets have employee_id values
+            $table->foreignId('employee_id')->nullable(false)->change();
         });
     }
 
@@ -23,7 +26,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('tickets', function (Blueprint $table) {
-            $table->foreignId('employee_id')->nullable(false)->change();
+            // If needed to rollback, make it nullable again
+            $table->foreignId('employee_id')->nullable()->change();
         });
     }
 };

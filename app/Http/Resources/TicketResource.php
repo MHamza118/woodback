@@ -14,20 +14,11 @@ class TicketResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $createdByAdmin = $this->created_by_admin ?? false;
-        
         return [
             'id' => $this->id,
             'employee_id' => $this->employee_id,
-            'admin_id' => $this->admin_id,
-            'created_by_admin' => $createdByAdmin,
-            'employee_name' => $this->when(!$createdByAdmin && $this->relationLoaded('employee') && $this->employee, function () {
+            'employee_name' => $this->when($this->relationLoaded('employee') && $this->employee, function () {
                 return trim("{$this->employee->first_name} {$this->employee->last_name}");
-            }),
-            'admin_name' => $this->when($createdByAdmin && $this->relationLoaded('admin') && $this->admin, function () {
-                $name = trim("{$this->admin->first_name} {$this->admin->last_name}");
-                $role = $this->admin->role ?? 'Admin';
-                return "{$name} ({$role})";
             }),
             'title' => $this->title,
             'description' => $this->description,
@@ -49,17 +40,11 @@ class TicketResource extends JsonResource
                     ? TicketResponseResource::collection($this->publicResponses)
                     : []),
             // Include employee data when needed
-            'employee' => $this->when(!$createdByAdmin && $this->relationLoaded('employee') && $this->employee, [
+            'employee' => $this->when($this->relationLoaded('employee') && $this->employee, [
                 'id' => $this->employee->id,
                 'name' => trim("{$this->employee->first_name} {$this->employee->last_name}"),
                 'email' => $this->employee->email,
                 'location' => $this->employee->location
-            ]),
-            // Include admin data when needed
-            'admin' => $this->when($createdByAdmin && $this->relationLoaded('admin') && $this->admin, [
-                'id' => $this->admin->id,
-                'name' => trim("{$this->admin->first_name} {$this->admin->last_name}"),
-                'role' => $this->admin->role ?? 'Admin'
             ])
         ];
     }
