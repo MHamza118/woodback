@@ -14,6 +14,7 @@ class Ticket extends Model
 
     protected $fillable = [
         'employee_id',
+        'admin_id',
         'title',
         'description',
         'category',
@@ -21,7 +22,8 @@ class Ticket extends Model
         'status',
         'location',
         'archived',
-        'archived_at'
+        'archived_at',
+        'created_by_admin'
     ];
 
     protected $casts = [
@@ -69,6 +71,14 @@ class Ticket extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    /**
+     * Get the admin that created the ticket (if created by admin)
+     */
+    public function admin(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class);
     }
 
     /**

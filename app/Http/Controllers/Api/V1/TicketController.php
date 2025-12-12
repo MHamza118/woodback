@@ -208,6 +208,43 @@ class TicketController extends Controller
     }
 
     /**
+     * Create a new ticket by admin (Admin only)
+     */
+    public function storeAdminTicket(CreateTicketRequest $request): JsonResponse
+    {
+        try {
+            $admin = $request->user();
+
+            DB::beginTransaction();
+
+            $ticket = Ticket::create([
+                'employee_id' => $admin->id,
+                'admin_id' => $admin->id,
+                'title' => $request->title,
+                'description' => $request->description,
+                'category' => $request->category,
+                'priority' => $request->priority,
+                'location' => $request->location,
+                'status' => 'open',
+                'created_by_admin' => true
+            ]);
+
+            $ticket->load(['employee', 'admin']);
+
+            DB::commit();
+
+            return $this->successResponse(
+                new TicketResource($ticket),
+                'Ticket created successfully',
+                201
+            );
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return $this->errorResponse('Failed to create ticket: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Get a specific ticket
      */
     public function show(Request $request, $id): JsonResponse

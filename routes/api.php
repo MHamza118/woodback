@@ -257,6 +257,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
             // Admin ticket management routes
             Route::prefix('tickets')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\TicketController::class, 'index']);
+                Route::post('/', [App\Http\Controllers\Api\V1\TicketController::class, 'storeAdminTicket']);
                 Route::get('/statistics', [App\Http\Controllers\Api\V1\TicketController::class, 'statistics']);
                 Route::get('/configuration', [App\Http\Controllers\Api\V1\TicketController::class, 'configuration']);
                 Route::get('/{id}', [App\Http\Controllers\Api\V1\TicketController::class, 'show']);

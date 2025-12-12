@@ -14,11 +14,22 @@ class TicketResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $createdByAdmin = $this->created_by_admin ?? false;
+        
         return [
             'id' => $this->id,
             'employee_id' => $this->employee_id,
-            'employee_name' => $this->when($this->relationLoaded('employee'), function () {
+            'created_by_admin' => $createdByAdmin,
+            'employee_name' => $this->when(!$createdByAdmin && $this->relationLoaded('employee'), function () {
                 return $this->employee ? trim("{$this->employee->first_name} {$this->employee->last_name}") : 'Unknown Employee';
+            }),
+            'admin_name' => $this->when($createdByAdmin && $this->relationLoaded('admin'), function () {
+                if ($this->admin) {
+                    $name = trim("{$this->admin->first_name} {$this->admin->last_name}");
+                    $role = $this->admin->role;
+                    return "{$name} ({$role})";
+                }
+                return 'Unknown Admin';
             }),
             'title' => $this->title,
             'description' => $this->description,
@@ -40,7 +51,7 @@ class TicketResource extends JsonResource
                     ? TicketResponseResource::collection($this->publicResponses)
                     : []),
             // Include employee data when needed
-            'employee' => $this->when($this->relationLoaded('employee') && $this->employee, [
+            'employee' => $this->when(!$createdByAdmin && $this->relationLoaded('employee') && $this->employee, [
                 'id' => $this->employee->id,
                 'name' => trim("{$this->employee->first_name} {$this->employee->last_name}"),
                 'email' => $this->employee->email,
