@@ -126,7 +126,11 @@ class AvailabilityController extends Controller
             $query = AvailabilityRequest::with(['employee', 'approver']);
 
             // Check if this is an employee request (from employee routes)
-            if ($request->route()->getPrefix() === 'api/v1/employee') {
+            // The prefix could be 'api/v1/employee' or 'api/v1/employee/availability' depending on nesting
+            $prefix = $request->route()->getPrefix();
+            $isEmployeeRoute = str_contains($prefix, 'employee');
+
+            if ($isEmployeeRoute) {
                 // For employee routes, only show their own requests
                 $query->where('employee_id', $request->user()->id);
             } else {
@@ -163,7 +167,8 @@ class AvailabilityController extends Controller
     {
         try {
             // Check if this is an employee request (from employee routes)
-            $isEmployeeRequest = $request->route()->getPrefix() === 'api/v1/employee';
+            $prefix = $request->route()->getPrefix();
+            $isEmployeeRequest = str_contains($prefix, 'employee');
             
             $validationRules = [
                 'type' => 'required|in:recurring,temporary',
@@ -195,27 +200,65 @@ class AvailabilityController extends Controller
                 ->where('status', 'pending')
                 ->first();
 
-            if ($existingPendingRequest) {
+            if ($isEmployeeRequest && $existingPendingRequest) {
                 return response()->json([
                     'success' => false,
                     'message' => 'You already have a pending availability request. Please wait for it to be approved or declined before submitting a new one.'
                 ], 422);
             }
 
+            // Admin Override Logic: If Admin, cancel existing pending request
+            if (!$isEmployeeRequest && $existingPendingRequest) {
+                $existingPendingRequest->update([
+                    'status' => 'declined',
+                    'admin_notes' => 'Overridden by new admin assignment',
+                    'approved_by' => $request->user()->id,
+                    'approved_at' => now()
+                ]);
+            }
+
+            $status = $isEmployeeRequest ? 'pending' : 'approved';
+            $approvedBy = $isEmployeeRequest ? null : $request->user()->id;
+            $approvedAt = $isEmployeeRequest ? null : now();
+
             $availabilityRequest = AvailabilityRequest::create([
                 'employee_id' => $employeeId,
                 'type' => $request->type,
-                'status' => 'pending',
+                'status' => $status,
                 'availability_data' => $request->availability_data,
                 'effective_from' => $request->effective_from,
-                'effective_to' => $request->effective_to
+                'effective_to' => $request->effective_to,
+                'approved_by' => $approvedBy,
+                'approved_at' => $approvedAt
             ]);
 
             $availabilityRequest->load(['employee', 'approver']);
 
+            // Send Notification if Admin set the availability
+            if (!$isEmployeeRequest) {
+                try {
+                    $oneSignal = new \App\Services\OneSignalService();
+                    $title = 'Availability Updated';
+                    $message = 'An admin has updated your availability settings.';
+                    
+                    // Construct a payload for the employee
+                    $oneSignal->sendToEmployee(
+                        $employeeId, 
+                        $title, 
+                        $message, 
+                        ['type' => 'availability_update', 'request_id' => $availabilityRequest->id]
+                    );
+                } catch (\Exception $notifyError) {
+                    \Log::error('Failed to notify employee of availability update: ' . $notifyError->getMessage());
+                    // Do not fail the request if notification fails
+                }
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Availability request submitted successfully',
+                'message' => $isEmployeeRequest 
+                    ? 'Availability request submitted successfully' 
+                    : 'Availability set successfully and employee notified',
                 'request' => $availabilityRequest
             ], 201);
         } catch (\Exception $e) {
@@ -234,8 +277,7 @@ class AvailabilityController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'status' => 'required|in:approved,declined',
-                'admin_notes' => 'nullable|string',
-                'approved_by' => 'required|exists:employees,id'
+                'admin_notes' => 'nullable|string'
             ]);
 
             if ($validator->fails()) {
@@ -248,7 +290,7 @@ class AvailabilityController extends Controller
 
             $availabilityRequest->update([
                 'status' => $request->status,
-                'approved_by' => $request->approved_by,
+                'approved_by' => $request->user()->id,
                 'approved_at' => now(),
                 'admin_notes' => $request->admin_notes
             ]);
