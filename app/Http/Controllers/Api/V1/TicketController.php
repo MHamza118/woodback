@@ -30,7 +30,7 @@ class TicketController extends Controller
         try {
             $user = $request->user();
 
-            $query = Ticket::with(['employee', 'responses']);
+            $query = Ticket::with(['employee', 'admin', 'responses']);
 
             // Apply filters
             if ($request->has('status') && $request->status !== 'all') {
@@ -255,12 +255,12 @@ class TicketController extends Controller
 
             if ($isEmployee) {
                 // Employee can only see their own tickets with public responses
-                $ticket = Ticket::with(['employee', 'publicResponses'])
+                $ticket = Ticket::with(['employee', 'admin', 'publicResponses'])
                     ->byEmployee($user->id)
                     ->findOrFail($id);
             } else {
                 // Admin can see all tickets with all responses
-                $ticket = Ticket::with(['employee', 'responses'])
+                $ticket = Ticket::with(['employee', 'admin', 'responses'])
                     ->findOrFail($id);
             }
 
