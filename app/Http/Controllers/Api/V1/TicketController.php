@@ -218,7 +218,7 @@ class TicketController extends Controller
             DB::beginTransaction();
 
             $ticket = Ticket::create([
-                'employee_id' => $admin->id,
+                'employee_id' => null, // Admin-created tickets don't have an employee_id
                 'admin_id' => $admin->id,
                 'title' => $request->title,
                 'description' => $request->description,
@@ -229,7 +229,7 @@ class TicketController extends Controller
                 'created_by_admin' => true
             ]);
 
-            $ticket->load(['employee', 'admin']);
+            $ticket->load(['admin']);
 
             DB::commit();
 
