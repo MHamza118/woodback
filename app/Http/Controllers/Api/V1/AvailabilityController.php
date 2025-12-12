@@ -245,13 +245,16 @@ class AvailabilityController extends Controller
                     $employee = $request->user();
                     $employeeName = $employee->first_name . ' ' . $employee->last_name;
                     $message = "{$employeeName} submitted a new availability request effective from {$availabilityRequest->effective_from}.";
+                    
+                    \Log::info('Creating availability notification for employee: ' . $employeeName);
 
                     \App\Models\TableNotification::create([
-                        'type' => 'new_availability_request', 
+                        'type' => \App\Models\TableNotification::TYPE_NEW_AVAILABILITY_REQUEST, 
                         'title' => "New Availability Request",
                         'message' => $message,
                         'recipient_type' => \App\Models\TableNotification::RECIPIENT_ADMIN,
                         'priority' => \App\Models\TableNotification::PRIORITY_MEDIUM,
+                        'order_number' => null, // Required if migration didn't run properly, safest to include
                         'data' => [
                             'request_id' => $availabilityRequest->id,
                             'employee_id' => $employee->id,
@@ -344,12 +347,13 @@ class AvailabilityController extends Controller
 
             try {
                 \App\Models\TableNotification::create([
-                    'type' => 'availability_update', // Using string since column is VARCHAR
+                    'type' => \App\Models\TableNotification::TYPE_AVAILABILITY_STATUS_UPDATE,
                     'title' => "Availability Request {$statusCap}",
                     'message' => $message,
                     'recipient_type' => \App\Models\TableNotification::RECIPIENT_EMPLOYEE,
                     'recipient_id' => $availabilityRequest->employee_id,
                     'priority' => \App\Models\TableNotification::PRIORITY_MEDIUM,
+                    'order_number' => null,
                     'data' => [
                         'request_id' => $availabilityRequest->id,
                         'status' => $availabilityRequest->status,
