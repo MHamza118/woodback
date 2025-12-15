@@ -204,6 +204,7 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
             Route::prefix('department-structure')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'index']);
                 Route::post('/area', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'updateArea']);
+                Route::delete('/area', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'deleteArea']);
                 Route::post('/role', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'addRole']);
                 Route::delete('/role', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'removeRole']);
                 Route::post('/role', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'addRole']);

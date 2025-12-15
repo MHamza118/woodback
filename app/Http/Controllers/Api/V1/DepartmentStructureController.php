@@ -64,6 +64,28 @@ class DepartmentStructureController extends Controller
     }
 
     /**
+     * Delete an area
+     */
+    public function deleteArea(Request $request): JsonResponse
+    {
+        $request->validate([
+            'department_id' => 'required|in:FOH,BOH',
+            'area_id' => 'required|string'
+        ]);
+
+        try {
+            DepartmentStructure::deleteArea(
+                $request->department_id,
+                $request->area_id
+            );
+
+            return $this->successResponse(null, 'Area deleted successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to delete area: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Add or update an area
      */
     public function updateArea(Request $request): JsonResponse

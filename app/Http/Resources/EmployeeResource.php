@@ -28,6 +28,20 @@ class EmployeeResource extends JsonResource
             }
         }
 
+        // Prepare personal info and calculate age
+        $personalInfo = $this->profile_data['personal_info'] ?? [];
+        if (isset($this->personal_info)) {
+            $personalInfo = $this->personal_info;
+        }
+
+        if (is_array($personalInfo) && !empty($personalInfo['dob'])) {
+            try {
+                $personalInfo['age'] = \Carbon\Carbon::parse($personalInfo['dob'])->age;
+            } catch (\Exception $e) {
+                // Ignore invalid dates
+            }
+        }
+
         return [
             'id' => $this->id,
             'first_name' => $this->first_name,
@@ -45,7 +59,7 @@ class EmployeeResource extends JsonResource
             'questionnaire_responses' => $this->questionnaire_responses,
             'profile_data' => $this->profile_data,
             'assignments' => $this->assignments,
-            'personal_info' => $this->when(isset($this->personal_info), $this->personal_info) ?: ($this->profile_data['personal_info'] ?? null),
+            'personal_info' => $personalInfo ?: null,
             'file_uploads' => $this->when($this->fileUploads, function () {
                 return $this->fileUploads->map(function ($file) {
                     return [

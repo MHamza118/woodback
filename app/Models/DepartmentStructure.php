@@ -44,6 +44,16 @@ class DepartmentStructure extends Model
     }
 
     /**
+     * Delete an area
+     */
+    public static function deleteArea($departmentId, $areaId)
+    {
+        return self::where('department_id', $departmentId)
+                   ->where('area_id', $areaId)
+                   ->delete();
+    }
+
+    /**
      * Add or update an area
      */
     public static function updateArea($departmentId, $areaId, $areaName, $areaDescription, $roles)

@@ -26,6 +26,7 @@ class EmployeePersonalInfoRequest extends FormRequest
             'flexible_hours' => 'sometimes', // Accept any value, will convert in controller
             'emergency_contact' => 'sometimes|nullable|string|max:255',
             'emergency_phone' => 'sometimes|nullable|string|regex:/^\+1 \(\d{3}\) \d{3}-\d{4}$/|max:18',
+            'dob' => 'sometimes|nullable|date|before:today',
             
             // Document uploads
             'documents' => 'sometimes|array',
