@@ -35,14 +35,6 @@ class TableTrackingController extends Controller
         $tableNumber = strtoupper($request->table_number);
         $orderNumber = $request->order_number;
 
-        // Enforce unique order numbers across the system (backend-level)
-        if (TableOrder::where('order_number', $orderNumber)->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Order number already exists. Please enter a unique order number.'
-            ], 422);
-        }
-
         // Validate table number
         if (!TableMapping::isValidTableNumber($tableNumber)) {
             return response()->json([
@@ -323,14 +315,6 @@ class TableTrackingController extends Controller
         }
 
         try {
-            // Reject duplicate order numbers
-            if (TableOrder::where('order_number', $request->order_number)->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Order number already exists. Please enter a unique order number.'
-                ], 422);
-            }
-
             // Create standalone order with unique identifier
             $uniqueIdentifier = 'order_' . $request->order_number . '_standalone_' . uniqid();
             
