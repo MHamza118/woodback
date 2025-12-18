@@ -57,22 +57,27 @@ Route::prefix('v1')->group(function () {
         });
 
 // Employee routes (for authenticated employees)
-Route::prefix('employee')->middleware(['check.employee.status'])->group(function () {
-    Route::get('profile', [App\Http\Controllers\Api\V1\EmployeeController::class, 'profile']);
-    Route::get('check-status', [App\Http\Controllers\Api\V1\EmployeeController::class, 'checkStatus']);
-    Route::put('personal-info', [App\Http\Controllers\Api\V1\EmployeeController::class, 'updatePersonalInfo']);
-    Route::post('personal-info', [App\Http\Controllers\Api\V1\EmployeeController::class, 'updatePersonalInfo']); // For file uploads
-    Route::delete('documents/{documentId}', [App\Http\Controllers\Api\V1\EmployeeController::class, 'deleteDocument']);
-    Route::get('qr', [App\Http\Controllers\Api\V1\EmployeeController::class, 'generateQR']);
-    Route::post('location', [App\Http\Controllers\Api\V1\EmployeeController::class, 'submitLocation']);
-    Route::get('questionnaire', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getQuestionnaire']);
-    Route::post('questionnaire', [App\Http\Controllers\Api\V1\EmployeeController::class, 'submitQuestionnaire']);
+Route::prefix('employee')->middleware(['auth:sanctum'])->group(function () {
+    // Locations endpoint for employees (read-only access to all locations) - no status check needed
+    Route::get('locations', [App\Http\Controllers\Api\V1\AdminController::class, 'getLocations']);
+    
+    // Routes that require employee status check
+    Route::middleware(['check.employee.status'])->group(function () {
+        Route::get('profile', [App\Http\Controllers\Api\V1\EmployeeController::class, 'profile']);
+        Route::get('check-status', [App\Http\Controllers\Api\V1\EmployeeController::class, 'checkStatus']);
+        Route::put('personal-info', [App\Http\Controllers\Api\V1\EmployeeController::class, 'updatePersonalInfo']);
+        Route::post('personal-info', [App\Http\Controllers\Api\V1\EmployeeController::class, 'updatePersonalInfo']); // For file uploads
+        Route::delete('documents/{documentId}', [App\Http\Controllers\Api\V1\EmployeeController::class, 'deleteDocument']);
+        Route::get('qr', [App\Http\Controllers\Api\V1\EmployeeController::class, 'generateQR']);
+        Route::post('location', [App\Http\Controllers\Api\V1\EmployeeController::class, 'submitLocation']);
+        Route::get('questionnaire', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getQuestionnaire']);
+        Route::post('questionnaire', [App\Http\Controllers\Api\V1\EmployeeController::class, 'submitQuestionnaire']);
 
-    // Get interviewers for questionnaire (accessible during onboarding)
-    Route::get('interviewers', [App\Http\Controllers\Api\V1\AdminController::class, 'getInterviewers']);
-    Route::get('welcome', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getWelcomePage']);
-    Route::get('confirmation', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getConfirmationPage']);
-    Route::get('dashboard', [App\Http\Controllers\Api\V1\EmployeeController::class, 'dashboard']);
+        // Get interviewers for questionnaire (accessible during onboarding)
+        Route::get('interviewers', [App\Http\Controllers\Api\V1\AdminController::class, 'getInterviewers']);
+        Route::get('welcome', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getWelcomePage']);
+        Route::get('confirmation', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getConfirmationPage']);
+        Route::get('dashboard', [App\Http\Controllers\Api\V1\EmployeeController::class, 'dashboard']);
 
     // Employee FAQ routes
     Route::prefix('faqs')->group(function () {
@@ -103,16 +108,17 @@ Route::prefix('employee')->middleware(['check.employee.status'])->group(function
 
             Route::post('logout', [App\Http\Controllers\Api\V1\EmployeeController::class, 'logout']);
 
-            // Department structure for employees (read-only)
-            Route::get('department-structure', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'index']);
+        // Department structure for employees (read-only)
+        Route::get('department-structure', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'index']);
 
-            // Time Tracking routes
-            Route::post('clock-in', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'clockIn']);
-            Route::post('clock-out', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'clockOut']);
-            Route::get('clock-status', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getClockStatus']);
-            Route::get('time-entries', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getTimeEntries']);
-            Route::get('current-time-entry', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getCurrentTimeEntry']);
-        });
+        // Time Tracking routes
+        Route::post('clock-in', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'clockIn']);
+        Route::post('clock-out', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'clockOut']);
+        Route::get('clock-status', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getClockStatus']);
+        Route::get('time-entries', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getTimeEntries']);
+        Route::get('current-time-entry', [App\Http\Controllers\Api\V1\TimeTrackingController::class, 'getCurrentTimeEntry']);
+    });
+});
 
 // Admin dashboard and profile routes
 Route::prefix('admin')->middleware(['admin'])->group(function () {
