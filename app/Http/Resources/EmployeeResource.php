@@ -104,13 +104,28 @@ class EmployeeResource extends JsonResource
                 ];
             }),
             'assigned_interviewer_id' => $this->assigned_interviewer_id,
+            'assigned_interviewer_type' => $this->assigned_interviewer_type,
+            'assigned_employee_interviewer_id' => $this->assigned_employee_interviewer_id,
             'assigned_interviewer' => $this->when($this->assignedInterviewer, function () {
                 return [
-                    'id' => $this->assignedInterviewer->id,
+                    'id' => 'admin_' . $this->assignedInterviewer->id,
+                    'actual_id' => $this->assignedInterviewer->id,
                     'name' => $this->assignedInterviewer->name ?? $this->assignedInterviewer->full_name,
                     'email' => $this->assignedInterviewer->email,
+                    'type' => 'admin'
                 ];
             }),
+            'assigned_employee_interviewer' => $this->when($this->assignedEmployeeInterviewer, function () {
+                return [
+                    'id' => 'employee_' . $this->assignedEmployeeInterviewer->id,
+                    'actual_id' => $this->assignedEmployeeInterviewer->id,
+                    'name' => $this->assignedEmployeeInterviewer->first_name . ' ' . $this->assignedEmployeeInterviewer->last_name,
+                    'email' => $this->assignedEmployeeInterviewer->email,
+                    'type' => 'employee'
+                ];
+            }),
+            'interview_access' => $this->interview_access ?? false,
+            'is_interviewer' => $this->is_interviewer ?? false,
             'rejection_reason' => $this->when($this->status === 'rejected', $this->rejection_reason),
             'status_reason' => $this->getStatusReason(),
             // Training-related data

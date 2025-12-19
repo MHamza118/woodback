@@ -30,8 +30,12 @@ class Employee extends Authenticatable
         'approved_at',
         'approved_by',
         'assigned_interviewer_id',
+        'assigned_interviewer_type',
+        'assigned_employee_interviewer_id',
         'rejection_reason',
-        'onboarding_pages_completed_at'
+        'onboarding_pages_completed_at',
+        'interview_access',
+        'is_interviewer'
     ];
 
     protected $hidden = [
@@ -47,6 +51,8 @@ class Employee extends Authenticatable
         'profile_data' => 'array',
         'assignments' => 'array',
         'password' => 'hashed',
+        'interview_access' => 'boolean',
+        'is_interviewer' => 'boolean',
     ];
 
     protected $dates = ['deleted_at'];
@@ -78,6 +84,14 @@ class Employee extends Authenticatable
     public function assignedInterviewer()
     {
         return $this->belongsTo(Admin::class, 'assigned_interviewer_id');
+    }
+
+    /**
+     * Get the employee interviewer assigned to this employee
+     */
+    public function assignedEmployeeInterviewer()
+    {
+        return $this->belongsTo(Employee::class, 'assigned_employee_interviewer_id');
     }
 
     /**
@@ -303,6 +317,14 @@ class Employee extends Authenticatable
     public function scopeByStage($query, $stage)
     {
         return $query->where('stage', $stage);
+    }
+
+    /**
+     * Scope for interviewers only
+     */
+    public function scopeInterviewers($query)
+    {
+        return $query->where('is_interviewer', true)->where('status', self::STATUS_APPROVED);
     }
 
     /**

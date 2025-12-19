@@ -460,28 +460,59 @@ class EmployeeService
      */
     public function assignInterviewer(string $employeeId, ?string $interviewerId): ?Employee
     {
-        $employee = $this->employeeRepository->findById($employeeId);
+        // Use a single query with relationships pre-loaded
+        $employee = Employee::with(['assignedInterviewer', 'assignedEmployeeInterviewer'])
+            ->find($employeeId);
+            
         if (!$employee) {
             throw new \Exception('Employee not found');
         }
 
-        // Validate that the interviewer exists and is marked as interviewer
+        // Handle interviewer assignment
         if ($interviewerId) {
-            $interviewer = \App\Models\Admin::find($interviewerId);
-            if (!$interviewer) {
-                throw new \Exception('Interviewer not found');
+            // Parse the interviewer ID to determine type and actual ID
+            if (str_starts_with($interviewerId, 'admin_')) {
+                $actualId = str_replace('admin_', '', $interviewerId);
+                
+                // Use exists() for faster validation instead of find()
+                if (!\App\Models\Admin::where('id', $actualId)->where('is_interviewer', true)->exists()) {
+                    throw new \Exception('Admin interviewer not found or not marked as interviewer');
+                }
+                
+                // Store the admin ID for assigned_interviewer_id
+                $employee->assigned_interviewer_id = $actualId;
+                $employee->assigned_interviewer_type = 'admin';
+                $employee->assigned_employee_interviewer_id = null; // Clear employee interviewer
+                
+            } elseif (str_starts_with($interviewerId, 'employee_')) {
+                $actualId = str_replace('employee_', '', $interviewerId);
+                
+                // Use exists() for faster validation instead of find()
+                if (!Employee::where('id', $actualId)->where('is_interviewer', true)->exists()) {
+                    throw new \Exception('Employee interviewer not found or not marked as interviewer');
+                }
+                
+                // Store the employee interviewer
+                $employee->assigned_interviewer_id = null; // Clear admin interviewer
+                $employee->assigned_interviewer_type = 'employee';
+                $employee->assigned_employee_interviewer_id = $actualId;
+                
+            } else {
+                throw new \Exception('Invalid interviewer ID format');
             }
-            if (!$interviewer->is_interviewer) {
-                throw new \Exception('Selected admin is not marked as an interviewer');
-            }
+        } else {
+            // Clear interviewer assignment
+            $employee->assigned_interviewer_id = null;
+            $employee->assigned_interviewer_type = null;
+            $employee->assigned_employee_interviewer_id = null;
         }
 
-        // Update the assigned interviewer
-        $employee->assigned_interviewer_id = $interviewerId;
+        // Save changes
         $employee->save();
 
-        // Reload with relationships
-        $employee->load('assignedInterviewer');
+        // Refresh relationships after save (more efficient than separate load calls)
+        $employee->refresh();
+        $employee->load(['assignedInterviewer', 'assignedEmployeeInterviewer']);
 
         return $employee;
     }

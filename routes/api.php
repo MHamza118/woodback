@@ -196,6 +196,8 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/{id}/activate', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'activate']);
                 // Assign interviewer
                 Route::post('/{id}/assign-interviewer', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'assignInterviewer']);
+                // Toggle interview access
+                Route::post('/{id}/toggle-interview-access', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'toggleInterviewAccess']);
                 // Delete employee - must come before GET /{id} to avoid conflicts
                 Route::delete('/{id}', [App\Http\Controllers\Api\V1\AdminEmployeeController::class, 'destroy']);
                 // Get single employee - must come last among /{id} routes

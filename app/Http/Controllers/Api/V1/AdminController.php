@@ -211,15 +211,47 @@ class AdminController extends Controller
     }
 
     /**
-     * Get all interviewers (admins marked as interviewers)
+     * Get all interviewers (admins marked as interviewers + employees with interview access)
      */
     public function getInterviewers(Request $request): JsonResponse
     {
         try {
-            $interviewers = Admin::interviewers()
+            // Get admin interviewers
+            $adminInterviewers = Admin::interviewers()
                 ->select('id', 'first_name', 'last_name', 'email', 'role')
                 ->orderBy('first_name')
-                ->get();
+                ->get()
+                ->map(function ($admin) {
+                    return [
+                        'id' => 'admin_' . $admin->id,
+                        'actual_id' => $admin->id,
+                        'first_name' => $admin->first_name,
+                        'last_name' => $admin->last_name,
+                        'email' => $admin->email,
+                        'role' => $admin->role,
+                        'type' => 'admin'
+                    ];
+                });
+
+            // Get employee interviewers
+            $employeeInterviewers = \App\Models\Employee::interviewers()
+                ->select('id', 'first_name', 'last_name', 'email')
+                ->orderBy('first_name')
+                ->get()
+                ->map(function ($employee) {
+                    return [
+                        'id' => 'employee_' . $employee->id,
+                        'actual_id' => $employee->id,
+                        'first_name' => $employee->first_name,
+                        'last_name' => $employee->last_name,
+                        'email' => $employee->email,
+                        'role' => 'interviewer',
+                        'type' => 'employee'
+                    ];
+                });
+
+            // Merge both collections
+            $interviewers = $adminInterviewers->concat($employeeInterviewers)->sortBy('first_name')->values();
             
             return $this->successResponse([
                 'interviewers' => $interviewers

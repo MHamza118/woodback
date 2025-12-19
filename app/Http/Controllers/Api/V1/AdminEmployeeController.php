@@ -77,7 +77,7 @@ class AdminEmployeeController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         try {
-            $employee = Employee::with(['fileUploads', 'approvedBy', 'assignedInterviewer', 'trainingAssignments.module', 'trainingProgress'])->find($id);
+            $employee = Employee::with(['fileUploads', 'approvedBy', 'assignedInterviewer', 'assignedEmployeeInterviewer', 'trainingAssignments.module', 'trainingProgress'])->find($id);
 
             if (!$employee) {
                 return $this->notFoundResponse('Employee not found');
@@ -242,7 +242,7 @@ class AdminEmployeeController extends Controller
     public function assignInterviewer(Request $request, string $id): JsonResponse
     {
         $request->validate([
-            'interviewer_id' => 'nullable|exists:admins,id'
+            'interviewer_id' => 'nullable|string'
         ]);
 
         try {
@@ -627,6 +627,34 @@ class AdminEmployeeController extends Controller
             
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to delete file: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Toggle interview access for an employee
+     * When enabled: employee gets interviewer role
+     * When disabled: employee loses interviewer role
+     */
+    public function toggleInterviewAccess(Request $request, string $id): JsonResponse
+    {
+        try {
+            $employee = Employee::findOrFail($id);
+            
+            // Toggle the interview_access flag
+            $employee->interview_access = !$employee->interview_access;
+            
+            // When interview access is enabled, also set is_interviewer to true
+            // When interview access is disabled, also set is_interviewer to false
+            $employee->is_interviewer = $employee->interview_access;
+            
+            $employee->save();
+
+            return $this->successResponse(
+                new EmployeeResource($employee),
+                'Interview access ' . ($employee->interview_access ? 'enabled' : 'disabled') . ' successfully. Employee ' . ($employee->is_interviewer ? 'now has' : 'no longer has') . ' interviewer role.'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to toggle interview access: ' . $e->getMessage());
         }
     }
 }
