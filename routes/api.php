@@ -29,6 +29,11 @@ Route::prefix('v1')->group(function () {
         // Admin authentication routes
         Route::post('admin/login', [App\Http\Controllers\Api\V1\AdminController::class, 'login']);
 
+        // Password reset routes (public)
+        Route::post('password/forgot', [App\Http\Controllers\Api\V1\PasswordResetController::class, 'sendResetLink']);
+        Route::post('password/verify-token', [App\Http\Controllers\Api\V1\PasswordResetController::class, 'verifyToken']);
+        Route::post('password/reset', [App\Http\Controllers\Api\V1\PasswordResetController::class, 'resetPassword']);
+
         // Logout route (protected)
         Route::middleware('auth:sanctum')->post('logout', [App\Http\Controllers\Api\V1\AuthController::class, 'logout']);
     });
@@ -334,6 +339,15 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::post('/conversations/{id}/messages', [App\Http\Controllers\Api\V1\MessageController::class, 'store']);
                 Route::post('/messages/group', [App\Http\Controllers\Api\V1\MessageController::class, 'sendGroupMessage']);
                 Route::post('/messages/private', [App\Http\Controllers\Api\V1\MessageController::class, 'sendPrivateMessage']);
+
+                // Announcements management
+                Route::prefix('announcements')->group(function () {
+                    Route::get('/', [App\Http\Controllers\Api\V1\AnnouncementController::class, 'index']);
+                    Route::post('/', [App\Http\Controllers\Api\V1\AnnouncementController::class, 'store']);
+                    Route::get('/{id}', [App\Http\Controllers\Api\V1\AnnouncementController::class, 'show']);
+                    Route::put('/{id}', [App\Http\Controllers\Api\V1\AnnouncementController::class, 'update']);
+                    Route::delete('/{id}', [App\Http\Controllers\Api\V1\AnnouncementController::class, 'destroy']);
+                });
             });
 
             // Admin employee recognition routes

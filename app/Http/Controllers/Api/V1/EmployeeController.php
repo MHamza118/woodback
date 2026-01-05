@@ -399,8 +399,23 @@ class EmployeeController extends Controller
             // Get upcoming schedule (placeholder - implement when scheduling system is added)
             $upcomingShifts = [];
             
-            // Get announcements (placeholder - implement when announcement system is added)
-            $announcements = [];
+            // Get active announcements
+            $announcements = \App\Models\Announcement::active()
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($announcement) {
+                    return [
+                        'id' => $announcement->id,
+                        'title' => $announcement->title,
+                        'content' => $announcement->content,
+                        'type' => $announcement->type,
+                        'start_date' => $announcement->start_date->toISOString(),
+                        'end_date' => $announcement->end_date?->toISOString(),
+                        'created_by' => $announcement->createdBy?->name,
+                        'created_at' => $announcement->created_at->toISOString()
+                    ];
+                })
+                ->toArray();
 
             // Calculate tenure information
             $hireDate = $employee->created_at; // Using created_at as hire date for now

@@ -12,37 +12,45 @@ class Announcement extends Model
 
     protected $fillable = [
         'title',
-        'message',
+        'content',
         'type',
-        'priority',
         'start_date',
         'end_date',
-        'is_active',
-        'is_dismissible',
-        'action_text',
-        'action_url',
-        'target_audience',
-        'target_criteria',
-        'created_by'
+        'created_by',
+        'is_active'
     ];
 
     protected $casts = [
         'start_date' => 'datetime',
         'end_date' => 'datetime',
         'is_active' => 'boolean',
-        'is_dismissible' => 'boolean',
-        'target_criteria' => 'array'
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime'
     ];
 
-    protected $dates = ['deleted_at'];
+    // Type constants
+    const TYPE_GENERAL = 'general';
+    const TYPE_URGENT = 'urgent';
+    const TYPE_EVENT = 'event';
+    const TYPE_POLICY = 'policy';
+
+    public static function getValidTypes()
+    {
+        return [
+            self::TYPE_GENERAL,
+            self::TYPE_URGENT,
+            self::TYPE_EVENT,
+            self::TYPE_POLICY
+        ];
+    }
 
     /**
-     * Get customers who dismissed this announcement
+     * Get the admin who created this announcement
      */
-    public function dismissedByCustomers()
+    public function createdBy()
     {
-        return $this->belongsToMany(Customer::class, 'customer_dismissed_announcements')
-                    ->withTimestamps();
+        return $this->belongsTo(Admin::class, 'created_by');
     }
 
     /**
@@ -51,8 +59,11 @@ class Announcement extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true)
-                    ->where('start_date', '<=', now())
-                    ->where('end_date', '>=', now());
+            ->where('start_date', '<=', now())
+            ->where(function ($q) {
+                $q->whereNull('end_date')
+                  ->orWhere('end_date', '>=', now());
+            });
     }
 
     /**
@@ -64,28 +75,12 @@ class Announcement extends Model
     }
 
     /**
-     * Scope by priority
+     * Check if announcement is currently active
      */
-    public function scopeByPriority($query, $priority)
+    public function isCurrentlyActive()
     {
-        return $query->where('priority', $priority);
-    }
-
-    /**
-     * Scope for customer-specific announcements
-     */
-    public function scopeForCustomer($query, Customer $customer)
-    {
-        return $query->where(function ($q) use ($customer) {
-            $q->where('target_audience', 'all')
-              ->orWhere(function ($subQuery) use ($customer) {
-                  $subQuery->where('target_audience', 'loyalty_tier')
-                           ->where('target_criteria', 'like', '%' . $customer->loyalty_tier . '%');
-              })
-              ->orWhere(function ($subQuery) use ($customer) {
-                  $subQuery->where('target_audience', 'location')
-                           ->where('target_criteria', 'like', '%' . $customer->home_location . '%');
-              });
-        });
+        return $this->is_active 
+            && $this->start_date <= now() 
+            && ($this->end_date === null || $this->end_date >= now());
     }
 }

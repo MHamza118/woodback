@@ -89,6 +89,9 @@ class MessageController extends Controller
     public function store(Request $request, $conversationId): JsonResponse
     {
         try {
+            \Log::info('=== STORE MESSAGE START ===');
+            \Log::info('Conversation ID: ' . $conversationId);
+            
             $request->validate([
                 'content' => 'required_without:attachments|string',
                 'attachments' => 'nullable|array',
@@ -98,6 +101,8 @@ class MessageController extends Controller
             $user = $request->user();
             $userType = $this->getUserType($user);
             $userId = $this->getUserId($user, $userType);
+
+            \Log::info('User ID: ' . $userId . ', User Type: ' . $userType);
 
             // Get conversation to determine type
             $conversation = Conversation::find($conversationId);
@@ -116,6 +121,8 @@ class MessageController extends Controller
 
             // Get sender name
             $senderName = $this->getSenderName($user, $userType);
+
+            \Log::info('Conversation type: ' . $conversation->type);
 
             // Route to appropriate message type based on conversation type
             if ($conversation->type === 'group') {
@@ -143,11 +150,17 @@ class MessageController extends Controller
                 return $this->errorResponse('Invalid conversation type', 400);
             }
 
+            \Log::info('Message created with ID: ' . $message->id);
+
             // Send OneSignal push notification to other participants
             $this->sendPushNotificationToParticipants($conversation, $message, $userId, $senderName);
 
+            \Log::info('About to call createMessageNotifications');
+
             // Create bell icon notifications for recipients
             $this->createMessageNotifications($conversation, $message, $userId, $senderName, $userType);
+
+            \Log::info('=== STORE MESSAGE END ===');
 
             return $this->successResponse([
                 'id' => $message->id,
@@ -161,6 +174,8 @@ class MessageController extends Controller
                 'timestamp' => $message->created_at->toISOString()
             ], 'Message sent successfully');
         } catch (\Exception $e) {
+            \Log::error('Exception in store: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
             return $this->errorResponse('Failed to send message: ' . $e->getMessage(), 500);
         }
     }
@@ -463,30 +478,52 @@ class MessageController extends Controller
     private function createMessageNotifications($conversation, $message, $senderId, $senderName, $senderType)
     {
         try {
+            \Log::info('=== CREATE MESSAGE NOTIFICATIONS START ===');
+            \Log::info('Conversation ID: ' . $conversation->id);
+            \Log::info('Sender ID: ' . $senderId);
+            \Log::info('Sender Type: ' . $senderType);
+            
             // Get all participants except the sender
             $participants = ConversationParticipant::where('conversation_id', $conversation->id)
                 ->where('participant_id', '!=', $senderId)
                 ->get();
 
+            \Log::info('Participants count: ' . $participants->count());
+            
             // Truncate message content for notification
             $messagePreview = strlen($message->content) > 50 
                 ? substr($message->content, 0, 50) . '...' 
                 : $message->content;
 
+            // Admin roles that should receive admin notifications
+            $adminRoles = ['admin', 'owner', 'manager', 'hiring_manager', 'expo'];
+
             foreach ($participants as $participant) {
+                \Log::info('Processing participant: ID=' . $participant->participant_id . ', Type=' . $participant->participant_type);
+                
                 // Determine recipient type (admin or employee)
-                $recipientType = $participant->participant_type === 'admin' 
+                // Check if participant_type is an admin role
+                $isAdminRole = in_array($participant->participant_type, $adminRoles);
+                $recipientType = $isAdminRole
                     ? TableNotification::RECIPIENT_ADMIN 
                     : TableNotification::RECIPIENT_EMPLOYEE;
 
+                \Log::info('Recipient type determined: ' . $recipientType);
+
+                // For admin recipients, use null as recipient_id so it shows for all admins
+                // For employee recipients, use the actual employee ID
+                $recipientId = $isAdminRole ? null : (int)$participant->participant_id;
+
+                \Log::info('Recipient ID set to: ' . ($recipientId ?? 'null'));
+
                 // Create notification
-                TableNotification::create([
+                $notification = TableNotification::create([
                     'type' => TableNotification::TYPE_NEW_MESSAGE,
                     'title' => 'New Message from ' . $senderName,
                     'message' => $messagePreview,
                     'order_number' => null,
                     'recipient_type' => $recipientType,
-                    'recipient_id' => $participant->participant_id,
+                    'recipient_id' => $recipientId,
                     'priority' => TableNotification::PRIORITY_MEDIUM,
                     'data' => [
                         'conversation_id' => $conversation->id,
@@ -498,10 +535,15 @@ class MessageController extends Controller
                     ],
                     'is_read' => false
                 ]);
+                
+                \Log::info('Notification created with ID: ' . $notification->id);
             }
+            
+            \Log::info('=== CREATE MESSAGE NOTIFICATIONS END ===');
         } catch (\Exception $e) {
             // Log error but don't fail the message send
             \Log::error('Failed to create message notifications: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
         }
     }
 }

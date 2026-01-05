@@ -32,11 +32,11 @@ class TableNotificationController extends Controller
             
             // Get notifications for this admin:
             // 1. Global notifications (recipient_id is null)
-            // 2. Notifications specifically for this admin (recipient_id matches)
+            // 2. Notifications specifically for this admin (recipient_id matches admin ID)
             $notifications = TableNotification::forAdmin()
                 ->where(function ($query) use ($adminId) {
                     $query->whereNull('recipient_id') // Global admin notifications
-                          ->orWhere('recipient_id', $adminId); // Specific admin notifications
+                          ->orWhere('recipient_id', $adminId); // Specific admin notifications by ID
                 })
                 ->orderBy('created_at', 'desc')
                 ->limit(50)
