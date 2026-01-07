@@ -236,7 +236,18 @@ class Employee extends Authenticatable
     }
 
     /**
-     * Get the reason for current status (rejected, paused, inactive)
+     * Send the password reset notification.
+     *
+     * @param  string  $token
+     * @return void
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new \App\Notifications\EmployeeResetPasswordNotification($token));
+    }
+
+    /**
+     * Get the reason for the current status
      */
     public function getStatusReason()
     {
