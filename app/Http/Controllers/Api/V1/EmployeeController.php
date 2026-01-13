@@ -399,8 +399,8 @@ class EmployeeController extends Controller
             // Get upcoming schedule (placeholder - implement when scheduling system is added)
             $upcomingShifts = [];
             
-            // Get active announcements
-            $announcements = \App\Models\Announcement::active()
+            // Get active announcements (only is_active = true, ignore date filters)
+            $announcements = \App\Models\Announcement::where('is_active', true)
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($announcement) {
