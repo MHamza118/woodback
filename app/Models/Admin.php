@@ -27,6 +27,7 @@ class Admin extends Authenticatable
         'onboarding_notifications_enabled',
         'is_interviewer',
         'profile_data',
+        'profile_image',
         'last_login_at',
     ];
 

@@ -18,7 +18,7 @@ class AdminResource extends JsonResource
             'id' => $this->id,
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
-            'name' => $this->full_name, // For compatibility with frontend
+            'name' => $this->full_name,
             'full_name' => $this->full_name,
             'email' => $this->email,
             'phone' => $this->phone,
@@ -32,6 +32,7 @@ class AdminResource extends JsonResource
             'onboarding_notifications_enabled' => $this->onboarding_notifications_enabled ?? true,
             'is_interviewer' => $this->is_interviewer ?? false,
             'profile_data' => $this->profile_data,
+            'profile_image' => $this->profile_image,
             'last_login_at' => $this->last_login_at?->toISOString(),
             'email_verified_at' => $this->email_verified_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),

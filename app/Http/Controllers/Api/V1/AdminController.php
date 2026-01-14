@@ -197,6 +197,100 @@ class AdminController extends Controller
     }
 
     /**
+     * Upload admin profile image
+     */
+    public function uploadProfileImage(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'profile_image' => 'required|image|mimes:jpeg,jpg,png,gif,webp|max:5120'
+            ]);
+
+            $admin = $request->user();
+            
+            if ($admin->profile_image) {
+                if (\Storage::disk('public')->exists($admin->profile_image)) {
+                    \Storage::disk('public')->delete($admin->profile_image);
+                }
+            }
+
+            $file = $request->file('profile_image');
+            $filename = 'admin_' . $admin->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('admin-profiles', $filename, 'public');
+
+            $admin->update(['profile_image' => $path]);
+
+            return $this->successResponse(
+                new AdminResource($admin->fresh()),
+                'Profile image uploaded successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to upload profile image: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete admin profile image
+     */
+    public function deleteProfileImage(Request $request): JsonResponse
+    {
+        try {
+            $admin = $request->user();
+            
+            if ($admin->profile_image) {
+                if (\Storage::disk('public')->exists($admin->profile_image)) {
+                    \Storage::disk('public')->delete($admin->profile_image);
+                }
+                $admin->update(['profile_image' => null]);
+            }
+
+            return $this->successResponse(
+                new AdminResource($admin->fresh()),
+                'Profile image deleted successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to delete profile image: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get admin profile image
+     */
+    public function getProfileImage(Request $request)
+    {
+        try {
+            $admin = $request->user();
+            
+            if (!$admin->profile_image) {
+                return response()->json(['error' => 'No profile image found'], 404);
+            }
+            
+            $disk = \Storage::disk('public');
+            
+            if (!$disk->exists($admin->profile_image)) {
+                return response()->json([
+                    'error' => 'Profile image file not found in storage',
+                    'path' => $admin->profile_image
+                ], 404);
+            }
+            
+            $mimeType = $disk->mimeType($admin->profile_image);
+            $fileContents = $disk->get($admin->profile_image);
+            
+            return response($fileContents, 200)
+                ->header('Content-Type', $mimeType ?: 'image/jpeg')
+                ->header('Cache-Control', 'public, max-age=31536000')
+                ->header('Pragma', 'public')
+                ->header('Expires', gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to retrieve profile image: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Logout admin
      */
     public function logout(Request $request): JsonResponse
