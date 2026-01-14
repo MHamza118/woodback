@@ -352,6 +352,12 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                     Route::put('/{id}', [App\Http\Controllers\Api\V1\AnnouncementController::class, 'update']);
                     Route::delete('/{id}', [App\Http\Controllers\Api\V1\AnnouncementController::class, 'destroy']);
                 });
+
+                // Employee messages monitoring
+                Route::prefix('employee-messages')->group(function () {
+                    Route::get('/', [App\Http\Controllers\Api\V1\EmployeeMessagesController::class, 'getEmployeeConversations']);
+                    Route::get('/{conversationId}/messages', [App\Http\Controllers\Api\V1\EmployeeMessagesController::class, 'getConversationMessages']);
+                });
             });
 
             // Admin employee recognition routes
