@@ -35,7 +35,8 @@ class Employee extends Authenticatable
         'rejection_reason',
         'onboarding_pages_completed_at',
         'interview_access',
-        'is_interviewer'
+        'is_interviewer',
+        'profile_image'
     ];
 
     protected $hidden = [

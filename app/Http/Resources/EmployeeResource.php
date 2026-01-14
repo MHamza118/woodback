@@ -126,6 +126,7 @@ class EmployeeResource extends JsonResource
             }),
             'interview_access' => $this->interview_access ?? false,
             'is_interviewer' => $this->is_interviewer ?? false,
+            'profile_image' => $this->profile_image,
             'rejection_reason' => $this->when($this->status === 'rejected', $this->rejection_reason),
             'status_reason' => $this->getStatusReason(),
             // Training-related data
