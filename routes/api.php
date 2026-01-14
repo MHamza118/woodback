@@ -117,6 +117,11 @@ Route::prefix('employee')->middleware(['auth:sanctum'])->group(function () {
 
             Route::post('logout', [App\Http\Controllers\Api\V1\EmployeeController::class, 'logout']);
 
+            // Profile image routes
+            Route::post('profile-image', [App\Http\Controllers\Api\V1\EmployeeController::class, 'uploadProfileImage']);
+            Route::delete('profile-image', [App\Http\Controllers\Api\V1\EmployeeController::class, 'deleteProfileImage']);
+            Route::get('profile-image', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getProfileImage']);
+
         // Department structure for employees (read-only)
         Route::get('department-structure', [App\Http\Controllers\Api\V1\DepartmentStructureController::class, 'index']);
 

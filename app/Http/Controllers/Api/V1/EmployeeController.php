@@ -1235,4 +1235,98 @@ class EmployeeController extends Controller
             return $this->errorResponse('Logout failed: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Upload employee profile image
+     */
+    public function uploadProfileImage(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'profile_image' => 'required|image|mimes:jpeg,jpg,png,gif,webp|max:5120'
+            ]);
+
+            $employee = $request->user();
+            
+            if ($employee->profile_image) {
+                if (\Storage::disk('public')->exists($employee->profile_image)) {
+                    \Storage::disk('public')->delete($employee->profile_image);
+                }
+            }
+
+            $file = $request->file('profile_image');
+            $filename = 'employee_' . $employee->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('employee-profiles', $filename, 'public');
+
+            $employee->update(['profile_image' => $path]);
+
+            return $this->successResponse(
+                new EmployeeResource($employee->fresh()),
+                'Profile image uploaded successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to upload profile image: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete employee profile image
+     */
+    public function deleteProfileImage(Request $request): JsonResponse
+    {
+        try {
+            $employee = $request->user();
+            
+            if ($employee->profile_image) {
+                if (\Storage::disk('public')->exists($employee->profile_image)) {
+                    \Storage::disk('public')->delete($employee->profile_image);
+                }
+                $employee->update(['profile_image' => null]);
+            }
+
+            return $this->successResponse(
+                new EmployeeResource($employee->fresh()),
+                'Profile image deleted successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to delete profile image: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get employee profile image
+     */
+    public function getProfileImage(Request $request)
+    {
+        try {
+            $employee = $request->user();
+            
+            if (!$employee->profile_image) {
+                return response()->json(['error' => 'No profile image found'], 404);
+            }
+            
+            $disk = \Storage::disk('public');
+            
+            if (!$disk->exists($employee->profile_image)) {
+                return response()->json([
+                    'error' => 'Profile image file not found in storage',
+                    'path' => $employee->profile_image
+                ], 404);
+            }
+            
+            $mimeType = $disk->mimeType($employee->profile_image);
+            $fileContents = $disk->get($employee->profile_image);
+            
+            return response($fileContents, 200)
+                ->header('Content-Type', $mimeType ?: 'image/jpeg')
+                ->header('Cache-Control', 'public, max-age=31536000')
+                ->header('Pragma', 'public')
+                ->header('Expires', gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to retrieve profile image: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
