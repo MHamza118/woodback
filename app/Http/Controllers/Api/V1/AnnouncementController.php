@@ -158,4 +158,38 @@ class AnnouncementController extends Controller
             return $this->errorResponse('Failed to delete announcement: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * Mark announcement as viewed by employee
+     */
+    public function markAsViewed(Request $request, $id): JsonResponse
+    {
+        try {
+            $announcement = Announcement::find($id);
+
+            if (!$announcement) {
+                return $this->errorResponse('Announcement not found', 404);
+            }
+
+            $employee = $request->user();
+
+            // Create or update the view record
+            \App\Models\AnnouncementView::updateOrCreate(
+                [
+                    'announcement_id' => $announcement->id,
+                    'employee_id' => $employee->id
+                ],
+                [
+                    'viewed_at' => now()
+                ]
+            );
+
+            return $this->successResponse(
+                null,
+                'Announcement marked as viewed'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to mark announcement as viewed: ' . $e->getMessage(), 500);
+        }
+    }
 }

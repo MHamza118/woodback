@@ -84,6 +84,10 @@ Route::prefix('employee')->middleware(['auth:sanctum'])->group(function () {
         Route::get('confirmation', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getConfirmationPage']);
         Route::get('dashboard', [App\Http\Controllers\Api\V1\EmployeeController::class, 'dashboard']);
 
+        // Employee announcements routes
+        Route::get('announcements', [App\Http\Controllers\Api\V1\AnnouncementController::class, 'getActive']);
+        Route::post('announcements/{id}/mark-as-viewed', [App\Http\Controllers\Api\V1\AnnouncementController::class, 'markAsViewed']);
+
     // Employee FAQ routes
     Route::prefix('faqs')->group(function () {
         Route::get('/', [App\Http\Controllers\Api\V1\FaqController::class, 'index']);

@@ -54,6 +54,24 @@ class Announcement extends Model
     }
 
     /**
+     * Get all views for this announcement
+     */
+    public function views()
+    {
+        return $this->hasMany(AnnouncementView::class);
+    }
+
+    /**
+     * Get all employees who viewed this announcement
+     */
+    public function viewedByEmployees()
+    {
+        return $this->belongsToMany(Employee::class, 'announcement_views', 'announcement_id', 'employee_id')
+            ->withPivot('viewed_at')
+            ->orderByPivot('viewed_at', 'desc');
+    }
+
+    /**
      * Scope for active announcements
      */
     public function scopeActive($query)
