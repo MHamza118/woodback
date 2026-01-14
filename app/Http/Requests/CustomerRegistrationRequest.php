@@ -23,7 +23,8 @@ class CustomerRegistrationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email:rfc,dns', 'max:255', 'unique:customers,email'],
             'phone' => ['nullable', 'string', 'regex:/^[\+]?[1-9][\d]{0,14}$/', 'max:20'],
             'password' => ['required', 'confirmed', Password::defaults()],
@@ -39,7 +40,8 @@ class CustomerRegistrationRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required' => 'Your full name is required.',
+            'first_name.required' => 'First name is required.',
+            'last_name.required' => 'Last name is required.',
             'email.required' => 'Email address is required.',
             'email.email' => 'Please enter a valid email address.',
             'email.unique' => 'An account with this email already exists.',
@@ -75,9 +77,10 @@ class CustomerRegistrationRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        // Trim whitespace from name and email
+        // Trim whitespace from first_name, last_name and email
         $this->merge([
-            'name' => trim($this->name ?? ''),
+            'first_name' => trim($this->first_name ?? ''),
+            'last_name' => trim($this->last_name ?? ''),
             'email' => trim(strtolower($this->email ?? '')),
         ]);
 

@@ -144,10 +144,6 @@ class CustomerRepository implements CustomerRepositoryInterface
     {
         $customer = $this->model->with([
             'locations'
-            // 'favoriteItems', // Temporarily disabled - table not created yet
-            // 'orders' => function ($query) { // Temporarily disabled - table not created yet
-            //     $query->latest()->limit(3);
-            // }
         ])->find($customerId);
 
         if (!$customer) {
@@ -156,12 +152,8 @@ class CustomerRepository implements CustomerRepositoryInterface
 
         return [
             'customer' => $customer,
-            'loyalty_tier' => $customer->loyalty_tier,
-            'recent_orders' => [], // Temporarily empty - orders table not created yet
-            'favorite_items' => [], // Temporarily empty - favorite items table not created yet
-            'available_rewards' => $this->getAvailableRewards($customer),
-            'announcements' => [], // Will be populated by service layer
-            'event_notifications' => [], // Will be populated by service layer
+            'announcements' => [],
+            'event_notifications' => [],
         ];
     }
 
@@ -177,36 +169,6 @@ class CustomerRepository implements CustomerRepositoryInterface
             // 'rewards', // Temporarily disabled - table not created yet
             // 'dismissedAnnouncements' // Temporarily disabled - table not created yet
         ])->find($customerId);
-    }
-
-    /**
-     * Update customer's loyalty points
-     */
-    public function updateLoyaltyPoints(string $customerId, int $points): bool
-    {
-        $customer = $this->findById($customerId);
-        if (!$customer) {
-            return false;
-        }
-
-        $customer->increment('loyalty_points', $points);
-        return true;
-    }
-
-    /**
-     * Get customers by loyalty tier
-     */
-    public function getByLoyaltyTier(string $tier): Collection
-    {
-        return $this->model->active()->byLoyaltyTier($tier)->get();
-    }
-
-    /**
-     * Get customers by location
-     */
-    public function getByLocation(string $location): Collection
-    {
-        return $this->model->active()->where('home_location', $location)->get();
     }
 
     /**
@@ -235,51 +197,7 @@ class CustomerRepository implements CustomerRepositoryInterface
             'total_customers' => $totalCustomers,
             'active_customers' => $activeCustomers,
             'inactive_customers' => $totalCustomers - $activeCustomers,
-            'by_loyalty_tier' => [
-                'bronze' => $this->model->active()->byLoyaltyTier('bronze')->count(),
-                'silver' => $this->model->active()->byLoyaltyTier('silver')->count(),
-                'gold' => $this->model->active()->byLoyaltyTier('gold')->count(),
-                'platinum' => $this->model->active()->byLoyaltyTier('platinum')->count(),
-            ],
-            'total_loyalty_points' => $this->model->active()->sum('loyalty_points'),
-            'total_orders' => $this->model->active()->sum('total_orders'),
-            'total_spent' => $this->model->active()->sum('total_spent'),
             'new_this_month' => $this->model->where('created_at', '>=', now()->startOfMonth())->count(),
         ];
-    }
-
-    /**
-     * Get available rewards for customer
-     */
-    protected function getAvailableRewards(Customer $customer): array
-    {
-        $rewards = [
-            [
-                'id' => 'free_appetizer',
-                'name' => 'Free Appetizer',
-                'points_required' => 500,
-                'available' => $customer->loyalty_points >= 500,
-                'description' => 'Enjoy a complimentary appetizer',
-                'type' => 'food'
-            ],
-            [
-                'id' => 'discount_10_percent',
-                'name' => '10% Off Next Order',
-                'points_required' => 750,
-                'available' => $customer->loyalty_points >= 750,
-                'description' => 'Get 10% off your next order',
-                'type' => 'discount'
-            ],
-            [
-                'id' => 'free_dessert',
-                'name' => 'Free Dessert',
-                'points_required' => 1000,
-                'available' => $customer->loyalty_points >= 1000,
-                'description' => 'Choose any dessert on the house',
-                'type' => 'food'
-            ]
-        ];
-
-        return $rewards;
     }
 }

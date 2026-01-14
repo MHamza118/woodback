@@ -51,21 +51,16 @@ class CustomerService
             ]);
         }
 
+        // Generate full name from first_name and last_name
+        $data['name'] = trim(($data['first_name'] ?? '') . ' ' . ($data['last_name'] ?? ''));
+
         // Set default values
         $data['status'] = 'ACTIVE';
-        $data['loyalty_points'] = 0;
-        $data['total_orders'] = 0;
-        $data['total_spent'] = 0.00;
         $data['preferences'] = [
             'notifications' => true,
             'marketing' => false
         ];
         $data['last_visit'] = now();
-
-        // Parse name into first and last
-        $nameParts = explode(' ', $data['name']);
-        $data['first_name'] = $nameParts[0] ?? '';
-        $data['last_name'] = implode(' ', array_slice($nameParts, 1)) ?? '';
 
         // Set home location from locations array
         if (isset($data['locations']) && is_array($data['locations'])) {
@@ -84,13 +79,6 @@ class CustomerService
         $customer = $this->customerRepository->findById($id);
         if (!$customer) {
             return null;
-        }
-
-        // Parse name into first and last if name is updated
-        if (isset($data['name'])) {
-            $nameParts = explode(' ', $data['name']);
-            $data['first_name'] = $nameParts[0] ?? '';
-            $data['last_name'] = implode(' ', array_slice($nameParts, 1)) ?? '';
         }
 
         // Set home location from locations array if provided
@@ -166,60 +154,6 @@ class CustomerService
     }
 
     /**
-     * Award loyalty points to customer
-     */
-    public function awardLoyaltyPoints(string $customerId, int $points, string $reason = ''): bool
-    {
-        $customer = $this->customerRepository->findById($customerId);
-        if (!$customer) {
-            return false;
-        }
-
-        $this->customerRepository->updateLoyaltyPoints($customerId, $points);
-
-        // Log the loyalty points transaction (if you have a loyalty points history table)
-        // $this->loyaltyService->logTransaction($customerId, $points, $reason);
-
-        return true;
-    }
-
-    /**
-     * Redeem reward for customer
-     */
-    public function redeemReward(string $customerId, string $rewardId): array
-    {
-        $customer = $this->customerRepository->findById($customerId);
-        if (!$customer) {
-            return ['success' => false, 'message' => 'Customer not found'];
-        }
-
-        $dashboardData = $this->customerRepository->getDashboardData($customerId);
-        $availableRewards = $dashboardData['available_rewards'] ?? [];
-        
-        $reward = collect($availableRewards)->firstWhere('id', $rewardId);
-        if (!$reward) {
-            return ['success' => false, 'message' => 'Reward not found'];
-        }
-
-        if (!$reward['available']) {
-            return ['success' => false, 'message' => 'Insufficient loyalty points'];
-        }
-
-        // Deduct points
-        $this->customerRepository->updateLoyaltyPoints($customerId, -$reward['points_required']);
-
-        // Create reward record (if you have a rewards table)
-        // $this->createRewardRecord($customerId, $rewardId, $reward['points_required']);
-
-        return [
-            'success' => true, 
-            'message' => 'Reward redeemed successfully',
-            'reward' => $reward,
-            'remaining_points' => $customer->loyalty_points - $reward['points_required']
-        ];
-    }
-
-    /**
      * Get customer statistics
      */
     public function getCustomerStatistics(): array
@@ -235,14 +169,6 @@ class CustomerService
         return $this->customerRepository->getAllWithFilters([
             'search' => $query
         ], $perPage);
-    }
-
-    /**
-     * Get customers by loyalty tier
-     */
-    public function getCustomersByLoyaltyTier(string $tier): Collection
-    {
-        return $this->customerRepository->getByLoyaltyTier($tier);
     }
 
     /**
@@ -285,46 +211,5 @@ class CustomerService
         return $this->customerRepository->update($customerId, [
             'preferences' => $updatedPreferences
         ]);
-    }
-
-    /**
-     * Process customer order (update totals and points)
-     */
-    public function processCustomerOrder(string $customerId, float $orderAmount, int $itemCount): bool
-    {
-        $customer = $this->customerRepository->findById($customerId);
-        if (!$customer) {
-            return false;
-        }
-
-        // Calculate loyalty points (1 point per dollar spent, with tier multiplier)
-        $pointsMultiplier = $this->getLoyaltyPointsMultiplier($customer->loyalty_tier);
-        $earnedPoints = floor($orderAmount * $pointsMultiplier);
-
-        // Update customer totals
-        $customer->increment('total_orders', 1);
-        $customer->increment('total_spent', $orderAmount);
-        $customer->increment('loyalty_points', $earnedPoints);
-        $customer->update(['last_visit' => now()]);
-
-        return true;
-    }
-
-    /**
-     * Get loyalty points multiplier based on tier
-     */
-    protected function getLoyaltyPointsMultiplier(string $tier): float
-    {
-        switch (strtolower($tier)) {
-            case 'platinum':
-                return 2.5;
-            case 'gold':
-                return 2.0;
-            case 'silver':
-                return 1.5;
-            case 'bronze':
-            default:
-                return 1.0;
-        }
     }
 }

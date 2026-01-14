@@ -20,9 +20,6 @@ class Customer extends Authenticatable
         'password',
         'phone',
         'home_location',
-        'loyalty_points',
-        'total_orders',
-        'total_spent',
         'preferences',
         'status',
         'last_visit'
@@ -37,9 +34,6 @@ class Customer extends Authenticatable
         'email_verified_at' => 'datetime',
         'last_visit' => 'datetime',
         'preferences' => 'array',
-        'loyalty_points' => 'integer',
-        'total_orders' => 'integer',
-        'total_spent' => 'decimal:2'
     ];
 
     protected $dates = ['deleted_at'];
@@ -91,17 +85,6 @@ class Customer extends Authenticatable
     public function rewards()
     {
         return $this->hasMany(CustomerReward::class);
-    }
-
-    /**
-     * Determine loyalty tier based on points
-     */
-    public function getLoyaltyTierAttribute()
-    {
-        if ($this->loyalty_points >= 2500) return 'Platinum';
-        if ($this->loyalty_points >= 1000) return 'Gold';
-        if ($this->loyalty_points >= 500) return 'Silver';
-        return 'Bronze';
     }
 
     /**

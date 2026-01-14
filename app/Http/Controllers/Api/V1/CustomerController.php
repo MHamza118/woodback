@@ -292,53 +292,6 @@ class CustomerController extends Controller
     }
 
     /**
-     * Redeem a reward
-     */
-    public function redeemReward(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'reward_id' => 'required|string'
-            ]);
-
-            $customer = $request->user();
-            $result = $this->customerService->redeemReward($customer->id, $request->reward_id);
-
-            if (!$result['success']) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => $result['message']
-                ], 400);
-            }
-
-            return response()->json([
-                'status' => 'success',
-                'message' => $result['message'],
-                'data' => [
-                    'reward' => $result['reward'],
-                    'remaining_points' => $result['remaining_points']
-                ]
-            ]);
-        } catch (ValidationException $e) {
-            // Get the first validation error message for better UX
-            $errors = $e->errors();
-            $firstError = !empty($errors) ? array_values($errors)[0][0] : 'Validation failed';
-            
-            return response()->json([
-                'status' => 'error',
-                'message' => $firstError,
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to redeem reward',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
      * Update customer preferences
      */
     public function updatePreferences(Request $request): JsonResponse
