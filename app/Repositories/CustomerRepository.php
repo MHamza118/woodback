@@ -29,10 +29,6 @@ class CustomerRepository implements CustomerRepositoryInterface
             $query->where('status', $filters['status']);
         }
 
-        if (isset($filters['loyalty_tier'])) {
-            $query->byLoyaltyTier($filters['loyalty_tier']);
-        }
-
         if (isset($filters['location'])) {
             $query->where('home_location', $filters['location']);
         }
@@ -199,5 +195,13 @@ class CustomerRepository implements CustomerRepositoryInterface
             'inactive_customers' => $totalCustomers - $activeCustomers,
             'new_this_month' => $this->model->where('created_at', '>=', now()->startOfMonth())->count(),
         ];
+    }
+
+    /**
+     * Get customers by location
+     */
+    public function getByLocation(string $location): Collection
+    {
+        return $this->model->where('home_location', $location)->get();
     }
 }

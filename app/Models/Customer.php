@@ -20,6 +20,7 @@ class Customer extends Authenticatable
         'password',
         'phone',
         'home_location',
+        'profile_image',
         'preferences',
         'status',
         'last_visit'
@@ -47,22 +48,6 @@ class Customer extends Authenticatable
     }
 
     /**
-     * Get customer's orders
-     */
-    public function orders()
-    {
-        return $this->hasMany(Order::class);
-    }
-
-    /**
-     * Get customer's favorite items
-     */
-    public function favoriteItems()
-    {
-        return $this->hasMany(CustomerFavoriteItem::class);
-    }
-
-    /**
      * Get customer's announcements (dismissed)
      */
     public function dismissedAnnouncements()
@@ -80,14 +65,6 @@ class Customer extends Authenticatable
     }
 
     /**
-     * Get customer's rewards
-     */
-    public function rewards()
-    {
-        return $this->hasMany(CustomerReward::class);
-    }
-
-    /**
      * Get home location relationship
      */
     public function homeLocationRecord()
@@ -101,24 +78,5 @@ class Customer extends Authenticatable
     public function scopeActive($query)
     {
         return $query->where('status', 'ACTIVE');
-    }
-
-    /**
-     * Scope by loyalty tier
-     */
-    public function scopeByLoyaltyTier($query, $tier)
-    {
-        switch (strtolower($tier)) {
-            case 'platinum':
-                return $query->where('loyalty_points', '>=', 2500);
-            case 'gold':
-                return $query->where('loyalty_points', '>=', 1000)->where('loyalty_points', '<', 2500);
-            case 'silver':
-                return $query->where('loyalty_points', '>=', 500)->where('loyalty_points', '<', 1000);
-            case 'bronze':
-                return $query->where('loyalty_points', '<', 500);
-            default:
-                return $query;
-        }
     }
 }

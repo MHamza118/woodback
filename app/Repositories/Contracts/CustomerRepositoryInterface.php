@@ -49,16 +49,6 @@ interface CustomerRepositoryInterface
     public function getProfileWithRelations(string $customerId): ?Customer;
 
     /**
-     * Update customer's loyalty points
-     */
-    public function updateLoyaltyPoints(string $customerId, int $points): bool;
-
-    /**
-     * Get customers by loyalty tier
-     */
-    public function getByLoyaltyTier(string $tier): Collection;
-
-    /**
      * Get customers by location
      */
     public function getByLocation(string $location): Collection;

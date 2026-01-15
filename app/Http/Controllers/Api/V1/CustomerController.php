@@ -30,7 +30,7 @@ class CustomerController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $filters = $request->only(['status', 'loyalty_tier', 'location', 'search', 'sort_by', 'sort_direction']);
+            $filters = $request->only(['status', 'location', 'search', 'sort_by', 'sort_direction']);
             $perPage = $request->get('per_page', 15);
 
             // Get customers with eager loaded relationships
@@ -419,5 +419,121 @@ class CustomerController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Upload customer profile image
+     */
+    public function uploadProfileImage(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'profile_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120'
+            ]);
+
+            $customer = $request->user();
+            $file = $request->file('profile_image');
+
+            // Delete old profile image if exists
+            if ($customer->profile_image) {
+                $oldPath = storage_path('app/public/' . $customer->profile_image);
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+
+            // Store new profile image
+            $path = $file->store('customer-profiles', 'public');
+            $customer->update(['profile_image' => $path]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Profile image uploaded successfully',
+                'data' => [
+                    'url' => $this->getProfileImageUrlForCustomer($customer)
+                ]
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors();
+            $firstError = !empty($errors) ? array_values($errors)[0][0] : 'Validation failed';
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => $firstError,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to upload profile image',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get customer profile image URL
+     */
+    public function getProfileImageUrl(Request $request): JsonResponse
+    {
+        try {
+            $customer = $request->user();
+            $url = $this->getProfileImageUrlForCustomer($customer);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Profile image URL retrieved successfully',
+                'data' => [
+                    'url' => $url
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve profile image URL',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete customer profile image
+     */
+    public function deleteProfileImage(Request $request): JsonResponse
+    {
+        try {
+            $customer = $request->user();
+
+            if ($customer->profile_image) {
+                $path = storage_path('app/public/' . $customer->profile_image);
+                if (file_exists($path)) {
+                    unlink($path);
+                }
+                $customer->update(['profile_image' => null]);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Profile image deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to delete profile image',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Helper method to get profile image URL for a customer
+     */
+    private function getProfileImageUrlForCustomer(Customer $customer): ?string
+    {
+        if (!$customer->profile_image) {
+            return null;
+        }
+
+        return asset('storage/' . $customer->profile_image);
     }
 }

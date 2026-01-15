@@ -60,7 +60,7 @@ class AdminController extends Controller
 
             return $this->successResponse($response, "Admin login successful. Welcome {$loginData['admin']->full_name}!");
         } catch (ValidationException $e) {
-            // Return the actual validation error message, not generic "Login failed"
+            // Return the actual validation error message
             $errors = $e->errors();
             $message = isset($errors['email']) ? $errors['email'][0] : 'Invalid credentials. Please check your email and password.';
             return $this->errorResponse($message, 401);
