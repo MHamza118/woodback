@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class FeedPostResource extends JsonResource
 {
@@ -16,6 +17,12 @@ class FeedPostResource extends JsonResource
     {
         $currentEmployee = auth('sanctum')->user();
 
+        // Generate full image URL if image exists
+        $imageUrl = null;
+        if ($this->image_url) {
+            $imageUrl = Storage::disk('public')->url($this->image_url);
+        }
+
         return [
             'id' => $this->id,
             'author' => [
@@ -24,7 +31,7 @@ class FeedPostResource extends JsonResource
                 'avatar_url' => $this->author->avatar_url ?? 'https://api.dicebear.com/7.x/avataaars/svg?seed=' . $this->author->id,
             ],
             'content' => $this->content,
-            'image_url' => $this->image_url,
+            'image_url' => $imageUrl,
             'likes' => $this->likes_count,
             'comments' => $this->comments_count,
             'created_at' => $this->created_at->diffForHumans(),

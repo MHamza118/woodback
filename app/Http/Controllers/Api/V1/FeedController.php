@@ -117,7 +117,14 @@ class FeedController extends Controller
                 ], 403);
             }
 
-            $post->delete();
+            // Delete associated likes
+            FeedLike::where('post_id', $post->id)->forceDelete();
+            
+            // Delete associated comments
+            FeedComment::where('post_id', $post->id)->forceDelete();
+            
+            // Hard delete the post
+            $post->forceDelete();
 
             return response()->json([
                 'success' => true,
@@ -282,7 +289,8 @@ class FeedController extends Controller
             }
 
             $post = $comment->post;
-            $comment->delete();
+            // Hard delete the comment
+            $comment->forceDelete();
             $post->decrementCommentsCount();
 
             return response()->json([
