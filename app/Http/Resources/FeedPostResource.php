@@ -23,12 +23,18 @@ class FeedPostResource extends JsonResource
             $imageUrl = Storage::disk('public')->url($this->image_url);
         }
 
+        // Generate profile image URL from database
+        $profileImageUrl = null;
+        if ($this->author->profile_image) {
+            $profileImageUrl = Storage::disk('public')->url($this->author->profile_image);
+        }
+
         return [
             'id' => $this->id,
             'author' => [
                 'id' => $this->author->id,
                 'name' => $this->author->first_name . ' ' . $this->author->last_name,
-                'avatar_url' => $this->author->avatar_url ?? 'https://api.dicebear.com/7.x/avataaars/svg?seed=' . $this->author->id,
+                'avatar_url' => $profileImageUrl ?? 'https://api.dicebear.com/7.x/avataaars/svg?seed=' . $this->author->id,
             ],
             'content' => $this->content,
             'image_url' => $imageUrl,
