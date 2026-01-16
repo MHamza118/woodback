@@ -39,12 +39,17 @@ class EmployeeMessagesController extends Controller
                         ->orderBy('created_at', 'desc')
                         ->first();
 
-                    // Get participant names
+                    // Get participant names and profile images
                     $participants = $conversation->participants->map(function ($p) {
                         $employee = \App\Models\Employee::find($p->participant_id);
+                        $profileImageUrl = null;
+                        if ($employee && $employee->profile_image) {
+                            $profileImageUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($employee->profile_image);
+                        }
                         return [
                             'id' => $p->participant_id,
-                            'name' => $employee ? $employee->first_name . ' ' . $employee->last_name : 'Unknown'
+                            'name' => $employee ? $employee->first_name . ' ' . $employee->last_name : 'Unknown',
+                            'profile_image' => $profileImageUrl
                         ];
                     });
 
@@ -98,10 +103,15 @@ class EmployeeMessagesController extends Controller
                 ->get()
                 ->map(function ($message) {
                     $sender = \App\Models\Employee::find($message->sender_id);
+                    $profileImageUrl = null;
+                    if ($sender && $sender->profile_image) {
+                        $profileImageUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($sender->profile_image);
+                    }
                     return [
                         'id' => $message->id,
                         'senderId' => $message->sender_id,
                         'senderName' => $sender ? $sender->first_name . ' ' . $sender->last_name : 'Unknown',
+                        'senderProfileImage' => $profileImageUrl,
                         'content' => $message->content,
                         'attachments' => $message->attachments,
                         'hasAttachments' => $message->has_attachments,
@@ -112,10 +122,15 @@ class EmployeeMessagesController extends Controller
             // Get participant info
             $participantInfo = $participants->map(function ($p) {
                 $employee = \App\Models\Employee::find($p->participant_id);
+                $profileImageUrl = null;
+                if ($employee && $employee->profile_image) {
+                    $profileImageUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($employee->profile_image);
+                }
                 return [
                     'id' => $p->participant_id,
                     'name' => $employee ? $employee->first_name . ' ' . $employee->last_name : 'Unknown',
-                    'email' => $employee ? $employee->email : 'N/A'
+                    'email' => $employee ? $employee->email : 'N/A',
+                    'profile_image' => $profileImageUrl
                 ];
             });
 

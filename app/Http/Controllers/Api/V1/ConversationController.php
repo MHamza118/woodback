@@ -32,7 +32,7 @@ class ConversationController extends Controller
             })
             ->with([
                 'participants' => function ($query) {
-                    $query->with('employee:id,email,first_name,last_name,profile_data');
+                    $query->with('employee:id,email,first_name,last_name,profile_data,profile_image');
                 }
             ])
             ->orderBy('updated_at', 'desc')
@@ -54,7 +54,8 @@ class ConversationController extends Controller
 
                 $unreadCount = $conversation->getUnreadCount($userId);
 
-                // For private conversations, get the other participant's name
+                // For private conversations, get the other participant's name and profile image
+                $otherParticipantProfileImage = null;
                 if ($conversation->type === 'private') {
                     $otherParticipant = $conversation->participants
                         ->where('participant_id', '!=', $userId)
@@ -68,6 +69,11 @@ class ConversationController extends Controller
                             $firstName = $otherParticipant->employee->first_name ?? ($profileData['firstName'] ?? 'Employee');
                             $lastName = $otherParticipant->employee->last_name ?? ($profileData['lastName'] ?? '');
                             $conversation->name = $firstName . ' ' . $lastName;
+                            
+                            // Get profile image URL
+                            if ($otherParticipant->employee->profile_image) {
+                                $otherParticipantProfileImage = \Illuminate\Support\Facades\Storage::disk('public')->url($otherParticipant->employee->profile_image);
+                            }
                         }
                     }
                 }
@@ -83,7 +89,8 @@ class ConversationController extends Controller
                         'sender_id' => $lastMessage->sender_id
                     ] : null,
                     'unreadCount' => $unreadCount,
-                    'members' => $conversation->participants->pluck('participant_id')
+                    'members' => $conversation->participants->pluck('participant_id'),
+                    'otherParticipantProfileImage' => $otherParticipantProfileImage
                 ];
             });
 
