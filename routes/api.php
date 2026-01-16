@@ -500,6 +500,18 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 Route::get('/employees', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getEmployeesList']);
             });
 
+            // Employee feed routes
+            Route::prefix('feed')->group(function () {
+                Route::get('/posts', [App\Http\Controllers\Api\V1\FeedController::class, 'getPosts']);
+                Route::post('/posts', [App\Http\Controllers\Api\V1\FeedController::class, 'createPost']);
+                Route::delete('/posts/{post}', [App\Http\Controllers\Api\V1\FeedController::class, 'deletePost']);
+                Route::post('/posts/{post}/like', [App\Http\Controllers\Api\V1\FeedController::class, 'likePost']);
+                Route::delete('/posts/{post}/like', [App\Http\Controllers\Api\V1\FeedController::class, 'unlikePost']);
+                Route::post('/posts/{post}/comments', [App\Http\Controllers\Api\V1\FeedController::class, 'addComment']);
+                Route::delete('/comments/{comment}', [App\Http\Controllers\Api\V1\FeedController::class, 'deleteComment']);
+                Route::get('/posts/{post}/comments', [App\Http\Controllers\Api\V1\FeedController::class, 'getComments']);
+            });
+
             // Employee recognition routes
             Route::prefix('recognition')->group(function () {
                 Route::get('/my-shoutouts', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getMyShoutouts']);

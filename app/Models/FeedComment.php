@@ -1,0 +1,51 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class FeedComment extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'post_id',
+        'employee_id',
+        'content',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
+    ];
+
+    /**
+     * Get the post that the comment belongs to.
+     */
+    public function post(): BelongsTo
+    {
+        return $this->belongsTo(FeedPost::class, 'post_id');
+    }
+
+    /**
+     * Get the employee that created the comment.
+     */
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
+    }
+}
