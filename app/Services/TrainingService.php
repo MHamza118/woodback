@@ -104,10 +104,8 @@ class TrainingService
     public function deleteModule(TrainingModule $module): bool
     {
         return DB::transaction(function () use ($module) {
-            // Delete associated assignments first
-            $module->assignments()->delete();
-            
-            // Delete the module
+            // The foreign key constraints with onDelete('cascade') will handle
+            // deleting training_progress and training_assignments automatically
             return $module->delete();
         });
     }

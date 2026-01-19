@@ -215,17 +215,15 @@ class TrainingModuleController extends Controller
                 return $this->notFoundResponse('Training module not found');
             }
 
-            // Check if module has active assignments
-            $activeAssignments = $module->assignments()->whereIn('status', ['assigned', 'unlocked', 'in_progress'])->count();
-            
-            if ($activeAssignments > 0) {
-                return $this->errorResponse('Cannot delete training module with active assignments. Please remove or complete all assignments first.');
-            }
-
             $this->trainingService->deleteModule($module);
 
             return $this->successResponse(null, 'Training module deleted successfully');
         } catch (\Exception $e) {
+            \Log::error('Error deleting training module', [
+                'module_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return $this->errorResponse('Failed to delete training module: ' . $e->getMessage());
         }
     }
