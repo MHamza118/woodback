@@ -39,7 +39,7 @@ class FeedController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            Log::error('Failed to fetch posts', ['error' => $e->getMessage()]);
+            \Log::error('Failed to fetch posts', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch posts',

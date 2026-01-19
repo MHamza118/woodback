@@ -23,7 +23,7 @@ class FeedPostResource extends JsonResource
         }
 
         $isLiked = false;
-        if ($currentUser) {
+        if ($currentUser && $author) {
             $isLiked = $this->isLikedBy($currentUser);
         }
 
@@ -31,13 +31,21 @@ class FeedPostResource extends JsonResource
             'id' => $this->id,
             'author' => $author ? [
                 'id' => $author->id,
-                'first_name' => $author->first_name,
-                'last_name' => $author->last_name,
-                'name' => $author->first_name . ' ' . $author->last_name,
+                'first_name' => $author->first_name ?? '',
+                'last_name' => $author->last_name ?? '',
+                'name' => ($author->first_name ?? '') . ' ' . ($author->last_name ?? ''),
                 'avatar_url' => $profileImageUrl,
                 'profile_image' => $profileImageUrl,
                 'role' => $this->author_type === 'admin' ? ($author->role ?? 'admin') : 'employee',
-            ] : null,
+            ] : [
+                'id' => $this->author_id,
+                'first_name' => 'Unknown',
+                'last_name' => 'User',
+                'name' => 'Unknown User',
+                'avatar_url' => null,
+                'profile_image' => null,
+                'role' => $this->author_type,
+            ],
             'content' => $this->content,
             'image_url' => $imageUrl,
             'likes_count' => $this->likes_count,

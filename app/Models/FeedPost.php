@@ -29,10 +29,15 @@ class FeedPost extends Model
      */
     public function getAuthor()
     {
-        if ($this->author_type === 'admin') {
-            return Admin::find($this->author_id);
+        try {
+            if ($this->author_type === 'admin') {
+                return Admin::find($this->author_id);
+            }
+            return Employee::find($this->author_id);
+        } catch (\Exception $e) {
+            \Log::error('Error getting author for post ' . $this->id . ': ' . $e->getMessage());
+            return null;
         }
-        return Employee::find($this->author_id);
     }
 
     /**
