@@ -14,13 +14,14 @@ return new class extends Migration
         Schema::create('feed_comments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('post_id')->constrained('feed_posts')->onDelete('cascade');
-            $table->foreignId('employee_id')->constrained('employees')->onDelete('cascade');
+            $table->enum('author_type', ['employee', 'admin']);
+            $table->unsignedBigInteger('author_id');
             $table->text('content');
             $table->timestamps();
             $table->softDeletes();
             
             $table->index('post_id');
-            $table->index('employee_id');
+            $table->index(['author_type', 'author_id']);
         });
     }
 

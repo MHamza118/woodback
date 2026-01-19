@@ -14,11 +14,12 @@ return new class extends Migration
         Schema::create('feed_likes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('post_id')->constrained('feed_posts')->onDelete('cascade');
-            $table->foreignId('employee_id')->constrained('employees')->onDelete('cascade');
+            $table->enum('user_type', ['employee', 'admin']);
+            $table->unsignedBigInteger('user_id');
             $table->timestamps();
             
-            $table->unique(['post_id', 'employee_id']);
-            $table->index('employee_id');
+            $table->unique(['post_id', 'user_type', 'user_id']);
+            $table->index(['user_type', 'user_id']);
         });
     }
 

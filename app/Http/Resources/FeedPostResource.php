@@ -8,45 +8,39 @@ use Illuminate\Support\Facades\Storage;
 
 class FeedPostResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
-        $currentEmployee = auth('sanctum')->user();
+        $author = $this->getAuthor();
+        $currentUser = auth('sanctum')->user();
 
-        // Generate full image URL if image exists
-        $imageUrl = null;
-        if ($this->image_url) {
-            $imageUrl = Storage::disk('public')->url($this->image_url);
+        $profileImageUrl = null;
+        if ($author && $author->profile_image) {
+            $profileImageUrl = Storage::disk('public')->url($author->profile_image);
         }
 
-        // Generate profile image URL from database
-        $profileImageUrl = null;
-        if ($this->author->profile_image) {
-            $profileImageUrl = Storage::disk('public')->url($this->author->profile_image);
+        $isLiked = false;
+        if ($currentUser) {
+            $isLiked = $this->isLikedBy($currentUser);
         }
 
         return [
             'id' => $this->id,
-            'author' => [
-                'id' => $this->author->id,
-                'first_name' => $this->author->first_name,
-                'last_name' => $this->author->last_name,
-                'name' => $this->author->first_name . ' ' . $this->author->last_name,
-                'avatar_url' => $profileImageUrl ?? 'https://api.dicebear.com/7.x/avataaars/svg?seed=' . $this->author->id,
-                'profile_image' => $this->author->profile_image,
-                'role' => 'employee',
-            ],
+            'author' => $author ? [
+                'id' => $author->id,
+                'first_name' => $author->first_name,
+                'last_name' => $author->last_name,
+                'name' => $author->first_name . ' ' . $author->last_name,
+                'avatar_url' => $profileImageUrl ?? 'https://api.dicebear.com/7.x/avataaars/svg?seed=' . $author->id,
+                'profile_image' => $author->profile_image,
+                'role' => $this->author_type === 'admin' ? ($author->role ?? 'admin') : 'employee',
+            ] : null,
             'content' => $this->content,
-            'image_url' => $imageUrl,
+            'image_url' => $this->image_url ? Storage::disk('public')->url($this->image_url) : null,
             'likes_count' => $this->likes_count,
             'comments_count' => $this->comments_count,
             'created_at' => $this->created_at->toIso8601String(),
-            'is_liked' => $currentEmployee ? $this->isLikedBy($currentEmployee) : false,
-            'comments' => FeedCommentResource::collection($this->whenLoaded('comments')),
+            'is_liked' => $isLiked,
+            'comments' => FeedCommentResource::collection($this->comments),
         ];
     }
 }

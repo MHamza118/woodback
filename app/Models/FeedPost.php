@@ -4,43 +4,35 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class FeedPost extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
-        'employee_id',
+        'author_type',
+        'author_id',
         'content',
         'image_url',
         'likes_count',
         'comments_count',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
 
     /**
-     * Get the employee that created the post.
+     * Get the author (employee or admin)
      */
-    public function author(): BelongsTo
+    public function getAuthor()
     {
-        return $this->belongsTo(Employee::class, 'employee_id');
+        if ($this->author_type === 'admin') {
+            return Admin::find($this->author_id);
+        }
+        return Employee::find($this->author_id);
     }
 
     /**
@@ -54,22 +46,18 @@ class FeedPost extends Model
     /**
      * Get the likes for the post.
      */
-    public function likes(): BelongsToMany
+    public function likes(): HasMany
     {
-        return $this->belongsToMany(
-            Employee::class,
-            'feed_likes',
-            'post_id',
-            'employee_id'
-        )->withTimestamps();
+        return $this->hasMany(FeedLike::class, 'post_id');
     }
 
     /**
-     * Check if a post is liked by a specific employee.
+     * Check if a post is liked by a specific user.
      */
-    public function isLikedBy(Employee $employee): bool
+    public function isLikedBy($user): bool
     {
-        return $this->likes()->where('employee_id', $employee->id)->exists();
+        $userType = $user instanceof Admin ? 'admin' : 'employee';
+        return $this->likes()->where('user_id', $user->id)->where('user_type', $userType)->exists();
     }
 
     /**

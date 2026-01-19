@@ -10,22 +10,13 @@ class FeedComment extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'post_id',
-        'employee_id',
+        'author_type',
+        'author_id',
         'content',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -40,10 +31,13 @@ class FeedComment extends Model
     }
 
     /**
-     * Get the employee that created the comment.
+     * Get the author (employee or admin)
      */
-    public function author(): BelongsTo
+    public function getAuthor()
     {
-        return $this->belongsTo(Employee::class, 'employee_id');
+        if ($this->author_type === 'admin') {
+            return Admin::find($this->author_id);
+        }
+        return Employee::find($this->author_id);
     }
 }

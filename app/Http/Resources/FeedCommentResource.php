@@ -8,31 +8,27 @@ use Illuminate\Support\Facades\Storage;
 
 class FeedCommentResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
-        // Generate profile image URL from database
+        $author = $this->getAuthor();
+
         $profileImageUrl = null;
-        if ($this->author->profile_image) {
-            $profileImageUrl = Storage::disk('public')->url($this->author->profile_image);
+        if ($author && $author->profile_image) {
+            $profileImageUrl = Storage::disk('public')->url($author->profile_image);
         }
 
         return [
             'id' => $this->id,
             'post_id' => $this->post_id,
-            'author' => [
-                'id' => $this->author->id,
-                'first_name' => $this->author->first_name,
-                'last_name' => $this->author->last_name,
-                'name' => $this->author->first_name . ' ' . $this->author->last_name,
-                'avatar_url' => $profileImageUrl ?? 'https://api.dicebear.com/7.x/avataaars/svg?seed=' . $this->author->id,
-                'profile_image' => $this->author->profile_image,
-                'role' => 'employee',
-            ],
+            'author' => $author ? [
+                'id' => $author->id,
+                'first_name' => $author->first_name,
+                'last_name' => $author->last_name,
+                'name' => $author->first_name . ' ' . $author->last_name,
+                'avatar_url' => $profileImageUrl ?? 'https://api.dicebear.com/7.x/avataaars/svg?seed=' . $author->id,
+                'profile_image' => $author->profile_image,
+                'role' => $this->author_type === 'admin' ? ($author->role ?? 'admin') : 'employee',
+            ] : null,
             'content' => $this->content,
             'created_at' => $this->created_at->toIso8601String(),
         ];

@@ -10,21 +10,12 @@ class FeedLike extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'post_id',
-        'employee_id',
+        'user_type',
+        'user_id',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -39,10 +30,13 @@ class FeedLike extends Model
     }
 
     /**
-     * Get the employee that liked the post.
+     * Get the user (employee or admin) that liked the post.
      */
-    public function employee(): BelongsTo
+    public function getUser()
     {
-        return $this->belongsTo(Employee::class, 'employee_id');
+        if ($this->user_type === 'admin') {
+            return Admin::find($this->user_id);
+        }
+        return Employee::find($this->user_id);
     }
 }

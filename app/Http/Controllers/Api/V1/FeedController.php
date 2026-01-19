@@ -8,26 +8,24 @@ use App\Http\Resources\FeedCommentResource;
 use App\Models\FeedPost;
 use App\Models\FeedComment;
 use App\Models\FeedLike;
+use App\Models\Admin;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 
 class FeedController extends Controller
 {
     /**
      * Get paginated feed posts.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function getPosts(Request $request): JsonResponse
     {
         try {
-            $perPage = $request->query('per_page', 10);
-            $page = $request->query('page', 1);
+            $perPage = (int) $request->query('per_page', 10);
+            $page = (int) $request->query('page', 1);
 
-            $posts = FeedPost::with(['author', 'comments.author'])
-                ->orderBy('created_at', 'desc')
+            $posts = FeedPost::orderBy('created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
@@ -41,6 +39,7 @@ class FeedController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
+            Log::error('Failed to fetch posts', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch posts',
@@ -51,9 +50,6 @@ class FeedController extends Controller
 
     /**
      * Create a new post.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function createPost(Request $request): JsonResponse
     {
@@ -63,7 +59,7 @@ class FeedController extends Controller
                 'image' => 'nullable|image|mimes:jpeg,png,gif,webp|max:5120',
             ]);
 
-            $employee = auth('sanctum')->user();
+            $user = auth('sanctum')->user();
 
             $imageUrl = null;
             if ($request->hasFile('image')) {
@@ -71,12 +67,11 @@ class FeedController extends Controller
             }
 
             $post = FeedPost::create([
-                'employee_id' => $employee->id,
+                'author_type' => 'employee',
+                'author_id' => $user->id,
                 'content' => $validated['content'],
                 'image_url' => $imageUrl,
             ]);
-
-            $post->load(['author', 'comments.author']);
 
             return response()->json([
                 'success' => true,
@@ -90,6 +85,7 @@ class FeedController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            Log::error('Failed to create post', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create post',
@@ -100,37 +96,30 @@ class FeedController extends Controller
 
     /**
      * Delete a post.
-     *
-     * @param FeedPost $post
-     * @return JsonResponse
      */
     public function deletePost(FeedPost $post): JsonResponse
     {
         try {
-            $employee = auth('sanctum')->user();
+            $user = auth('sanctum')->user();
 
-            // Check if the employee owns the post
-            if ($post->employee_id !== $employee->id) {
+            // Check if the user owns the post
+            if ($post->author_type !== 'employee' || $post->author_id !== $user->id) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized to delete this post',
                 ], 403);
             }
 
-            // Delete associated likes
-            FeedLike::where('post_id', $post->id)->forceDelete();
-            
-            // Delete associated comments
-            FeedComment::where('post_id', $post->id)->forceDelete();
-            
-            // Hard delete the post
-            $post->forceDelete();
+            FeedLike::where('post_id', $post->id)->delete();
+            FeedComment::where('post_id', $post->id)->delete();
+            $post->delete();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Post deleted successfully',
             ]);
         } catch (\Exception $e) {
+            Log::error('Failed to delete post', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete post',
@@ -141,17 +130,13 @@ class FeedController extends Controller
 
     /**
      * Like a post.
-     *
-     * @param FeedPost $post
-     * @return JsonResponse
      */
     public function likePost(FeedPost $post): JsonResponse
     {
         try {
-            $employee = auth('sanctum')->user();
+            $user = auth('sanctum')->user();
 
-            // Check if already liked
-            if ($post->isLikedBy($employee)) {
+            if ($post->isLikedBy($user)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Post already liked',
@@ -160,20 +145,19 @@ class FeedController extends Controller
 
             FeedLike::create([
                 'post_id' => $post->id,
-                'employee_id' => $employee->id,
+                'user_type' => 'employee',
+                'user_id' => $user->id,
             ]);
 
             $post->incrementLikesCount();
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'post_id' => $post->id,
-                    'likes_count' => $post->likes_count,
-                ],
+                'data' => ['post_id' => $post->id, 'likes_count' => $post->likes_count],
                 'message' => 'Post liked',
             ]);
         } catch (\Exception $e) {
+            Log::error('Failed to like post', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to like post',
@@ -184,17 +168,13 @@ class FeedController extends Controller
 
     /**
      * Unlike a post.
-     *
-     * @param FeedPost $post
-     * @return JsonResponse
      */
     public function unlikePost(FeedPost $post): JsonResponse
     {
         try {
-            $employee = auth('sanctum')->user();
+            $user = auth('sanctum')->user();
 
-            // Check if not liked
-            if (!$post->isLikedBy($employee)) {
+            if (!$post->isLikedBy($user)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Post not liked',
@@ -202,20 +182,19 @@ class FeedController extends Controller
             }
 
             FeedLike::where('post_id', $post->id)
-                ->where('employee_id', $employee->id)
+                ->where('user_id', $user->id)
+                ->where('user_type', 'employee')
                 ->delete();
 
             $post->decrementLikesCount();
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'post_id' => $post->id,
-                    'likes_count' => $post->likes_count,
-                ],
+                'data' => ['post_id' => $post->id, 'likes_count' => $post->likes_count],
                 'message' => 'Post unliked',
             ]);
         } catch (\Exception $e) {
+            Log::error('Failed to unlike post', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to unlike post',
@@ -226,10 +205,6 @@ class FeedController extends Controller
 
     /**
      * Add a comment to a post.
-     *
-     * @param FeedPost $post
-     * @param Request $request
-     * @return JsonResponse
      */
     public function addComment(FeedPost $post, Request $request): JsonResponse
     {
@@ -238,15 +213,15 @@ class FeedController extends Controller
                 'content' => 'required|string|max:250',
             ]);
 
-            $employee = auth('sanctum')->user();
+            $user = auth('sanctum')->user();
 
             $comment = FeedComment::create([
                 'post_id' => $post->id,
-                'employee_id' => $employee->id,
+                'author_type' => 'employee',
+                'author_id' => $user->id,
                 'content' => $validated['content'],
             ]);
 
-            $comment->load('author');
             $post->incrementCommentsCount();
 
             return response()->json([
@@ -261,6 +236,7 @@ class FeedController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            Log::error('Failed to add comment', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to add comment',
@@ -271,17 +247,14 @@ class FeedController extends Controller
 
     /**
      * Delete a comment.
-     *
-     * @param FeedComment $comment
-     * @return JsonResponse
      */
     public function deleteComment(FeedComment $comment): JsonResponse
     {
         try {
-            $employee = auth('sanctum')->user();
+            $user = auth('sanctum')->user();
 
-            // Check if the employee owns the comment
-            if ($comment->employee_id !== $employee->id) {
+            // Check if the user owns the comment
+            if ($comment->author_type !== 'employee' || $comment->author_id !== $user->id) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized to delete this comment',
@@ -289,8 +262,7 @@ class FeedController extends Controller
             }
 
             $post = $comment->post;
-            // Hard delete the comment
-            $comment->forceDelete();
+            $comment->delete();
             $post->decrementCommentsCount();
 
             return response()->json([
@@ -298,6 +270,7 @@ class FeedController extends Controller
                 'message' => 'Comment deleted successfully',
             ]);
         } catch (\Exception $e) {
+            Log::error('Failed to delete comment', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete comment',
@@ -308,19 +281,14 @@ class FeedController extends Controller
 
     /**
      * Get comments for a post.
-     *
-     * @param FeedPost $post
-     * @param Request $request
-     * @return JsonResponse
      */
     public function getComments(FeedPost $post, Request $request): JsonResponse
     {
         try {
-            $perPage = $request->query('per_page', 5);
-            $page = $request->query('page', 1);
+            $perPage = (int) $request->query('per_page', 5);
+            $page = (int) $request->query('page', 1);
 
             $comments = $post->comments()
-                ->with('author')
                 ->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
@@ -334,6 +302,7 @@ class FeedController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
+            Log::error('Failed to fetch comments', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch comments',

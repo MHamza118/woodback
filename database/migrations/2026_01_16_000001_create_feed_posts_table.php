@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('feed_posts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('employee_id')->constrained('employees')->onDelete('cascade');
+            $table->enum('author_type', ['employee', 'admin']);
+            $table->unsignedBigInteger('author_id');
             $table->text('content');
             $table->string('image_url')->nullable();
             $table->integer('likes_count')->default(0);
@@ -21,7 +22,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             
-            $table->index('employee_id');
+            $table->index(['author_type', 'author_id']);
             $table->index('created_at');
         });
     }
