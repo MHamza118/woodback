@@ -10,8 +10,17 @@ class FeedPostResource extends JsonResource
     public function toArray(Request $request): array
     {
         try {
-            $author = $this->getAuthor();
-            $currentUser = auth('sanctum')->user();
+            $author = null;
+            
+            // Try to get author from loaded relationships first
+            if ($this->author_type === 'admin' && $this->relationLoaded('adminAuthor')) {
+                $author = $this->adminAuthor;
+            } elseif ($this->author_type === 'employee' && $this->relationLoaded('employeeAuthor')) {
+                $author = $this->employeeAuthor;
+            } else {
+                // Fallback to getAuthor if relationships not loaded
+                $author = $this->getAuthor();
+            }
 
             $profileImageUrl = null;
             if ($author && $author->profile_image) {
@@ -24,6 +33,7 @@ class FeedPostResource extends JsonResource
             }
 
             $isLiked = false;
+            $currentUser = auth('sanctum')->user();
             if ($currentUser && $author) {
                 try {
                     $isLiked = $this->isLikedBy($currentUser);

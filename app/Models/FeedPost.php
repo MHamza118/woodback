@@ -41,6 +41,22 @@ class FeedPost extends Model
     }
 
     /**
+     * Get the admin author
+     */
+    public function adminAuthor()
+    {
+        return $this->belongsTo(Admin::class, 'author_id')->where('author_type', 'admin');
+    }
+
+    /**
+     * Get the employee author
+     */
+    public function employeeAuthor()
+    {
+        return $this->belongsTo(Employee::class, 'author_id')->where('author_type', 'employee');
+    }
+
+    /**
      * Get the comments for the post.
      */
     public function comments(): HasMany

@@ -45,4 +45,20 @@ class FeedComment extends Model
             return null;
         }
     }
+
+    /**
+     * Get the admin author
+     */
+    public function adminAuthor()
+    {
+        return $this->belongsTo(Admin::class, 'author_id')->where('author_type', 'admin');
+    }
+
+    /**
+     * Get the employee author
+     */
+    public function employeeAuthor()
+    {
+        return $this->belongsTo(Employee::class, 'author_id')->where('author_type', 'employee');
+    }
 }
