@@ -15,7 +15,7 @@ class FeedPostResource extends JsonResource
 
         $profileImageUrl = null;
         if ($author && $author->profile_image) {
-            $profileImageUrl = Storage::disk('public')->url($author->profile_image);
+            $profileImageUrl = asset('storage/' . $author->profile_image);
         }
 
         $isLiked = false;
@@ -35,7 +35,7 @@ class FeedPostResource extends JsonResource
                 'role' => $this->author_type === 'admin' ? ($author->role ?? 'admin') : 'employee',
             ] : null,
             'content' => $this->content,
-            'image_url' => $this->image_url ? Storage::disk('public')->url($this->image_url) : null,
+            'image_url' => $this->image_url ? asset('storage/' . $this->image_url) : null,
             'likes_count' => $this->likes_count,
             'comments_count' => $this->comments_count,
             'created_at' => $this->created_at->toIso8601String(),

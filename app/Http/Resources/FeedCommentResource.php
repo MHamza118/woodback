@@ -4,7 +4,6 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class FeedCommentResource extends JsonResource
 {
@@ -14,7 +13,7 @@ class FeedCommentResource extends JsonResource
 
         $profileImageUrl = null;
         if ($author && $author->profile_image) {
-            $profileImageUrl = Storage::disk('public')->url($author->profile_image);
+            $profileImageUrl = asset('storage/' . $author->profile_image);
         }
 
         return [
