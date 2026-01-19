@@ -4,7 +4,6 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class FeedPostResource extends JsonResource
 {
@@ -16,6 +15,11 @@ class FeedPostResource extends JsonResource
         $profileImageUrl = null;
         if ($author && $author->profile_image) {
             $profileImageUrl = asset('storage/' . $author->profile_image);
+        }
+
+        $imageUrl = null;
+        if ($this->image_url) {
+            $imageUrl = asset('storage/' . $this->image_url);
         }
 
         $isLiked = false;
@@ -35,7 +39,7 @@ class FeedPostResource extends JsonResource
                 'role' => $this->author_type === 'admin' ? ($author->role ?? 'admin') : 'employee',
             ] : null,
             'content' => $this->content,
-            'image_url' => $this->image_url ? asset('storage/' . $this->image_url) : null,
+            'image_url' => $imageUrl,
             'likes_count' => $this->likes_count,
             'comments_count' => $this->comments_count,
             'created_at' => $this->created_at->toIso8601String(),

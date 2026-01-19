@@ -32,7 +32,7 @@ class AdminResource extends JsonResource
             'onboarding_notifications_enabled' => $this->onboarding_notifications_enabled ?? true,
             'is_interviewer' => $this->is_interviewer ?? false,
             'profile_data' => $this->profile_data,
-            'profile_image' => $this->profile_image,
+            'profile_image' => $this->profile_image ? asset('storage/' . $this->profile_image) : null,
             'last_login_at' => $this->last_login_at?->toISOString(),
             'email_verified_at' => $this->email_verified_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
