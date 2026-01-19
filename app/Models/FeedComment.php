@@ -51,7 +51,7 @@ class FeedComment extends Model
      */
     public function adminAuthor()
     {
-        return $this->belongsTo(Admin::class, 'author_id')->where('author_type', 'admin');
+        return $this->belongsTo(Admin::class, 'author_id');
     }
 
     /**
@@ -59,6 +59,6 @@ class FeedComment extends Model
      */
     public function employeeAuthor()
     {
-        return $this->belongsTo(Employee::class, 'author_id')->where('author_type', 'employee');
+        return $this->belongsTo(Employee::class, 'author_id');
     }
 }
