@@ -25,7 +25,8 @@ class FeedController extends Controller
             $perPage = (int) $request->query('per_page', 10);
             $page = (int) $request->query('page', 1);
 
-            $posts = FeedPost::orderBy('created_at', 'desc')
+            $posts = FeedPost::with('comments')
+                ->orderBy('created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
