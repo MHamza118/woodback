@@ -268,4 +268,36 @@ class AdminFeedController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get comments for a post.
+     */
+    public function getComments(FeedPost $post, Request $request): JsonResponse
+    {
+        try {
+            $perPage = (int) $request->query('per_page', 5);
+            $page = (int) $request->query('page', 1);
+
+            $comments = $post->comments()
+                ->paginate($perPage, ['*'], 'page', $page);
+
+            return response()->json([
+                'success' => true,
+                'data' => FeedCommentResource::collection($comments),
+                'pagination' => [
+                    'current_page' => $comments->currentPage(),
+                    'last_page' => $comments->lastPage(),
+                    'total' => $comments->total(),
+                    'per_page' => $comments->perPage(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch comments', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch comments',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
