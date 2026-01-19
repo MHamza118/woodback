@@ -33,16 +33,20 @@ class FeedPostResource extends JsonResource
             'id' => $this->id,
             'author' => [
                 'id' => $this->author->id,
+                'first_name' => $this->author->first_name,
+                'last_name' => $this->author->last_name,
                 'name' => $this->author->first_name . ' ' . $this->author->last_name,
                 'avatar_url' => $profileImageUrl ?? 'https://api.dicebear.com/7.x/avataaars/svg?seed=' . $this->author->id,
+                'profile_image' => $this->author->profile_image,
+                'role' => 'employee',
             ],
             'content' => $this->content,
             'image_url' => $imageUrl,
-            'likes' => $this->likes_count,
-            'comments' => $this->comments_count,
-            'created_at' => $this->created_at->diffForHumans(),
+            'likes_count' => $this->likes_count,
+            'comments_count' => $this->comments_count,
+            'created_at' => $this->created_at->toIso8601String(),
             'is_liked' => $currentEmployee ? $this->isLikedBy($currentEmployee) : false,
-            'comment_list' => FeedCommentResource::collection($this->whenLoaded('comments')),
+            'comments' => FeedCommentResource::collection($this->whenLoaded('comments')),
         ];
     }
 }

@@ -371,6 +371,18 @@ Route::prefix('admin')->middleware(['admin'])->group(function () {
                 });
             });
 
+            // Admin feed routes
+            Route::prefix('feed')->group(function () {
+                Route::get('/posts', [App\Http\Controllers\Api\V1\AdminFeedController::class, 'getPosts']);
+                Route::post('/posts', [App\Http\Controllers\Api\V1\AdminFeedController::class, 'createPost']);
+                Route::delete('/posts/{post}', [App\Http\Controllers\Api\V1\AdminFeedController::class, 'deletePost']);
+                Route::post('/posts/{post}/like', [App\Http\Controllers\Api\V1\AdminFeedController::class, 'likePost']);
+                Route::delete('/posts/{post}/like', [App\Http\Controllers\Api\V1\AdminFeedController::class, 'unlikePost']);
+                Route::post('/posts/{post}/comments', [App\Http\Controllers\Api\V1\AdminFeedController::class, 'addComment']);
+                Route::delete('/comments/{comment}', [App\Http\Controllers\Api\V1\AdminFeedController::class, 'deleteComment']);
+                Route::get('/posts/{post}/comments', [App\Http\Controllers\Api\V1\AdminFeedController::class, 'getComments']);
+            });
+
             // Admin employee recognition routes
             Route::prefix('recognition')->group(function () {
                 Route::get('/stats', [App\Http\Controllers\Api\V1\EmployeeRecognitionController::class, 'getStats']);
