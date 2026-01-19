@@ -138,7 +138,7 @@ Route::prefix('employee')->middleware(['auth:sanctum'])->group(function () {
 });
 
 // Admin dashboard and profile routes
-Route::prefix('admin')->middleware(['admin'])->group(function () {
+Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('dashboard', [App\Http\Controllers\Api\V1\AdminController::class, 'dashboard']);
     Route::get('profile', [App\Http\Controllers\Api\V1\AdminController::class, 'profile']);
     Route::post('profile-image', [App\Http\Controllers\Api\V1\AdminController::class, 'uploadProfileImage']);
