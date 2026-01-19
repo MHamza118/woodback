@@ -26,12 +26,8 @@ class FeedController extends Controller
             $page = (int) $request->query('page', 1);
 
             $posts = FeedPost::with([
-                'comments' => function ($query) {
-                    $query->with(['adminAuthor', 'employeeAuthor']);
-                },
-                'likes',
-                'adminAuthor',
-                'employeeAuthor'
+                'comments',
+                'likes'
             ])
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', $page);
