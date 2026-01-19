@@ -20,8 +20,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'check.employee.status' => \App\Http\Middleware\CheckEmployeeStatus::class,
         ]);
 
+        // API group with throttle (for write operations)
         $middleware->group('api', [
             'throttle:api',
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        ]);
+
+        // API group without throttle (for read-only operations)
+        $middleware->group('api.read', [
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ]);
     })
