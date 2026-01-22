@@ -273,14 +273,29 @@ class AvailabilityController extends Controller
                 ], 422);
             }
 
-            // Admin Override Logic: If Admin, cancel existing pending request
-            if (!$isEmployeeRequest && $existingPendingRequest) {
-                $existingPendingRequest->update([
-                    'status' => 'declined',
-                    'admin_notes' => 'Overridden by new admin assignment',
-                    'approved_by' => $request->user()->id,
-                    'approved_at' => now()
-                ]);
+            // Admin Override Logic: If Admin, decline existing pending request and replace approved recurring request
+            if (!$isEmployeeRequest) {
+                // Decline any pending request
+                if ($existingPendingRequest) {
+                    $existingPendingRequest->update([
+                        'status' => 'declined',
+                        'admin_notes' => 'Overridden by new admin assignment',
+                        'approved_by' => $request->user()->id,
+                        'approved_at' => now()
+                    ]);
+                }
+
+                // For recurring type, replace the existing approved recurring request
+                if ($request->type === 'recurring') {
+                    $existingApprovedRecurring = AvailabilityRequest::where('employee_id', $employeeId)
+                        ->where('type', 'recurring')
+                        ->where('status', 'approved')
+                        ->first();
+
+                    if ($existingApprovedRecurring) {
+                        $existingApprovedRecurring->delete();
+                    }
+                }
             }
 
             $status = $isEmployeeRequest ? 'pending' : 'approved';
