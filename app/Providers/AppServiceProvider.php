@@ -40,6 +40,11 @@ class AppServiceProvider extends ServiceProvider
             \App\Repositories\Contracts\EmployeeRepositoryInterface::class,
             \App\Repositories\EmployeeRepository::class
         );
+
+        $this->app->bind(
+            \App\Repositories\Contracts\EventRepositoryInterface::class,
+            \App\Repositories\EventRepository::class
+        );
     }
 
     /**

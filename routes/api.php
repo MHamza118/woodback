@@ -445,6 +445,22 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
                 Route::get('/review-notifications', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getReviewNotificationCount']);
                 Route::get('/schedules/{employeeId}', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getEmployeeSchedules']);
             });
+
+            // Admin schedule/events routes
+            Route::prefix('schedule')->group(function () {
+                Route::prefix('events')->group(function () {
+                    // Date-specific routes must come before {id} routes
+                    Route::get('/date/single', [App\Http\Controllers\Api\V1\EventController::class, 'getForDate']);
+                    Route::get('/date/range', [App\Http\Controllers\Api\V1\EventController::class, 'getForDateRange']);
+                    Route::get('/upcoming', [App\Http\Controllers\Api\V1\EventController::class, 'getUpcoming']);
+                    // Generic routes
+                    Route::get('/', [App\Http\Controllers\Api\V1\EventController::class, 'index']);
+                    Route::post('/', [App\Http\Controllers\Api\V1\EventController::class, 'store']);
+                    Route::get('/{id}', [App\Http\Controllers\Api\V1\EventController::class, 'show']);
+                    Route::put('/{id}', [App\Http\Controllers\Api\V1\EventController::class, 'update']);
+                    Route::delete('/{id}', [App\Http\Controllers\Api\V1\EventController::class, 'destroy']);
+                });
+            });
         });
 
         // Employee ticket routes
@@ -542,6 +558,19 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
                 Route::get('/dashboard', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getMyPerformanceDashboard']);
                 Route::get('/reports', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getMyReports']);
                 Route::get('/interactions', [App\Http\Controllers\Api\V1\PerformanceManagementController::class, 'getMyInteractions']);
+            });
+
+            // Employee schedule/events routes (read-only)
+            Route::prefix('schedule')->group(function () {
+                Route::prefix('events')->group(function () {
+                    // Date-specific routes must come before {id} routes
+                    Route::get('/date/single', [App\Http\Controllers\Api\V1\EventController::class, 'getForDate']);
+                    Route::get('/date/range', [App\Http\Controllers\Api\V1\EventController::class, 'getForDateRange']);
+                    Route::get('/upcoming', [App\Http\Controllers\Api\V1\EventController::class, 'getUpcoming']);
+                    // Generic routes
+                    Route::get('/', [App\Http\Controllers\Api\V1\EventController::class, 'index']);
+                    Route::get('/{id}', [App\Http\Controllers\Api\V1\EventController::class, 'show']);
+                });
             });
         });
 
