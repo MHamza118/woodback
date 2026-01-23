@@ -62,6 +62,7 @@ Route::prefix('v1')->group(function () {
             Route::post('profile-image', [App\Http\Controllers\Api\V1\CustomerController::class, 'uploadProfileImage']);
             Route::get('profile-image-url', [App\Http\Controllers\Api\V1\CustomerController::class, 'getProfileImageUrl']);
             Route::delete('profile-image', [App\Http\Controllers\Api\V1\CustomerController::class, 'deleteProfileImage']);
+            Route::put('home-location', [App\Http\Controllers\Api\V1\CustomerController::class, 'updateHomeLocation']);
         });
 
 // Employee routes (for authenticated employees)

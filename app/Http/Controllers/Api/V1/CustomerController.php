@@ -526,6 +526,53 @@ class CustomerController extends Controller
     }
 
     /**
+     * Update customer home location
+     */
+    public function updateHomeLocation(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'location' => 'required|string|max:255'
+            ]);
+
+            $customer = $request->user();
+            $newLocation = $request->location;
+
+            // Update the home_location field
+            $customer->update(['home_location' => $newLocation]);
+
+            // Update the corresponding location record if it exists
+            $homeLocationRecord = $customer->locations()->where('is_home', true)->first();
+            if ($homeLocationRecord) {
+                $homeLocationRecord->update(['name' => $newLocation]);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Home location updated successfully',
+                'data' => [
+                    'home_location' => $customer->home_location
+                ]
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors();
+            $firstError = !empty($errors) ? array_values($errors)[0][0] : 'Validation failed';
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => $firstError,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to update home location',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Helper method to get profile image URL for a customer
      */
     private function getProfileImageUrlForCustomer(Customer $customer): ?string
