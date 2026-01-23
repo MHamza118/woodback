@@ -10,20 +10,12 @@ use App\Models\PrivateMessage;
 use App\Models\Employee;
 use App\Models\TableNotification;
 use App\Traits\ApiResponseTrait;
-use App\Services\OneSignalService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class MessageController extends Controller
 {
     use ApiResponseTrait;
-
-    protected $oneSignalService;
-
-    public function __construct(OneSignalService $oneSignalService)
-    {
-        $this->oneSignalService = $oneSignalService;
-    }
 
     /**
      * Get all messages for a conversation (routes to appropriate message type)
@@ -362,114 +354,9 @@ class MessageController extends Controller
      */
     private function sendPushNotificationToParticipants($conversation, $message, $senderId, $senderName): void
     {
-        try {
-            \Log::info('Attempting to send push notification', [
-                'conversation_id' => $conversation->id,
-                'sender_id' => $senderId,
-                'sender_name' => $senderName
-            ]);
-
-            // Get all participants except the sender
-            $participants = ConversationParticipant::where('conversation_id', $conversation->id)
-                ->where('participant_id', '!=', $senderId)
-                ->get();
-
-            \Log::info('Found participants', [
-                'count' => $participants->count(),
-                'participants' => $participants->pluck('participant_id')->toArray()
-            ]);
-
-            if ($participants->isEmpty()) {
-                \Log::warning('No participants found for notification');
-                return;
-            }
-
-            // Collect recipient user IDs (only employees, not 'admin' string)
-            $recipientIds = [];
-            $sendToAdmin = false;
-            
-            foreach ($participants as $participant) {
-                if ($participant->participant_id === 'admin') {
-                    // Admin participant found - send to all admins via role tag
-                    $sendToAdmin = true;
-                } elseif (is_numeric($participant->participant_id)) {
-                    $recipientIds[] = (int)$participant->participant_id;
-                }
-            }
-
-            \Log::info('Recipient IDs for notification', [
-                'recipient_ids' => $recipientIds,
-                'send_to_admin' => $sendToAdmin
-            ]);
-
-            if (empty($recipientIds) && !$sendToAdmin) {
-                \Log::warning('No valid recipient IDs found');
-                return;
-            }
-
-            // Prepare notification content
-            $title = $senderName;
-            $messageContent = $message->content;
-            
-            // Truncate message if too long
-            if (strlen($messageContent) > 100) {
-                $messageContent = substr($messageContent, 0, 100) . '...';
-            }
-
-            // Add attachment indicator if message has attachments
-            if ($message->has_attachments) {
-                $messageContent .= ' 📎';
-            }
-
-            \Log::info('Sending OneSignal notification', [
-                'recipient_ids' => $recipientIds,
-                'send_to_admin' => $sendToAdmin,
-                'title' => $title,
-                'message' => $messageContent
-            ]);
-
-            // Send to admin roles if admin is a participant
-            if ($sendToAdmin) {
-                $result = $this->oneSignalService->sendToMultipleRoles(
-                    ['owner', 'admin', 'manager', 'hiring_manager'],
-                    $title,
-                    $messageContent,
-                    [
-                        'type' => 'chat_message',
-                        'conversation_id' => $conversation->id,
-                        'message_id' => $message->id,
-                        'sender_id' => $senderId,
-                        'sender_name' => $senderName
-                    ],
-                    config('app.url') . '/messages/' . $conversation->id
-                );
-                \Log::info('OneSignal notification sent to admins', ['result' => $result]);
-            }
-
-            // Send push notification via OneSignal to specific users
-            if (!empty($recipientIds)) {
-                $result = $this->oneSignalService->sendToUsers(
-                    $recipientIds,
-                    $title,
-                    $messageContent,
-                    [
-                        'type' => 'chat_message',
-                        'conversation_id' => $conversation->id,
-                        'message_id' => $message->id,
-                        'sender_id' => $senderId,
-                        'sender_name' => $senderName
-                    ],
-                    config('app.url') . '/messages/' . $conversation->id
-                );
-                \Log::info('OneSignal notification sent to users', ['result' => $result]);
-            }
-
-        } catch (\Exception $e) {
-            // Log error but don't fail the message send
-            \Log::error('Failed to send push notification for message: ' . $e->getMessage(), [
-                'exception' => $e->getTraceAsString()
-            ]);
-        }
+        // OneSignal message notifications disabled - causing production issues
+        // Message notifications are handled via polling in the frontend NotificationContext
+        return;
     }
 
     /**
