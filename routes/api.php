@@ -448,6 +448,12 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
 
             // Admin schedule/events routes
             Route::prefix('schedule')->group(function () {
+                // Departments and employees for schedule management
+                Route::get('/departments', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getDepartments']);
+                Route::get('/employees-by-department', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getEmployeesByDepartmentGrouped']);
+                Route::get('/employees/{department}', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getEmployeesByDepartment']);
+                Route::get('/employee/{employeeId}', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getEmployeeDetails']);
+
                 Route::prefix('events')->group(function () {
                     // Date-specific routes must come before {id} routes
                     Route::get('/date/single', [App\Http\Controllers\Api\V1\EventController::class, 'getForDate']);
