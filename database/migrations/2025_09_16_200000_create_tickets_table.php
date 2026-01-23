@@ -22,7 +22,10 @@ return new class extends Migration
                 'pos-problem',
                 'kitchen-equipment',
                 'facility-issue',
-                'other'
+                'other',
+                'event-reservation',
+                'message',
+                'customer-need'
             ])->default('other');
             $table->enum('priority', ['low', 'medium', 'high', 'urgent'])->default('medium');
             $table->enum('status', ['open', 'in-progress', 'resolved', 'closed'])->default('open');

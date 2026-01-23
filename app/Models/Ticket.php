@@ -43,7 +43,10 @@ class Ticket extends Model
         'pos-problem' => 'POS Problem',
         'kitchen-equipment' => 'Kitchen Equipment',
         'facility-issue' => 'Facility Issue',
-        'other' => 'Other'
+        'other' => 'Other',
+        'event-reservation' => 'Event Reservation',
+        'message' => 'Message',
+        'customer-need' => 'Customer Need'
     ];
 
     /**
