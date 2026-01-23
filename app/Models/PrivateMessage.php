@@ -76,11 +76,7 @@ class PrivateMessage extends Model
     public function scopeUnreadForRecipient($query, $recipientId, $recipientType)
     {
         return $query->where('is_read', false)
-                    ->where(function($q) use ($recipientId, $recipientType) {
-                        // Messages where the recipient is NOT the sender
-                        $q->where('sender_id', '!=', $recipientId)
-                          ->orWhere('sender_type', '!=', $recipientType);
-                    });
+                    ->where('sender_id', '!=', $recipientId);
     }
 
     /**
