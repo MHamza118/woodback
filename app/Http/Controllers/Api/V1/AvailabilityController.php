@@ -521,6 +521,114 @@ class AvailabilityController extends Controller
     }
 
     /**
+     * Get employee's current availability (recurring and active temporary)
+     * Used by admin to pre-populate the edit form
+     */
+    public function getEmployeeAvailability($employeeId)
+    {
+        try {
+            $recurring = AvailabilityRequest::where('employee_id', $employeeId)
+                ->where('type', 'recurring')
+                ->where('status', 'approved')
+                ->first();
+
+            $activeTempor = AvailabilityRequest::where('employee_id', $employeeId)
+                ->where('type', 'temporary')
+                ->where('status', 'approved')
+                ->where('effective_from', '<=', now())
+                ->where('effective_to', '>=', now())
+                ->first();
+
+            $upcomingTemporary = AvailabilityRequest::where('employee_id', $employeeId)
+                ->where('type', 'temporary')
+                ->where('status', 'approved')
+                ->where('effective_from', '>', now())
+                ->orderBy('effective_from', 'asc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'recurring' => $recurring,
+                    'active_temporary' => $activeTempor,
+                    'upcoming_temporary' => $upcomingTemporary
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch employee availability',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update an existing availability request
+     * Used by admin to modify employee availability
+     */
+    public function updateRequest(Request $request, $id)
+    {
+        try {
+            $availabilityRequest = AvailabilityRequest::findOrFail($id);
+
+            $validator = Validator::make($request->all(), [
+                'employee_id' => 'required|exists:employees,id',
+                'type' => 'required|in:recurring,temporary',
+                'availability_data' => 'required|array',
+                'effective_from' => 'nullable|date',
+                'effective_to' => 'nullable|date|after_or_equal:effective_from'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $availabilityRequest->update([
+                'type' => $request->type,
+                'availability_data' => $request->availability_data,
+                'effective_from' => $request->effective_from,
+                'effective_to' => $request->effective_to,
+                'updated_at' => now()
+            ]);
+
+            $availabilityRequest->load(['employee', 'approver']);
+
+            // Send notification to employee about the update
+            try {
+                $oneSignal = new \App\Services\OneSignalService();
+                $title = 'Availability Updated';
+                $message = 'An admin has updated your availability settings.';
+                
+                $oneSignal->sendToEmployee(
+                    $availabilityRequest->employee_id, 
+                    $title, 
+                    $message, 
+                    ['type' => 'availability_update', 'request_id' => $availabilityRequest->id]
+                );
+            } catch (\Exception $notifyError) {
+                \Log::error('Failed to notify employee of availability update: ' . $notifyError->getMessage());
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Availability updated successfully',
+                'request' => $availabilityRequest
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update availability',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get effective availability for an employee on a specific date
      * Temporary availability overrides recurring availability
      */

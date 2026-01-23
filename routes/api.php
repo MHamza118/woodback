@@ -314,6 +314,7 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
                 Route::get('/requests', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getRequests']);
                 Route::get('/requests/new', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getNewRequests']);
                 Route::post('/requests', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'storeRequest']);
+                Route::put('/requests/{id}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'updateRequest']);
                 Route::post('/requests/{id}/status', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'updateRequestStatus']);
                 Route::delete('/requests/{id}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'deleteRequest']);
 
@@ -322,6 +323,7 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
                 Route::get('/effective-range/{employeeId}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getEffectiveAvailabilityRange']);
                 Route::get('/summary/{employeeId}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getAvailabilitySummary']);
                 Route::post('/check/{employeeId}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'checkAvailability']);
+                Route::get('/employee/{employeeId}', [App\Http\Controllers\Api\V1\AvailabilityController::class, 'getEmployeeAvailability']);
             });
 
             // Admin table tracking management routes
