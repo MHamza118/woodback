@@ -29,6 +29,8 @@ class CreateTicketRequest extends FormRequest
             'category' => ['required', 'string', Rule::in(array_keys(Ticket::CATEGORIES))],
             'priority' => ['required', 'string', Rule::in(array_keys(Ticket::PRIORITIES))],
             'location' => 'nullable|string|max:255',
+            'attachments' => 'nullable|array|max:5',
+            'attachments.*' => 'file|max:10240|mimes:jpeg,jpg,png,pdf,doc,docx,xls,xlsx'
         ];
     }
 

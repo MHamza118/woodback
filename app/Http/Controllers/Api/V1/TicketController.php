@@ -30,7 +30,7 @@ class TicketController extends Controller
         try {
             $user = $request->user();
 
-            $query = Ticket::with(['employee', 'admin', 'responses']);
+            $query = Ticket::with(['employee', 'admin', 'responses', 'attachments']);
 
             // Apply filters
             if ($request->has('status') && $request->status !== 'all') {
@@ -92,7 +92,7 @@ class TicketController extends Controller
         try {
             $employee = $request->user();
 
-            $query = Ticket::with(['publicResponses'])
+            $query = Ticket::with(['publicResponses', 'attachments'])
                 ->byEmployee($employee->id);
 
             // Apply filters
@@ -151,7 +151,30 @@ class TicketController extends Controller
                 'status' => 'open'
             ]);
 
-            $ticket->load(['employee']);
+            // Handle file attachments
+            if ($request->hasFile('attachments')) {
+                $files = $request->file('attachments');
+                // Ensure files is always an array
+                if (!is_array($files)) {
+                    $files = [$files];
+                }
+                
+                foreach ($files as $file) {
+                    if ($file && $file->isValid()) {
+                        $fileName = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
+                        $filePath = $file->storeAs('tickets/' . $ticket->id, $fileName, 'public');
+                        
+                        $ticket->attachments()->create([
+                            'file_name' => $file->getClientOriginalName(),
+                            'file_path' => $filePath,
+                            'file_type' => $file->getMimeType(),
+                            'file_size' => $file->getSize()
+                        ]);
+                    }
+                }
+            }
+
+            $ticket->load(['employee', 'attachments']);
 
             // Create notification for admin
             TableNotification::create([
@@ -203,6 +226,10 @@ class TicketController extends Controller
             );
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('=== TICKET CREATION ERROR ===', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return $this->errorResponse('Failed to create ticket: ' . $e->getMessage());
         }
     }
@@ -258,12 +285,12 @@ class TicketController extends Controller
 
             if ($isEmployee) {
                 // Employee can only see their own tickets with public responses
-                $ticket = Ticket::with(['employee', 'publicResponses'])
+                $ticket = Ticket::with(['employee', 'publicResponses', 'attachments'])
                     ->byEmployee($user->id)
                     ->findOrFail($id);
             } else {
                 // Admin can see all tickets with all responses
-                $ticket = Ticket::with(['employee', 'admin', 'responses'])
+                $ticket = Ticket::with(['employee', 'admin', 'responses', 'attachments'])
                     ->findOrFail($id);
             }
 

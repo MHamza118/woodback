@@ -50,6 +50,20 @@ class TicketResource extends JsonResource
                     'email' => $this->employee->email,
                     'location' => $this->employee->location
                 ];
+            }),
+            // Include attachments
+            'attachments' => $this->when($this->relationLoaded('attachments'), function () {
+                return $this->attachments->map(function ($attachment) {
+                    return [
+                        'id' => $attachment->id,
+                        'file_name' => $attachment->file_name,
+                        'file_path' => $attachment->file_path,
+                        'file_type' => $attachment->file_type,
+                        'file_size' => $attachment->file_size,
+                        'created_at' => $attachment->created_at->toISOString(),
+                        'download_url' => asset('storage/' . $attachment->file_path)
+                    ];
+                });
             })
         ];
     }

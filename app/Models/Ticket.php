@@ -94,6 +94,14 @@ class Ticket extends Model
     }
 
     /**
+     * Get the ticket attachments
+     */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(TicketAttachment::class)->orderBy('created_at', 'asc');
+    }
+
+    /**
      * Get the public responses (non-internal)
      */
     public function publicResponses(): HasMany
