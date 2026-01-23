@@ -410,4 +410,52 @@ trait SendsPushNotifications
         // Send to all admin roles (owner, admin, manager, hiring_manager)
         return $oneSignal->sendToMultipleRoles(['owner', 'admin', 'manager', 'hiring_manager'], $title, $message, $data, config('app.url') . '/admin/dashboard#availability');
     }
+
+    /**
+     * Send push notification for new chat message to admin
+     */
+    public function sendNewMessageNotificationToAdmin($senderName, $messageContent, $conversationId)
+    {
+        $oneSignal = new OneSignalService();
+        
+        // Truncate message if too long
+        $displayMessage = strlen($messageContent) > 80 ? substr($messageContent, 0, 80) . '...' : $messageContent;
+        
+        $title = 'New Message from ' . $senderName;
+        $message = $displayMessage;
+        
+        $data = [
+            'type' => 'chat_message',
+            'conversation_id' => $conversationId,
+            'sender_name' => $senderName,
+            'url' => '/admin/dashboard#communication'
+        ];
+
+        // Send to all admin roles (owner, admin, manager, hiring_manager)
+        return $oneSignal->sendToMultipleRoles(['owner', 'admin', 'manager', 'hiring_manager'], $title, $message, $data, config('app.url') . '/admin/dashboard#communication');
+    }
+
+    /**
+     * Send push notification for new chat message to employee
+     */
+    public function sendNewMessageNotificationToEmployee($employeeId, $senderName, $messageContent, $conversationId)
+    {
+        $oneSignal = new OneSignalService();
+        
+        // Truncate message if too long
+        $displayMessage = strlen($messageContent) > 80 ? substr($messageContent, 0, 80) . '...' : $messageContent;
+        
+        $title = 'New Message from ' . $senderName;
+        $message = $displayMessage;
+        
+        $data = [
+            'type' => 'chat_message',
+            'conversation_id' => $conversationId,
+            'sender_name' => $senderName,
+            'url' => '/employee/dashboard#communication'
+        ];
+
+        // Send to specific employee
+        return $oneSignal->sendToEmployee($employeeId, $title, $message, $data, config('app.url') . '/employee/dashboard#communication');
+    }
 }

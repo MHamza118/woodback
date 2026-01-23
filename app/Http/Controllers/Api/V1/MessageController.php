@@ -428,10 +428,10 @@ class MessageController extends Controller
                 'message' => $messageContent
             ]);
 
-            // Send to admin role if admin is a participant
+            // Send to admin roles if admin is a participant
             if ($sendToAdmin) {
-                $result = $this->oneSignalService->sendToTags(
-                    ['role' => 'owner'],
+                $result = $this->oneSignalService->sendToMultipleRoles(
+                    ['owner', 'admin', 'manager', 'hiring_manager'],
                     $title,
                     $messageContent,
                     [
