@@ -3,19 +3,25 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\Conversation;
-use App\Models\GroupMessage;
-use App\Models\PrivateMessage;
-use App\Models\ConversationParticipant;
-use App\Models\Employee;
+use App\Services\ConversationService;
+use App\Services\ChatService;
 use App\Traits\ApiResponseTrait;
+use App\Traits\ChatHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
 
 class ConversationController extends Controller
 {
-    use ApiResponseTrait;
+    use ApiResponseTrait, ChatHelper;
+
+    protected $conversationService;
+    protected $chatService;
+
+    public function __construct(ConversationService $conversationService, ChatService $chatService)
+    {
+        $this->conversationService = $conversationService;
+        $this->chatService = $chatService;
+    }
 
     /**
      * Get all conversations for a user (admin or employee)
@@ -27,72 +33,7 @@ class ConversationController extends Controller
             $userType = $this->getUserType($user);
             $userId = $this->getUserId($user, $userType);
 
-            $conversations = Conversation::whereHas('participants', function ($query) use ($userId) {
-                $query->where('participant_id', $userId);
-            })
-            ->with([
-                'participants' => function ($query) {
-                    $query->with('employee:id,email,first_name,last_name,profile_data,profile_image');
-                }
-            ])
-            ->orderBy('updated_at', 'desc')
-            ->get();
-
-            $conversationData = $conversations->map(function ($conversation) use ($userId) {
-                // Safely compute last message per conversation without eager-loading a possibly null relation
-                if ($conversation->type === 'group') {
-                    $lastMessage = GroupMessage::where('conversation_id', $conversation->id)
-                        ->orderBy('created_at', 'desc')
-                        ->first();
-                } elseif ($conversation->type === 'private') {
-                    $lastMessage = PrivateMessage::where('conversation_id', $conversation->id)
-                        ->orderBy('created_at', 'desc')
-                        ->first();
-                } else {
-                    $lastMessage = null;
-                }
-
-                $unreadCount = $conversation->getUnreadCount($userId);
-
-                // For private conversations, get the other participant's name and profile image
-                $otherParticipantProfileImage = null;
-                if ($conversation->type === 'private') {
-                    $otherParticipant = $conversation->participants
-                        ->where('participant_id', '!=', $userId)
-                        ->first();
-                    
-                    if ($otherParticipant) {
-                        if ($otherParticipant->participant_type === 'admin') {
-                            $conversation->name = 'Management';
-                        } else if ($otherParticipant->employee) {
-                            $profileData = $otherParticipant->employee->profile_data ?? [];
-                            $firstName = $otherParticipant->employee->first_name ?? ($profileData['firstName'] ?? 'Employee');
-                            $lastName = $otherParticipant->employee->last_name ?? ($profileData['lastName'] ?? '');
-                            $conversation->name = $firstName . ' ' . $lastName;
-                            
-                            // Get profile image URL
-                            if ($otherParticipant->employee->profile_image) {
-                                $otherParticipantProfileImage = \Illuminate\Support\Facades\Storage::disk('public')->url($otherParticipant->employee->profile_image);
-                            }
-                        }
-                    }
-                }
-
-                return [
-                    'id' => $conversation->id,
-                    'name' => $conversation->name,
-                    'type' => $conversation->type,
-                    'lastMessage' => $lastMessage ? [
-                        'content' => $lastMessage->content,
-                        'timestamp' => $lastMessage->created_at,
-                        'sender_name' => $lastMessage->sender_name,
-                        'sender_id' => $lastMessage->sender_id
-                    ] : null,
-                    'unreadCount' => $unreadCount,
-                    'members' => $conversation->participants->pluck('participant_id'),
-                    'otherParticipantProfileImage' => $otherParticipantProfileImage
-                ];
-            });
+            $conversationData = $this->conversationService->getConversations($userId, $userType);
 
             return $this->successResponse($conversationData, 'Conversations retrieved successfully');
         } catch (\Exception $e) {
@@ -121,43 +62,17 @@ class ConversationController extends Controller
                 return $this->errorResponse('Only administrators can create group conversations', 403);
             }
 
-            DB::beginTransaction();
+            $conversationData = $this->conversationService->createGroupConversation(
+                $request->name,
+                $request->employee_ids,
+                $userId
+            );
 
-            // Create the conversation
-            $conversation = Conversation::create([
-                'name' => $request->name,
-                'type' => 'group',
-                'created_by' => $userId
-            ]);
+            // Invalidate admin chat cache
+            $this->chatService->invalidateEmployeeConversationsCache();
 
-            // Add admin as participant
-            ConversationParticipant::create([
-                'conversation_id' => $conversation->id,
-                'participant_id' => $userId,
-                'participant_type' => 'admin',
-                'joined_at' => now()
-            ]);
-
-            // Add employees as participants
-            foreach ($request->employee_ids as $employeeId) {
-                ConversationParticipant::create([
-                    'conversation_id' => $conversation->id,
-                    'participant_id' => (string)$employeeId,
-                    'participant_type' => 'employee',
-                    'joined_at' => now()
-                ]);
-            }
-
-            DB::commit();
-
-            return $this->successResponse([
-                'id' => $conversation->id,
-                'name' => $conversation->name,
-                'type' => $conversation->type,
-                'members' => array_merge([$userId], $request->employee_ids)
-            ], 'Group created successfully');
+            return $this->successResponse($conversationData, 'Group created successfully');
         } catch (\Exception $e) {
-            DB::rollBack();
             return $this->errorResponse('Failed to create group: ' . $e->getMessage(), 500);
         }
     }
@@ -177,63 +92,17 @@ class ConversationController extends Controller
             $userId = $this->getUserId($user, $userType);
             $participantId = $request->participant_id;
 
-            // Determine participant type
-            if ($participantId === 'admin') {
-                $participantType = 'admin';
-            } else {
-                // Check if it's a valid employee
-                $employee = Employee::find($participantId);
-                if (!$employee) {
-                    return $this->errorResponse('Invalid participant', 400);
-                }
-                $participantType = 'employee';
-            }
+            $conversationData = $this->conversationService->getOrCreatePrivateConversation(
+                $userId,
+                $userType,
+                $participantId
+            );
 
-            // Check if private conversation already exists
-            $conversation = Conversation::where('type', 'private')
-                ->whereHas('participants', function ($query) use ($userId) {
-                    $query->where('participant_id', $userId);
-                })
-                ->whereHas('participants', function ($query) use ($participantId) {
-                    $query->where('participant_id', $participantId);
-                })
-                ->first();
+            // Invalidate admin chat cache if both participants are employees
+            $this->chatService->invalidateEmployeeConversationsCache();
 
-            if (!$conversation) {
-                DB::beginTransaction();
-
-                // Create new private conversation
-                $conversation = Conversation::create([
-                    'name' => 'Private Chat',
-                    'type' => 'private',
-                    'created_by' => $userId
-                ]);
-
-                // Add both participants
-                ConversationParticipant::create([
-                    'conversation_id' => $conversation->id,
-                    'participant_id' => $userId,
-                    'participant_type' => $userType,
-                    'joined_at' => now()
-                ]);
-
-                ConversationParticipant::create([
-                    'conversation_id' => $conversation->id,
-                    'participant_id' => $participantId,
-                    'participant_type' => $participantType,
-                    'joined_at' => now()
-                ]);
-
-                DB::commit();
-            }
-
-            return $this->successResponse([
-                'id' => $conversation->id,
-                'name' => $conversation->name,
-                'type' => $conversation->type
-            ], 'Private conversation retrieved/created successfully');
+            return $this->successResponse($conversationData, 'Private conversation retrieved/created successfully');
         } catch (\Exception $e) {
-            DB::rollBack();
             return $this->errorResponse('Failed to get/create private conversation: ' . $e->getMessage(), 500);
         }
     }
@@ -257,35 +126,14 @@ class ConversationController extends Controller
                 return $this->errorResponse('Only administrators can add participants', 403);
             }
 
-            $conversation = Conversation::findOrFail($conversationId);
+            $this->conversationService->addParticipantsToGroup($conversationId, $request->employee_ids);
 
-            if ($conversation->type !== 'group') {
-                return $this->errorResponse('Can only add participants to group conversations', 400);
-            }
-
-            DB::beginTransaction();
-
-            foreach ($request->employee_ids as $employeeId) {
-                // Check if employee is already a participant
-                $exists = ConversationParticipant::where('conversation_id', $conversationId)
-                    ->where('participant_id', $employeeId)
-                    ->exists();
-
-                if (!$exists) {
-                    ConversationParticipant::create([
-                        'conversation_id' => $conversationId,
-                        'participant_id' => (string)$employeeId,
-                        'participant_type' => 'employee',
-                        'joined_at' => now()
-                    ]);
-                }
-            }
-
-            DB::commit();
+            // Invalidate admin chat cache
+            $this->chatService->invalidateEmployeeConversationsCache();
+            $this->chatService->invalidateConversationCache($conversationId);
 
             return $this->successResponse(null, 'Participants added successfully');
         } catch (\Exception $e) {
-            DB::rollBack();
             return $this->errorResponse('Failed to add participants: ' . $e->getMessage(), 500);
         }
     }
@@ -300,78 +148,11 @@ class ConversationController extends Controller
             $userType = $this->getUserType($user);
             $userId = $this->getUserId($user, $userType);
 
-            $conversation = Conversation::findOrFail($conversationId);
-            
-            $participant = ConversationParticipant::where('conversation_id', $conversationId)
-                ->where('participant_id', $userId)
-                ->first();
-
-            if (!$participant) {
-                return $this->errorResponse('You are not a participant in this conversation', 403);
-            }
-
-            DB::beginTransaction();
-
-            // Update participant's last read time
-            $participant->update(['last_read_at' => now()]);
-
-            // Mark individual messages as read based on conversation type
-            if ($conversation->type === 'private') {
-                // For private messages, mark all messages in this conversation as read for this user
-                // Messages are read by the current user if they are NOT the sender
-                PrivateMessage::where('conversation_id', $conversationId)
-                    ->where(function($query) use ($userId, $userType) {
-                        $query->where('sender_id', '!=', $userId)
-                              ->orWhere('sender_type', '!=', $userType);
-                    })
-                    ->whereNull('read_at')
-                    ->update([
-                        'is_read' => 1,
-                        'read_at' => now()
-                    ]);
-            } elseif ($conversation->type === 'group') {
-                // For group messages, we don't mark individual messages as read
-                // as they're shared among all participants
-                // The last_read_at in conversation_participants is sufficient
-            }
-
-            DB::commit();
+            $this->conversationService->markConversationAsRead($conversationId, $userId, $userType);
 
             return $this->successResponse(null, 'Messages marked as read');
         } catch (\Exception $e) {
-            DB::rollBack();
             return $this->errorResponse('Failed to mark messages as read: ' . $e->getMessage(), 500);
         }
-    }
-
-    /**
-     * Helper method to determine user type
-     */
-    private function getUserType($user): string
-    {
-        if ($user instanceof \App\Models\Admin) {
-            return 'admin';
-        } elseif ($user instanceof \App\Models\Employee) {
-            return 'employee';
-        }
-        
-        // Fallback: check the user's table
-        if (get_class($user) === 'App\\Models\\Admin') {
-            return 'admin';
-        }
-        
-        return 'employee';
-    }
-
-    /**
-     * Helper method to get user ID
-     */
-    private function getUserId($user, $userType): string
-    {
-        if ($userType === 'admin') {
-            return 'admin'; // Use 'admin' as the standard admin ID
-        }
-        
-        return $user->id;
     }
 }
