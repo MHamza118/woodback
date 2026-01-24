@@ -220,15 +220,24 @@ class ConversationService
      * 
      * @param string $userId The current user ID
      * @param string $userType The current user type
-     * @param string $participantId The other participant ID
+     * @param string $participantId The other participant ID (can be 'admin' or numeric employee ID)
      * @return array The conversation data
      * @throws \Exception
      */
     public function getOrCreatePrivateConversation(string $userId, string $userType, string $participantId): array
     {
         try {
-            // Determine participant type
+            // Convert 'admin' string to actual admin ID
+            $actualParticipantId = $participantId;
+            $participantType = 'employee';
+            
             if ($participantId === 'admin') {
+                // Get the first active admin's actual numeric ID
+                $admin = \App\Models\Admin::where('status', 'active')->first();
+                if (!$admin) {
+                    throw new \Exception('No active admin found');
+                }
+                $actualParticipantId = (string)$admin->id;
                 $participantType = 'admin';
             } else {
                 // Check if it's a valid employee
@@ -244,8 +253,8 @@ class ConversationService
                 ->whereHas('participants', function ($query) use ($userId) {
                     $query->where('participant_id', $userId);
                 })
-                ->whereHas('participants', function ($query) use ($participantId) {
-                    $query->where('participant_id', $participantId);
+                ->whereHas('participants', function ($query) use ($actualParticipantId) {
+                    $query->where('participant_id', $actualParticipantId);
                 })
                 ->first();
 
@@ -269,7 +278,7 @@ class ConversationService
 
                 ConversationParticipant::create([
                     'conversation_id' => $conversation->id,
-                    'participant_id' => $participantId,
+                    'participant_id' => $actualParticipantId,
                     'participant_type' => $participantType,
                     'joined_at' => now()
                 ]);
@@ -278,7 +287,7 @@ class ConversationService
 
                 // Invalidate conversations cache for both participants
                 $this->invalidateUserConversationsCache($userId);
-                $this->invalidateUserConversationsCache($participantId);
+                $this->invalidateUserConversationsCache($actualParticipantId);
             }
 
             return [
