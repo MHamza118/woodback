@@ -289,9 +289,83 @@ class MessageService
         string $senderId,
         string $senderName
     ): void {
-        // OneSignal message notifications disabled - causing production issues
-        // Message notifications are handled via polling in the frontend NotificationContext
-        return;
+        try {
+            Log::info('=== SEND PUSH NOTIFICATION START ===');
+            Log::info('Conversation ID: ' . $conversation->id);
+            Log::info('Sender ID: ' . $senderId);
+            
+            // Get all participants except the sender
+            $participants = ConversationParticipant::where('conversation_id', $conversation->id)
+                ->where('participant_id', '!=', $senderId)
+                ->get();
+
+            Log::info('Total participants (excluding sender): ' . $participants->count());
+            
+            // Truncate message content for notification
+            $messagePreview = strlen($message->content) > 50 
+                ? substr($message->content, 0, 50) . '...' 
+                : $message->content;
+
+            // Admin roles that should receive admin notifications
+            $adminRoles = ['admin', 'owner', 'manager', 'hiring_manager', 'expo'];
+
+            // Separate participants by type
+            $employeeIds = [];
+            $adminIds = [];
+
+            foreach ($participants as $participant) {
+                $isAdminRole = in_array($participant->participant_type, $adminRoles);
+                
+                if ($isAdminRole) {
+                    $adminIds[] = $participant->participant_id;
+                } else {
+                    $employeeIds[] = $participant->participant_id;
+                }
+            }
+
+            Log::info('Employee recipients: ' . count($employeeIds));
+            Log::info('Admin recipients: ' . count($adminIds));
+
+            // Send to employees
+            if (!empty($employeeIds)) {
+                Log::info('Sending push notification to employees: ' . implode(', ', $employeeIds));
+                $this->oneSignalService->sendToUsers(
+                    $employeeIds,
+                    'New Message from ' . $senderName,
+                    $messagePreview,
+                    [
+                        'conversation_id' => $conversation->id,
+                        'conversation_name' => $conversation->name,
+                        'message_id' => $message->id,
+                        'sender_id' => $senderId,
+                        'sender_name' => $senderName
+                    ]
+                );
+            }
+
+            // Send to admins
+            if (!empty($adminIds)) {
+                Log::info('Sending push notification to admins: ' . implode(', ', $adminIds));
+                $this->oneSignalService->sendToUsers(
+                    $adminIds,
+                    'New Message from ' . $senderName,
+                    $messagePreview,
+                    [
+                        'conversation_id' => $conversation->id,
+                        'conversation_name' => $conversation->name,
+                        'message_id' => $message->id,
+                        'sender_id' => $senderId,
+                        'sender_name' => $senderName
+                    ]
+                );
+            }
+
+            Log::info('=== SEND PUSH NOTIFICATION END ===');
+        } catch (\Exception $e) {
+            // Log error but don't fail the message send
+            Log::error('Failed to send push notifications: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+        }
     }
 
     /**
