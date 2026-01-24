@@ -34,10 +34,7 @@ trait ChatHelper
      */
     protected function getUserId($user, $userType): string
     {
-        if ($userType === 'admin') {
-            return 'admin'; // Use 'admin' as the standard admin ID
-        }
-        
+        // Always use the actual user ID, whether admin or employee
         return (string)$user->id;
     }
 
