@@ -78,7 +78,7 @@ class Ticket extends Model
     }
 
     /**
-     * Get the admin that created the ticket (if created by admin)
+     *admin that created the ticket (if created by admin)
      */
     public function admin(): BelongsTo
     {
@@ -86,7 +86,7 @@ class Ticket extends Model
     }
 
     /**
-     * Get the ticket responses
+     *ticket responses
      */
     public function responses(): HasMany
     {

@@ -220,51 +220,30 @@ class ConversationService
      * 
      * @param string $userId The current user ID
      * @param string $userType The current user type
-     * @param string $participantId The other participant ID (can be 'admin' or numeric employee ID)
+     * @param string $participantId The other participant ID
      * @return array The conversation data
      * @throws \Exception
      */
     public function getOrCreatePrivateConversation(string $userId, string $userType, string $participantId): array
     {
         try {
-            // Convert 'admin' string to actual admin ID
-            $actualParticipantId = $participantId;
-            $participantType = 'employee';
-            
+            // Determine participant type
             if ($participantId === 'admin') {
-                // Get the first active admin's actual numeric ID
-                // Try multiple status values to be safe
-                $admin = \App\Models\Admin::where('status', 'active')
-                    ->orWhere('status', 'ACTIVE')
-                    ->first();
-                
-                // If no active admin found, get any admin
-                if (!$admin) {
-                    $admin = \App\Models\Admin::first();
-                }
-                
-                if (!$admin) {
-                    throw new \Exception('No admin found');
-                }
-                $actualParticipantId = (string)$admin->id;
                 $participantType = 'admin';
             } else {
-                // For non-admin participants, validate it's a valid employee
-                $employee = Employee::find((int)$participantId);
+                // Check if it's a valid employee
+                $employee = Employee::find($participantId);
                 if (!$employee) {
                     throw new \Exception('Invalid participant');
                 }
-                $actualParticipantId = (string)$participantId;
                 $participantType = 'employee';
             }
-
-            // Check if private conversation already exists
             $conversation = Conversation::where('type', 'private')
                 ->whereHas('participants', function ($query) use ($userId) {
                     $query->where('participant_id', $userId);
                 })
-                ->whereHas('participants', function ($query) use ($actualParticipantId) {
-                    $query->where('participant_id', $actualParticipantId);
+                ->whereHas('participants', function ($query) use ($participantId) {
+                    $query->where('participant_id', $participantId);
                 })
                 ->first();
 
@@ -288,7 +267,7 @@ class ConversationService
 
                 ConversationParticipant::create([
                     'conversation_id' => $conversation->id,
-                    'participant_id' => $actualParticipantId,
+                    'participant_id' => $participantId,
                     'participant_type' => $participantType,
                     'joined_at' => now()
                 ]);
@@ -297,7 +276,7 @@ class ConversationService
 
                 // Invalidate conversations cache for both participants
                 $this->invalidateUserConversationsCache($userId);
-                $this->invalidateUserConversationsCache($actualParticipantId);
+                $this->invalidateUserConversationsCache($participantId);
             }
 
             return [
