@@ -233,9 +233,18 @@ class ConversationService
             
             if ($participantId === 'admin') {
                 // Get the first active admin's actual numeric ID
-                $admin = \App\Models\Admin::where('status', 'active')->first();
+                // Try multiple status values to be safe
+                $admin = \App\Models\Admin::where('status', 'active')
+                    ->orWhere('status', 'ACTIVE')
+                    ->first();
+                
+                // If no active admin found, get any admin
                 if (!$admin) {
-                    throw new \Exception('No active admin found');
+                    $admin = \App\Models\Admin::first();
+                }
+                
+                if (!$admin) {
+                    throw new \Exception('No admin found');
                 }
                 $actualParticipantId = (string)$admin->id;
                 $participantType = 'admin';
