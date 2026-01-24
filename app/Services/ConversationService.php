@@ -227,8 +227,16 @@ class ConversationService
     public function getOrCreatePrivateConversation(string $userId, string $userType, string $participantId): array
     {
         try {
-            // Determine participant type
+            // Determine participant type and get actual ID
+            $actualParticipantId = $participantId;
+            
             if ($participantId === 'admin') {
+                // If participant is 'admin', get the first active admin's ID
+                $admin = \App\Models\Admin::where('status', 'active')->first();
+                if (!$admin) {
+                    throw new \Exception('No active admin found');
+                }
+                $actualParticipantId = (string)$admin->id;
                 $participantType = 'admin';
             } else {
                 // Check if it's a valid employee
@@ -244,8 +252,8 @@ class ConversationService
                 ->whereHas('participants', function ($query) use ($userId) {
                     $query->where('participant_id', $userId);
                 })
-                ->whereHas('participants', function ($query) use ($participantId) {
-                    $query->where('participant_id', $participantId);
+                ->whereHas('participants', function ($query) use ($actualParticipantId) {
+                    $query->where('participant_id', $actualParticipantId);
                 })
                 ->first();
 
@@ -269,7 +277,7 @@ class ConversationService
 
                 ConversationParticipant::create([
                     'conversation_id' => $conversation->id,
-                    'participant_id' => $participantId,
+                    'participant_id' => $actualParticipantId,
                     'participant_type' => $participantType,
                     'joined_at' => now()
                 ]);
@@ -278,7 +286,7 @@ class ConversationService
 
                 // Invalidate conversations cache for both participants
                 $this->invalidateUserConversationsCache($userId);
-                $this->invalidateUserConversationsCache($participantId);
+                $this->invalidateUserConversationsCache($actualParticipantId);
             }
 
             return [
