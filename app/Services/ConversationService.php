@@ -249,11 +249,9 @@ class ConversationService
                 $actualParticipantId = (string)$admin->id;
                 $participantType = 'admin';
             } else {
-                // Check if it's a valid employee
-                $employee = Employee::find($participantId);
-                if (!$employee) {
-                    throw new \Exception('Invalid participant');
-                }
+                // For non-admin participants, accept the ID as-is
+                // It could be an employee ID or another participant type
+                $actualParticipantId = (string)$participantId;
                 $participantType = 'employee';
             }
 
