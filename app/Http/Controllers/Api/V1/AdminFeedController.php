@@ -25,6 +25,7 @@ class AdminFeedController extends Controller
             $perPage = (int) $request->query('per_page', 10);
             $page = (int) $request->query('page', 1);
 
+            // Get posts with comments and likes
             $posts = FeedPost::with([
                 'comments',
                 'likes'

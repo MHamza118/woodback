@@ -25,6 +25,7 @@ class FeedController extends Controller
             $perPage = (int) $request->query('per_page', 10);
             $page = (int) $request->query('page', 1);
 
+            // Get posts with comments and likes
             $posts = FeedPost::with([
                 'comments',
                 'likes'
@@ -292,7 +293,11 @@ class FeedController extends Controller
             $perPage = (int) $request->query('per_page', 5);
             $page = (int) $request->query('page', 1);
 
+            // Optimized query with eager loading
             $comments = $post->comments()
+                ->with('author:id,first_name,last_name,profile_image')
+                ->select('id', 'post_id', 'content', 'author_id', 'author_type', 'created_at')
+                ->orderBy('created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
