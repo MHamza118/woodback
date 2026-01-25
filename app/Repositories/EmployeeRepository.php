@@ -108,7 +108,12 @@ class EmployeeRepository implements EmployeeRepositoryInterface
             'rejection_reason' => null
         ]);
 
-        return $employee->fresh();
+        $employee = $employee->fresh();
+
+        // Send approval notification email to employee
+        $employee->notify(new \App\Notifications\EmployeeApprovalNotification());
+
+        return $employee;
     }
 
     public function reject(string $id, string $rejectionReason, string $rejectedBy): ?Employee
@@ -333,7 +338,13 @@ class EmployeeRepository implements EmployeeRepositoryInterface
             'stage' => Employee::STAGE_ACTIVE,
             'profile_data' => $profile
         ]);
-        return $employee->fresh();
+        
+        $employee = $employee->fresh();
+
+        // Send activation notification email to employee
+        $employee->notify(new \App\Notifications\EmployeeActivationNotification());
+
+        return $employee;
     }
 
     /**

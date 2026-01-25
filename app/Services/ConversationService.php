@@ -13,13 +13,6 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * ConversationService
- * 
- * Handles all conversation-related operations:
- * - Retrieving conversations
- * - Creating group conversations
- * - Creating/retrieving private conversations
- * - Managing participants
- * - Marking conversations as read
  */
 class ConversationService
 {
@@ -27,10 +20,6 @@ class ConversationService
 
     /**
      * Get all conversations for a user
-     * 
-     * @param string $userId The user ID
-     * @param string $userType The user type ('admin' or 'employee')
-     * @return array Array of conversation data
      */
     public function getConversations(string $userId, string $userType): array
     {
