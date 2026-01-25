@@ -43,11 +43,9 @@ class EmployeeApprovalNotification extends Notification implements ShouldQueue
         $frontendUrl = config('app.frontend_url', 'https://app.woodfire.food');
         $dashboardUrl = $frontendUrl . '/dashboard';
         $companyName = config('app.name', 'Woodfire.food');
-        $logoUrl = config('app.url') . '/Picture1.png';
 
         return (new MailMessage)
             ->subject('Your Account Has Been Approved - Welcome to ' . $companyName)
-            ->logo($logoUrl)
             ->greeting('Hello ' . $notifiable->first_name . ',')
             ->line('Congratulations! Your account has been successfully approved.')
             ->line('You now have full access to the employee dashboard and can begin using all available features.')

@@ -43,11 +43,9 @@ class EmployeeActivationNotification extends Notification implements ShouldQueue
         $frontendUrl = config('app.frontend_url', 'https://app.woodfire.food');
         $dashboardUrl = $frontendUrl . '/dashboard';
         $companyName = config('app.name', 'Woodfire.food');
-        $logoUrl = config('app.url') . '/Picture1.png';
 
         return (new MailMessage)
             ->subject('Your Account Has Been Activated - Welcome Back to ' . $companyName)
-            ->logo($logoUrl)
             ->greeting('Hello ' . $notifiable->first_name . ',')
             ->line('Your account has been successfully activated.')
             ->line('You now have full access to the employee dashboard and can resume using all available features.')
