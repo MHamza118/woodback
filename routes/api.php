@@ -41,6 +41,9 @@ Route::prefix('v1')->group(function () {
     // Public OneSignal config route (no auth required)
     Route::get('notifications/config', [App\Http\Controllers\Api\V1\OneSignalController::class, 'getConfig']);
 
+    // Public locations endpoint (for customer signup)
+    Route::get('locations', [App\Http\Controllers\Api\V1\AdminController::class, 'getLocations']);
+
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
         // User profile routes
