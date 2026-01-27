@@ -459,6 +459,12 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
                 Route::get('/employees-by-department', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getEmployeesByDepartmentGrouped']);
                 Route::get('/employees/{department}', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getEmployeesByDepartment']);
                 Route::get('/employee/{employeeId}', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getEmployeeDetails']);
+                
+                // Fill from template endpoint
+                Route::post('/fill-from-template', [App\Http\Controllers\Api\V1\ScheduleController::class, 'fillFromTemplate']);
+                
+                // Get shifts for a week
+                Route::get('/shifts', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getShiftsForWeek']);
 
                 Route::prefix('events')->group(function () {
                     // Date-specific routes must come before {id} routes
