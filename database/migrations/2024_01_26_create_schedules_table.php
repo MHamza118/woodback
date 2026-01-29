@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('schedules', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('employee_id')->constrained('employees')->onDelete('cascade');
+            $table->unsignedBigInteger('employee_id');
             $table->string('department'); // BOH, FOH, etc.
             $table->string('day_of_week'); // Monday, Tuesday, etc.
             $table->date('date'); // Specific date
