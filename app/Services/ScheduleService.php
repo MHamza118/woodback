@@ -164,6 +164,7 @@ class ScheduleService
             Log::info("Template shifts: " . json_encode($templateShifts));
 
             $createdShifts = [];
+            $shiftsCreated = 0;
             $availabilityService = new AvailabilityService();
 
             // For each employee, create shifts based on their availability
@@ -204,56 +205,56 @@ class ScheduleService
 
                         // If employee is available on this day
                         if (isset($dayData['enabled']) && $dayData['enabled'] && isset($dayData['status']) && $dayData['status'] === 'available') {
-                            // Get available time slots
-                            $availableSlots = $this->getAvailableTimeSlots($dayData);
-
-                            // Match with template shifts
-                            foreach ($templateShifts as $templateShift) {
-                                // Check if template shift fits within available slots
-                                if ($this->shiftFitsInAvailability($templateShift, $availableSlots)) {
-                                    // Check if shift already exists for this employee on this day with same time
-                                    $existingShift = Schedule::where('employee_id', $employeeId)
-                                        ->where('date', $currentDate)
-                                        ->where('start_time', $templateShift['start_time'])
-                                        ->where('end_time', $templateShift['end_time'])
-                                        ->first();
-                                    
-                                    if ($existingShift) {
-                                        Log::info("Shift already exists for employee {$employeeId} on {$dateString} at {$templateShift['start_time']}-{$templateShift['end_time']}, skipping");
-                                        continue;
-                                    }
-
-                                    $shift = Schedule::create([
-                                        'employee_id' => $employeeId,
-                                        'department' => $department,
-                                        'day_of_week' => ucfirst($dayOfWeek),
-                                        'date' => $currentDate,
-                                        'start_time' => $templateShift['start_time'],
-                                        'end_time' => $templateShift['end_time'],
-                                        'role' => $employeeRole,
-                                        'shift_type' => $templateShift['shift_type'] ?? null,
-                                        'requirements' => $templateShift['requirements'] ?? null,
-                                        'week_start' => $weekStart,
-                                        'week_end' => $weekEnd,
-                                        'status' => 'active'
-                                    ]);
-
-                                    $createdShifts[] = [
-                                        'id' => $shift->id,
-                                        'employee_id' => $employeeId,
-                                        'employee_name' => $employee['first_name'] . ' ' . $employee['last_name'],
-                                        'date' => $dateString,
-                                        'day_of_week' => ucfirst($dayOfWeek),
-                                        'start_time' => $templateShift['start_time'],
-                                        'end_time' => $templateShift['end_time'],
-                                        'role' => $employeeRole,
-                                        'shift_type' => $templateShift['shift_type'] ?? null,
-                                        'requirements' => $templateShift['requirements'] ?? null
-                                    ];
-
-                                    Log::info("Created shift for employee {$employeeId} on {$dateString} with role {$employeeRole}");
-                                }
+                            // Use the employee's availability times, not template times
+                            $startTime = $dayData['startTime'] ?? $dayData['start_time'] ?? '09:00';
+                            $endTime = $dayData['endTime'] ?? $dayData['end_time'] ?? '17:00';
+                            
+                            // Check if shift already exists for this employee on this day
+                            $existingShift = Schedule::where('employee_id', $employeeId)
+                                ->where('date', $currentDate)
+                                ->where('start_time', $startTime)
+                                ->where('end_time', $endTime)
+                                ->first();
+                            
+                            if ($existingShift) {
+                                Log::info("Shift already exists for employee {$employeeId} on {$dateString} at {$startTime}-{$endTime}, skipping");
+                                continue;
                             }
+
+                            // Use the first template shift for shift_type and requirements
+                            $templateShift = $templateShifts[0] ?? [];
+
+                            $shift = Schedule::create([
+                                'employee_id' => $employeeId,
+                                'department' => $department,
+                                'day_of_week' => ucfirst($dayOfWeek),
+                                'date' => $currentDate,
+                                'start_time' => $startTime,
+                                'end_time' => $endTime,
+                                'role' => $employeeRole,
+                                'shift_type' => $templateShift['shift_type'] ?? 'F',
+                                'requirements' => $templateShift['requirements'] ?? null,
+                                'week_start' => $weekStart,
+                                'week_end' => $weekEnd,
+                                'status' => 'active'
+                            ]);
+
+                            $createdShifts[] = [
+                                'id' => $shift->id,
+                                'employee_id' => $employeeId,
+                                'employee_name' => $employee['first_name'] . ' ' . $employee['last_name'],
+                                'date' => $dateString,
+                                'day_of_week' => ucfirst($dayOfWeek),
+                                'start_time' => $startTime,
+                                'end_time' => $endTime,
+                                'role' => $employeeRole,
+                                'shift_type' => $templateShift['shift_type'] ?? 'F',
+                                'requirements' => $templateShift['requirements'] ?? null,
+                                'department' => $department
+                            ];
+
+                            $shiftsCreated++;
+                            Log::info("Created shift for employee {$employeeId} on {$dateString} from {$startTime} to {$endTime} with role {$employeeRole}");
                         } else {
                             Log::info("Employee {$employeeId} not available on {$dateString}");
                         }
@@ -305,8 +306,8 @@ class ScheduleService
             'FOH' => [
                 'FOH' => [
                     [
-                        'start_time' => '10:00',
-                        'end_time' => '18:00',
+                        'start_time' => '09:00',
+                        'end_time' => '17:00',
                         'shift_type' => 'F',
                         'requirements' => 'Floor Service'
                     ]
@@ -376,5 +377,100 @@ class ScheduleService
         }
 
         return false;
+    }
+
+    /**
+     * Create a new shift
+     */
+    public function createShift(array $data): Schedule
+    {
+        $date = Carbon::createFromFormat('Y-m-d', $data['date']);
+        
+        $shift = Schedule::create([
+            'employee_id' => $data['employee_id'],
+            'department' => $data['department'],
+            'date' => $date,
+            'day_of_week' => strtolower($date->format('l')),
+            'start_time' => $data['start_time'],
+            'end_time' => $data['end_time'],
+            'role' => $data['role'],
+            'shift_type' => $data['shift_type'] ?? 'regular',
+            'requirements' => $data['requirements'] ?? null,
+            'status' => 'active'
+        ]);
+
+        $shift->load('employee');
+        
+        return $shift;
+    }
+
+    /**
+     * Update an existing shift
+     */
+    public function updateShift(int $shiftId, array $data): ?Schedule
+    {
+        $shift = Schedule::find($shiftId);
+        
+        if (!$shift) {
+            return null;
+        }
+
+        $updateData = [];
+        
+        if (isset($data['employee_id'])) {
+            $updateData['employee_id'] = $data['employee_id'];
+        }
+        
+        if (isset($data['department'])) {
+            $updateData['department'] = $data['department'];
+        }
+        
+        if (isset($data['date'])) {
+            $date = Carbon::createFromFormat('Y-m-d', $data['date']);
+            $updateData['date'] = $date;
+            $updateData['day_of_week'] = strtolower($date->format('l'));
+        }
+        
+        if (isset($data['start_time'])) {
+            $updateData['start_time'] = $data['start_time'];
+        }
+        
+        if (isset($data['end_time'])) {
+            $updateData['end_time'] = $data['end_time'];
+        }
+        
+        if (isset($data['role'])) {
+            $updateData['role'] = $data['role'];
+        }
+        
+        if (isset($data['shift_type'])) {
+            $updateData['shift_type'] = $data['shift_type'];
+        }
+        
+        if (isset($data['requirements'])) {
+            $updateData['requirements'] = $data['requirements'];
+        }
+
+        $shift->update($updateData);
+        $shift->load('employee');
+        
+        return $shift;
+    }
+
+    /**
+     * Delete a shift (soft delete by setting status to inactive)
+     */
+    public function deleteShift(int $shiftId): bool
+    {
+        $shift = Schedule::find($shiftId);
+        
+        if (!$shift) {
+            return false;
+        }
+
+        // Soft delete by setting status to inactive
+        $shift->update(['status' => 'inactive']);
+        
+        return true;
     }
 }

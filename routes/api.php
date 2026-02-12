@@ -463,8 +463,11 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
                 // Fill from template endpoint
                 Route::post('/fill-from-template', [App\Http\Controllers\Api\V1\ScheduleController::class, 'fillFromTemplate']);
                 
-                // Get shifts for a week
+                // Shift CRUD operations
                 Route::get('/shifts', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getShiftsForWeek']);
+                Route::post('/shifts', [App\Http\Controllers\Api\V1\ScheduleController::class, 'createShift']);
+                Route::put('/shifts/{shiftId}', [App\Http\Controllers\Api\V1\ScheduleController::class, 'updateShift']);
+                Route::delete('/shifts/{shiftId}', [App\Http\Controllers\Api\V1\ScheduleController::class, 'deleteShift']);
 
                 Route::prefix('events')->group(function () {
                     // Date-specific routes must come before {id} routes

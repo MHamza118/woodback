@@ -194,4 +194,111 @@ class ScheduleController extends Controller
             return $this->errorResponse('Failed to fetch shifts', 500);
         }
     }
+
+    /**
+     * Create a new shift
+     */
+    public function createShift(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'employee_id' => 'required|exists:employees,id',
+                'department' => 'required|string|in:BOH,FOH',
+                'date' => 'required|date_format:Y-m-d',
+                'start_time' => 'required|date_format:H:i',
+                'end_time' => 'required|date_format:H:i',
+                'role' => 'required|string',
+                'shift_type' => 'nullable|string',
+                'requirements' => 'nullable|array'
+            ]);
+
+            $shift = $this->scheduleService->createShift($validated);
+
+            return $this->successResponse([
+                'shift' => [
+                    'id' => $shift->id,
+                    'employee_id' => $shift->employee_id,
+                    'employee_name' => $shift->employee->first_name . ' ' . $shift->employee->last_name,
+                    'department' => $shift->department,
+                    'date' => $shift->date->toDateString(),
+                    'day_of_week' => $shift->day_of_week,
+                    'start_time' => $shift->start_time,
+                    'end_time' => $shift->end_time,
+                    'role' => $shift->role,
+                    'shift_type' => $shift->shift_type,
+                    'requirements' => $shift->requirements
+                ]
+            ], 'Shift created successfully', 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->errorResponse('Validation failed: ' . json_encode($e->errors()), 422);
+        } catch (\Exception $e) {
+            Log::error('Error creating shift: ' . $e->getMessage());
+            return $this->errorResponse('Failed to create shift', 500);
+        }
+    }
+
+    /**
+     * Update an existing shift
+     */
+    public function updateShift(Request $request, int $shiftId): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'employee_id' => 'nullable|exists:employees,id',
+                'department' => 'nullable|string|in:BOH,FOH',
+                'date' => 'nullable|date_format:Y-m-d',
+                'start_time' => 'nullable|date_format:H:i',
+                'end_time' => 'nullable|date_format:H:i',
+                'role' => 'nullable|string',
+                'shift_type' => 'nullable|string',
+                'requirements' => 'nullable|array'
+            ]);
+
+            $shift = $this->scheduleService->updateShift($shiftId, $validated);
+
+            if (!$shift) {
+                return $this->notFoundResponse('Shift not found');
+            }
+
+            return $this->successResponse([
+                'shift' => [
+                    'id' => $shift->id,
+                    'employee_id' => $shift->employee_id,
+                    'employee_name' => $shift->employee->first_name . ' ' . $shift->employee->last_name,
+                    'department' => $shift->department,
+                    'date' => $shift->date->toDateString(),
+                    'day_of_week' => $shift->day_of_week,
+                    'start_time' => $shift->start_time,
+                    'end_time' => $shift->end_time,
+                    'role' => $shift->role,
+                    'shift_type' => $shift->shift_type,
+                    'requirements' => $shift->requirements
+                ]
+            ], 'Shift updated successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->errorResponse('Validation failed: ' . json_encode($e->errors()), 422);
+        } catch (\Exception $e) {
+            Log::error('Error updating shift: ' . $e->getMessage());
+            return $this->errorResponse('Failed to update shift', 500);
+        }
+    }
+
+    /**
+     * Delete a shift
+     */
+    public function deleteShift(int $shiftId): JsonResponse
+    {
+        try {
+            $result = $this->scheduleService->deleteShift($shiftId);
+
+            if (!$result) {
+                return $this->notFoundResponse('Shift not found');
+            }
+
+            return $this->successResponse(null, 'Shift deleted successfully');
+        } catch (\Exception $e) {
+            Log::error('Error deleting shift: ' . $e->getMessage());
+            return $this->errorResponse('Failed to delete shift', 500);
+        }
+    }
 }
