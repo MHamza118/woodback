@@ -57,6 +57,7 @@ class TableNotification extends Model
     const TYPE_ROLE_ASSIGNMENT = 'role_assignment';
     const TYPE_NEW_AVAILABILITY_REQUEST = 'new_availability_request';
     const TYPE_AVAILABILITY_STATUS_UPDATE = 'availability_status_update';
+    const TYPE_SCHEDULE_UPDATE = 'schedule_update';
 
     // Priority constants
     const PRIORITY_HIGH = 'high';
@@ -92,7 +93,8 @@ class TableNotification extends Model
             self::TYPE_NEW_MESSAGE,
             self::TYPE_ROLE_ASSIGNMENT,
             self::TYPE_NEW_AVAILABILITY_REQUEST,
-            self::TYPE_AVAILABILITY_STATUS_UPDATE
+            self::TYPE_AVAILABILITY_STATUS_UPDATE,
+            self::TYPE_SCHEDULE_UPDATE
         ];
     }
 

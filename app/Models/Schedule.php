@@ -21,13 +21,18 @@ class Schedule extends Model
         'requirements',
         'week_start',
         'week_end',
-        'status'
+        'status',
+        'published',
+        'published_at',
+        'published_by'
     ];
 
     protected $casts = [
         'date' => 'date',
         'week_start' => 'date',
         'week_end' => 'date',
+        'published' => 'boolean',
+        'published_at' => 'datetime',
     ];
 
     /**

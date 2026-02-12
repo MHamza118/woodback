@@ -118,6 +118,9 @@ Route::prefix('employee')->middleware(['auth:sanctum'])->group(function () {
 
             // Alias routes for frontend compatibility
             Route::get('training-modules', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getTrainingModules']);
+
+            // Employee schedule routes
+            Route::get('schedule/shifts', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getEmployeeShifts']);
             Route::post('training-modules/unlock', [App\Http\Controllers\Api\V1\EmployeeController::class, 'unlockTrainingModule']);
             Route::get('training-modules/{moduleId}/content', [App\Http\Controllers\Api\V1\EmployeeController::class, 'getTrainingContent']);
             Route::post('training-modules/{moduleId}/complete', [App\Http\Controllers\Api\V1\EmployeeController::class, 'completeTraining']);
@@ -462,6 +465,9 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
                 
                 // Fill from template endpoint
                 Route::post('/fill-from-template', [App\Http\Controllers\Api\V1\ScheduleController::class, 'fillFromTemplate']);
+                
+                // Publish schedule
+                Route::post('/publish', [App\Http\Controllers\Api\V1\ScheduleController::class, 'publishSchedule']);
                 
                 // Shift CRUD operations
                 Route::get('/shifts', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getShiftsForWeek']);

@@ -473,4 +473,109 @@ class ScheduleService
         
         return true;
     }
+
+    /**
+     * Publish schedule for a specific week
+     */
+    public function publishSchedule(Carbon $weekStart, Carbon $weekEnd, ?string $department = null): array
+    {
+        try {
+            Log::info("Publishing schedule for week {$weekStart} to {$weekEnd}, department: " . ($department ?? 'all'));
+
+            // Build query for shifts to publish
+            $query = Schedule::forWeek($weekStart, $weekEnd)
+                ->active()
+                ->where('published', false);
+
+            if ($department && $department !== 'All departments') {
+                $query->forDepartment($department);
+            }
+
+            $shifts = $query->get();
+            
+            Log::info("Found {$shifts->count()} unpublished shifts to publish");
+
+            if ($shifts->isEmpty()) {
+                return [
+                    'success' => false,
+                    'message' => 'No unpublished shifts found for this week',
+                    'shifts_published' => 0,
+                    'employees_notified' => 0
+                ];
+            }
+
+            // Mark all shifts as published
+            $shiftsPublished = 0;
+            $employeeIds = [];
+
+            foreach ($shifts as $shift) {
+                Log::info("Publishing shift ID: {$shift->id} for employee: {$shift->employee_id}");
+                
+                $updateResult = $shift->update([
+                    'published' => true,
+                    'published_at' => now(),
+                    'published_by' => auth()->id() ?? null
+                ]);
+                
+                Log::info("Update result for shift {$shift->id}: " . ($updateResult ? 'success' : 'failed'));
+                
+                if ($updateResult) {
+                    $shiftsPublished++;
+                }
+                
+                if (!in_array($shift->employee_id, $employeeIds)) {
+                    $employeeIds[] = $shift->employee_id;
+                }
+            }
+            
+            Log::info("Successfully published {$shiftsPublished} shifts");
+
+            // Send notifications to employees
+            $employeesNotified = 0;
+            foreach ($employeeIds as $employeeId) {
+                try {
+                    $employee = Employee::find($employeeId);
+                    if ($employee) {
+                        $employeeShiftsCount = $shifts->where('employee_id', $employeeId)->count();
+                        
+                        // Create notification for employee using TableNotification
+                        \App\Models\TableNotification::create([
+                            'recipient_type' => \App\Models\TableNotification::RECIPIENT_EMPLOYEE,
+                            'recipient_id' => $employeeId,
+                            'type' => \App\Models\TableNotification::TYPE_SCHEDULE_UPDATE,
+                            'title' => 'New Schedule Published',
+                            'message' => "Your schedule for the week of {$weekStart->format('M d, Y')} has been published. You have {$employeeShiftsCount} shift(s) assigned.",
+                            'priority' => \App\Models\TableNotification::PRIORITY_MEDIUM,
+                            'data' => json_encode([
+                                'week_start' => $weekStart->toDateString(),
+                                'week_end' => $weekEnd->toDateString(),
+                                'shifts_count' => $employeeShiftsCount
+                            ]),
+                            'is_read' => false
+                        ]);
+                        $employeesNotified++;
+                    }
+                } catch (\Exception $e) {
+                    Log::error("Failed to notify employee {$employeeId}: " . $e->getMessage());
+                }
+            }
+
+            Log::info("Published {$shiftsPublished} shifts and notified {$employeesNotified} employees");
+
+            return [
+                'success' => true,
+                'message' => "Successfully published {$shiftsPublished} shifts",
+                'shifts_published' => $shiftsPublished,
+                'employees_notified' => $employeesNotified
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error publishing schedule: ' . $e->getMessage() . ' ' . $e->getTraceAsString());
+            return [
+                'success' => false,
+                'message' => 'Failed to publish schedule: ' . $e->getMessage(),
+                'shifts_published' => 0,
+                'employees_notified' => 0
+            ];
+        }
+    }
 }

@@ -301,4 +301,92 @@ class ScheduleController extends Controller
             return $this->errorResponse('Failed to delete shift', 500);
         }
     }
+
+    /**
+     * Publish schedule for a specific week
+     */
+    public function publishSchedule(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'week_start' => 'required|date_format:Y-m-d',
+                'week_end' => 'required|date_format:Y-m-d',
+                'department' => 'nullable|string'
+            ]);
+
+            $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['week_start']);
+            $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['week_end']);
+            $department = $validated['department'] ?? null;
+
+            $result = $this->scheduleService->publishSchedule($weekStart, $weekEnd, $department);
+
+            if (!$result['success']) {
+                return $this->errorResponse($result['message'], 400);
+            }
+
+            return $this->successResponse([
+                'shifts_published' => $result['shifts_published'],
+                'employees_notified' => $result['employees_notified'],
+                'week_start' => $weekStart->toDateString(),
+                'week_end' => $weekEnd->toDateString()
+            ], $result['message']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->errorResponse('Validation failed: ' . json_encode($e->errors()), 422);
+        } catch (\Exception $e) {
+            Log::error('Error publishing schedule: ' . $e->getMessage());
+            return $this->errorResponse('Failed to publish schedule', 500);
+        }
+    }
+
+    /**
+     * Get published shifts for an employee
+     */
+    public function getEmployeeShifts(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'week_start' => 'required|date_format:Y-m-d',
+                'week_end' => 'required|date_format:Y-m-d'
+            ]);
+
+            // Get employee ID from authenticated user
+            $employeeId = auth()->user()->id;
+
+            $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_start'));
+            $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_end'));
+
+            $shifts = Schedule::forWeek($weekStart, $weekEnd)
+                ->where('employee_id', $employeeId)
+                ->where('published', true)
+                ->active()
+                ->orderBy('date')
+                ->orderBy('start_time')
+                ->get()
+                ->map(function ($shift) {
+                    return [
+                        'id' => $shift->id,
+                        'employee_id' => $shift->employee_id,
+                        'department' => $shift->department,
+                        'date' => $shift->date->toDateString(),
+                        'day_of_week' => $shift->day_of_week,
+                        'start_time' => $shift->start_time,
+                        'end_time' => $shift->end_time,
+                        'role' => $shift->role,
+                        'shift_type' => $shift->shift_type,
+                        'requirements' => $shift->requirements,
+                        'published_at' => $shift->published_at
+                    ];
+                });
+
+            return $this->successResponse([
+                'shifts' => $shifts,
+                'count' => $shifts->count(),
+                'week_start' => $weekStart->toDateString(),
+                'week_end' => $weekEnd->toDateString()
+            ], 'Employee shifts retrieved successfully');
+        } catch (\Exception $e) {
+            Log::error('Error fetching employee shifts: ' . $e->getMessage());
+            return $this->errorResponse('Failed to fetch employee shifts', 500);
+        }
+    }
 }
