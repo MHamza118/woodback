@@ -351,63 +351,17 @@ class ScheduleController extends Controller
 
             // Get employee ID from authenticated user
             $employeeId = auth()->user()->id;
-            
-            Log::info("=== getEmployeeShifts START ===");
-            Log::info("Authenticated user ID: {$employeeId}");
-            Log::info("Authenticated user email: " . auth()->user()->email);
-            Log::info("Employee ID: {$employeeId}");
 
             $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_start'), 'UTC')->startOfDay();
             $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_end'), 'UTC')->endOfDay();
-            
-            Log::info("Week: {$weekStart->toDateString()} to {$weekEnd->toDateString()}");
 
-            // Build the query step by step
-            $query = Schedule::forWeek($weekStart, $weekEnd);
-            $forWeekShifts = $query->get();
-            Log::info("After forWeek: " . $forWeekShifts->count() . " shifts");
-            Log::info("forWeek shift IDs: " . $forWeekShifts->pluck('id')->implode(', '));
-            Log::info("forWeek shift employee_ids: " . $forWeekShifts->pluck('employee_id')->implode(', '));
-            Log::info("forWeek shift dates: " . $forWeekShifts->pluck('date')->implode(', '));
-            
-            // Check if shift 84 is in forWeek results
-            $shift84InForWeek = $forWeekShifts->firstWhere('id', 84);
-            Log::info("Shift 84 in forWeek: " . ($shift84InForWeek ? "YES (employee_id: {$shift84InForWeek->employee_id})" : "NO"));
-            
-            // Log the SQL query
-            $sqlQuery = Schedule::forWeek($weekStart, $weekEnd)->toSql();
-            $bindings = Schedule::forWeek($weekStart, $weekEnd)->getBindings();
-            Log::info("forWeek SQL: " . $sqlQuery);
-            Log::info("forWeek bindings: " . json_encode($bindings));
-            
-            $query = Schedule::forWeek($weekStart, $weekEnd)->where('employee_id', $employeeId);
-            $afterEmployeeFilter = $query->get();
-            Log::info("After employee_id filter: " . $afterEmployeeFilter->count() . " shifts");
-            Log::info("After employee_id filter IDs: " . $afterEmployeeFilter->pluck('id')->implode(', '));
-            
-            // Check if shift 84 is in employee filter results
-            $shift84InEmployeeFilter = $afterEmployeeFilter->firstWhere('id', 84);
-            Log::info("Shift 84 in employee filter: " . ($shift84InEmployeeFilter ? "YES" : "NO"));
-            
-            $query = Schedule::forWeek($weekStart, $weekEnd)->where('employee_id', $employeeId)->where('published', true);
-            $afterPublishedFilter = $query->get();
-            Log::info("After published filter: " . $afterPublishedFilter->count() . " shifts");
-            Log::info("After published filter IDs: " . $afterPublishedFilter->pluck('id')->implode(', '));
-            
-            // Check if shift 84 is in published filter results
-            $shift84InPublishedFilter = $afterPublishedFilter->firstWhere('id', 84);
-            Log::info("Shift 84 in published filter: " . ($shift84InPublishedFilter ? "YES" : "NO"));
-            
-            $query = Schedule::forWeek($weekStart, $weekEnd)->where('employee_id', $employeeId)->where('published', true)->active();
-            $afterActiveFilter = $query->get();
-            Log::info("After active filter: " . $afterActiveFilter->count() . " shifts");
-            Log::info("After active filter IDs: " . $afterActiveFilter->pluck('id')->implode(', '));
-            
-            // Check if shift 84 is in active filter results
-            $shift84InActiveFilter = $afterActiveFilter->firstWhere('id', 84);
-            Log::info("Shift 84 in active filter: " . ($shift84InActiveFilter ? "YES" : "NO"));
-            
-            $shifts = $afterActiveFilter
+            $shifts = Schedule::forWeek($weekStart, $weekEnd)
+                ->where('employee_id', $employeeId)
+                ->where('published', true)
+                ->active()
+                ->orderBy('date')
+                ->orderBy('start_time')
+                ->get()
                 ->map(function ($shift) {
                     return [
                         'id' => $shift->id,
@@ -423,11 +377,6 @@ class ScheduleController extends Controller
                         'published_at' => $shift->published_at
                     ];
                 });
-            
-            Log::info("Final shifts count: {$shifts->count()}");
-            Log::info("Shift IDs: " . $shifts->pluck('id')->implode(', '));
-            Log::info("Shift dates: " . $shifts->pluck('date')->implode(', '));
-            Log::info("=== getEmployeeShifts END ===");
 
             return $this->successResponse([
                 'shifts' => $shifts,
