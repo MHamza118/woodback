@@ -132,24 +132,19 @@ class ScheduleService
      * Fetches employees in department, checks their availability, and creates shifts
      * Uses caching - replaces old shifts with new ones for the same week
      */
-    public function fillFromTemplate(string $department, string $template, Carbon $weekStart, bool $includeLaborPercentage = true): array
+    public function fillFromTemplate(string $department, string $template, Carbon $weekStart): array
     {
         try {
-            Log::info("Starting fillFromTemplate for department: {$department}, template: {$template}");
-
             // Calculate week end (Sunday)
             $weekEnd = $weekStart->copy()->addDays(6);
 
             // Delete existing shifts for this week and department to replace with new ones
-            Log::info("Deleting existing shifts for {$department} in week {$weekStart} to {$weekEnd}");
             $deletedCount = Schedule::forDepartment($department)
                 ->forWeek($weekStart, $weekEnd)
                 ->delete();
-            Log::info("Deleted {$deletedCount} existing shifts");
 
             // Get all employees in the department
             $employees = $this->getEmployeesByDepartment($department);
-            Log::info("Found " . count($employees) . " employees in {$department}");
 
             if (empty($employees)) {
                 return [
@@ -161,7 +156,6 @@ class ScheduleService
 
             // Template shift definitions - roles will be taken from employee assignments
             $templateShifts = $this->getTemplateShifts($department, $template);
-            Log::info("Template shifts: " . json_encode($templateShifts));
 
             $createdShifts = [];
             $shiftsCreated = 0;
@@ -170,13 +164,11 @@ class ScheduleService
             // For each employee, create shifts based on their availability
             foreach ($employees as $employee) {
                 $employeeId = $employee['id'];
-                Log::info("Processing employee: {$employeeId}");
 
                 // Get the employee's actual role from their assignments
                 $employeeRole = 'Staff'; // Default role
                 if (isset($employee['assignments']['roles']) && is_array($employee['assignments']['roles']) && !empty($employee['assignments']['roles'])) {
                     $employeeRole = $employee['assignments']['roles'][0]; // Use first role
-                    Log::info("Employee {$employeeId} role from assignments: {$employeeRole}");
                 }
 
                 // Get availability for the entire week
@@ -186,8 +178,6 @@ class ScheduleService
                     $weekEnd
                 );
 
-                Log::info("Week availability for employee {$employeeId}: " . json_encode($weekAvailability));
-
                 // For each day in the week
                 $currentDate = $weekStart->copy();
                 while ($currentDate <= $weekEnd) {
@@ -196,8 +186,6 @@ class ScheduleService
 
                     // Check if employee is available on this day
                     $dayAvailability = $weekAvailability[$dateString] ?? null;
-
-                    Log::info("Day {$dateString} ({$dayOfWeek}) availability for employee {$employeeId}: " . json_encode($dayAvailability));
 
                     // Only create shifts if availability is explicitly set and employee is available
                     if ($dayAvailability && isset($dayAvailability['availability_data'][$dayOfWeek])) {
@@ -217,7 +205,6 @@ class ScheduleService
                                 ->first();
                             
                             if ($existingShift) {
-                                Log::info("Shift already exists for employee {$employeeId} on {$dateString} at {$startTime}-{$endTime}, skipping");
                                 continue;
                             }
 
@@ -254,19 +241,12 @@ class ScheduleService
                             ];
 
                             $shiftsCreated++;
-                            Log::info("Created shift for employee {$employeeId} on {$dateString} from {$startTime} to {$endTime} with role {$employeeRole}");
-                        } else {
-                            Log::info("Employee {$employeeId} not available on {$dateString}");
                         }
-                    } else {
-                        Log::info("No availability set for employee {$employeeId} on {$dateString} - skipping");
                     }
 
                     $currentDate->addDay();
                 }
             }
-
-            Log::info("Total shifts created: " . count($createdShifts));
 
             return [
                 'success' => true,
@@ -275,7 +255,6 @@ class ScheduleService
                 'shifts' => $createdShifts
             ];
         } catch (\Exception $e) {
-            Log::error('Error in fillFromTemplate: ' . $e->getMessage() . ' ' . $e->getTraceAsString());
             return [
                 'success' => false,
                 'message' => 'Failed to fill schedule from template',

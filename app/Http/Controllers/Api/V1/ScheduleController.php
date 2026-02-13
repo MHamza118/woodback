@@ -107,26 +107,20 @@ class ScheduleController extends Controller
             $validated = $request->validate([
                 'department' => 'required|string|in:BOH,FOH',
                 'template' => 'required|string|in:BOH,FOH',
-                'week_start' => 'required|date_format:Y-m-d',
-                'include_labor_percentage' => 'boolean'
+                'week_start' => 'required|date_format:Y-m-d'
             ]);
 
             $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['week_start']);
             $department = $validated['department'];
             $template = $validated['template'];
-            $includeLaborPercentage = $validated['include_labor_percentage'] ?? true;
-
-            Log::info("fillFromTemplate called with: department={$department}, template={$template}, weekStart={$weekStart}");
 
             $result = $this->scheduleService->fillFromTemplate(
                 $department,
                 $template,
-                $weekStart,
-                $includeLaborPercentage
+                $weekStart
             );
 
             if (!$result['success']) {
-                Log::error('fillFromTemplate failed: ' . $result['message']);
                 return $this->errorResponse($result['message'], 400);
             }
 
@@ -137,10 +131,8 @@ class ScheduleController extends Controller
                 'week_end' => $weekStart->copy()->addDays(6)->toDateString()
             ], $result['message']);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Validation error in fillFromTemplate: ' . json_encode($e->errors()));
             return $this->errorResponse('Validation failed: ' . json_encode($e->errors()), 422);
         } catch (\Exception $e) {
-            Log::error('Error in fillFromTemplate: ' . $e->getMessage() . ' ' . $e->getTraceAsString());
             return $this->errorResponse('Failed to fill schedule from template: ' . $e->getMessage(), 500);
         }
     }
@@ -387,6 +379,41 @@ class ScheduleController extends Controller
         } catch (\Exception $e) {
             Log::error('Error fetching employee shifts: ' . $e->getMessage());
             return $this->errorResponse('Failed to fetch employee shifts', 500);
+        }
+    }
+
+    /**
+     * Clear all shifts for a specific week and department
+     */
+    public function clearSchedule(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'week_start' => 'required|date_format:Y-m-d',
+                'week_end' => 'required|date_format:Y-m-d',
+                'department' => 'nullable|string'
+            ]);
+
+            $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_start'), 'UTC')->startOfDay();
+            $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_end'), 'UTC')->endOfDay();
+            $department = $request->input('department');
+
+            $query = Schedule::forWeek($weekStart, $weekEnd)->active();
+
+            if ($department && $department !== 'All departments') {
+                $query->forDepartment($department);
+            }
+
+            $deletedCount = $query->delete();
+
+            return $this->successResponse([
+                'deleted_count' => $deletedCount,
+                'week_start' => $weekStart->toDateString(),
+                'week_end' => $weekEnd->toDateString()
+            ], "Successfully deleted {$deletedCount} shifts");
+        } catch (\Exception $e) {
+            Log::error('Error clearing schedule: ' . $e->getMessage());
+            return $this->errorResponse('Failed to clear schedule', 500);
         }
     }
 }
