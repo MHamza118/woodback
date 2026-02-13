@@ -157,8 +157,8 @@ class ScheduleController extends Controller
                 'department' => 'nullable|string'
             ]);
 
-            $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_start'));
-            $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_end'));
+            $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_start'), 'UTC')->startOfDay();
+            $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_end'), 'UTC')->endOfDay();
             $department = $request->input('department');
 
             $query = Schedule::forWeek($weekStart, $weekEnd)->active();
