@@ -50,7 +50,46 @@ class ScheduleService
     }
 
     /**
-     * Get employees by department (from role assignments)
+     * Get roles for a specific department from department_structure table
+     */
+    public function getRolesForDepartment(string $department): array
+    {
+        try {
+            $departmentStructures = \App\Models\DepartmentStructure::where('department_id', $department)->get();
+            
+            $roles = [];
+            foreach ($departmentStructures as $structure) {
+                if (is_array($structure->roles)) {
+                    foreach ($structure->roles as $role) {
+                        // Handle both string and object roles
+                        $roleName = null;
+                        
+                        if (is_string($role)) {
+                            $roleName = $role;
+                        } elseif (is_array($role) && isset($role['name'])) {
+                            $roleName = (string)$role['name'];
+                        } elseif (is_object($role) && isset($role->name)) {
+                            $roleName = (string)$role->name;
+                        }
+                        
+                        // Ensure we only add non-empty strings
+                        if ($roleName && is_string($roleName) && trim($roleName) !== '' && !in_array($roleName, $roles)) {
+                            $roles[] = $roleName;
+                        }
+                    }
+                }
+            }
+            
+            sort($roles);
+            return array_values($roles); // Re-index array to ensure clean output
+        } catch (\Exception $e) {
+            Log::error('Error fetching roles for department: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Get employees by department (from role assignments
      */
     public function getEmployeesByDepartment(string $departmentName): array
     {
@@ -138,10 +177,11 @@ class ScheduleService
             // Calculate week end (Sunday)
             $weekEnd = $weekStart->copy()->addDays(6);
 
-            // Delete existing shifts for this week and department to replace with new ones
-            $deletedCount = Schedule::forDepartment($department)
-                ->forWeek($weekStart, $weekEnd)
-                ->delete();
+            // IMPORTANT: DO NOT DELETE ANY SHIFTS
+            // Just create new template shifts alongside existing open shifts
+            // Both open shifts and template shifts should coexist
+
+            \Log::info('[fillFromTemplate] Creating template shifts without deleting existing shifts');
 
             // Get all employees in the department
             $employees = $this->getEmployeesByDepartment($department);
@@ -197,16 +237,9 @@ class ScheduleService
                             $startTime = $dayData['startTime'] ?? $dayData['start_time'] ?? '09:00';
                             $endTime = $dayData['endTime'] ?? $dayData['end_time'] ?? '17:00';
                             
-                            // Check if shift already exists for this employee on this day
-                            $existingShift = Schedule::where('employee_id', $employeeId)
-                                ->where('date', $currentDate)
-                                ->where('start_time', $startTime)
-                                ->where('end_time', $endTime)
-                                ->first();
-                            
-                            if ($existingShift) {
-                                continue;
-                            }
+                            // IMPORTANT: Allow multiple shifts per employee per day
+                            // Open shifts and template shifts can coexist
+                            // Do NOT check for existing shifts - they should be separate rows
 
                             // Use the first template shift for shift_type and requirements
                             $templateShift = $templateShifts[0] ?? [];
@@ -223,7 +256,8 @@ class ScheduleService
                                 'requirements' => $templateShift['requirements'] ?? null,
                                 'week_start' => $weekStart,
                                 'week_end' => $weekEnd,
-                                'status' => 'active'
+                                'status' => 'active',
+                                'created_from' => 'template'
                             ]);
 
                             $createdShifts[] = [
@@ -363,24 +397,62 @@ class ScheduleService
      */
     public function createShift(array $data): Schedule
     {
-        $date = Carbon::createFromFormat('Y-m-d', $data['date']);
-        
-        $shift = Schedule::create([
-            'employee_id' => $data['employee_id'],
-            'department' => $data['department'],
-            'date' => $date,
-            'day_of_week' => strtolower($date->format('l')),
-            'start_time' => $data['start_time'],
-            'end_time' => $data['end_time'],
-            'role' => $data['role'],
-            'shift_type' => $data['shift_type'] ?? 'regular',
-            'requirements' => $data['requirements'] ?? null,
-            'status' => 'active'
+        \Log::info('[ScheduleService.createShift] Starting', [
+            'data' => $data
         ]);
-
-        $shift->load('employee');
         
-        return $shift;
+        try {
+            // Create date in UTC timezone to avoid timezone conversion issues
+            $date = Carbon::createFromFormat('Y-m-d', $data['date'], 'UTC')->startOfDay();
+            
+            // Calculate week start (Monday of the week)
+            $weekStart = $date->copy()->startOfWeek();
+            $weekEnd = $date->copy()->endOfWeek();
+            
+            \Log::info('[ScheduleService.createShift] Date parsed', [
+                'date' => $date->toDateString(),
+                'day_of_week' => strtolower($date->format('l')),
+                'week_start' => $weekStart->toDateString(),
+                'week_end' => $weekEnd->toDateString()
+            ]);
+            
+            // Determine created_from based on whether employee_id is set
+            $createdFrom = $data['employee_id'] ? 'manual' : 'open_shift';
+            
+            $shift = Schedule::create([
+                'employee_id' => $data['employee_id'],
+                'department' => $data['department'],
+                'date' => $date,
+                'day_of_week' => strtolower($date->format('l')),
+                'start_time' => $data['start_time'],
+                'end_time' => $data['end_time'],
+                'role' => $data['role'],
+                'shift_type' => $data['shift_type'] ?? 'regular',
+                'requirements' => $data['requirements'] ?? null,
+                'week_start' => $weekStart,
+                'week_end' => $weekEnd,
+                'status' => 'active',
+                'created_from' => $createdFrom
+            ]);
+
+            \Log::info('[ScheduleService.createShift] Shift created', [
+                'shift_id' => $shift->id,
+                'date_stored' => $shift->date->toDateString(),
+                'created_from' => $createdFrom
+            ]);
+
+            $shift->load('employee');
+            
+            return $shift;
+        } catch (\Exception $e) {
+            \Log::error('[ScheduleService.createShift] Error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -405,7 +477,7 @@ class ScheduleService
         }
         
         if (isset($data['date'])) {
-            $date = Carbon::createFromFormat('Y-m-d', $data['date']);
+            $date = Carbon::createFromFormat('Y-m-d', $data['date'], 'UTC')->startOfDay();
             $updateData['date'] = $date;
             $updateData['day_of_week'] = strtolower($date->format('l'));
         }
@@ -462,9 +534,12 @@ class ScheduleService
             Log::info("Publishing schedule for week {$weekStart} to {$weekEnd}, department: " . ($department ?? 'all'));
 
             // Build query for shifts to publish
+            // IMPORTANT: Only publish shifts that have an employee assigned (employee_id IS NOT NULL)
+            // Open shifts (employee_id = NULL) should NOT be published
             $query = Schedule::forWeek($weekStart, $weekEnd)
                 ->active()
-                ->where('published', false);
+                ->where('published', false)
+                ->whereNotNull('employee_id'); // Only publish assigned shifts
 
             if ($department && $department !== 'All departments') {
                 $query->forDepartment($department);
@@ -472,7 +547,7 @@ class ScheduleService
 
             $shifts = $query->get();
             
-            Log::info("Found {$shifts->count()} unpublished shifts to publish");
+            Log::info("Found {$shifts->count()} unpublished assigned shifts to publish");
 
             if ($shifts->isEmpty()) {
                 return [
@@ -502,7 +577,8 @@ class ScheduleService
                     $shiftsPublished++;
                 }
                 
-                if (!in_array($shift->employee_id, $employeeIds)) {
+                // Only add employee_id if it's not null
+                if ($shift->employee_id && !in_array($shift->employee_id, $employeeIds)) {
                     $employeeIds[] = $shift->employee_id;
                 }
             }

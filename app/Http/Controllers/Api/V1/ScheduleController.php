@@ -39,6 +39,29 @@ class ScheduleController extends Controller
     }
 
     /**
+     * Get roles for a specific department
+     */
+    public function getRolesForDepartment(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'department' => 'required|string|in:BOH,FOH'
+            ]);
+
+            $department = $request->input('department');
+            $roles = $this->scheduleService->getRolesForDepartment($department);
+
+            return $this->successResponse([
+                'department' => $department,
+                'roles' => $roles
+            ], 'Roles retrieved successfully');
+        } catch (\Exception $e) {
+            Log::error('Error fetching roles: ' . $e->getMessage());
+            return $this->errorResponse('Failed to fetch roles', 500);
+        }
+    }
+
+    /**
      * Get employees by department
      */
     public function getEmployeesByDepartment(Request $request): JsonResponse
@@ -110,7 +133,7 @@ class ScheduleController extends Controller
                 'week_start' => 'required|date_format:Y-m-d'
             ]);
 
-            $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['week_start']);
+            $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['week_start'], 'UTC')->startOfDay();
             $department = $validated['department'];
             $template = $validated['template'];
 
@@ -153,6 +176,12 @@ class ScheduleController extends Controller
             $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_end'), 'UTC')->endOfDay();
             $department = $request->input('department');
 
+            \Log::info('[getShiftsForWeek] Query parameters', [
+                'week_start' => $weekStart->toDateString(),
+                'week_end' => $weekEnd->toDateString(),
+                'department' => $department
+            ]);
+
             $query = Schedule::forWeek($weekStart, $weekEnd)->active();
 
             if ($department) {
@@ -163,7 +192,7 @@ class ScheduleController extends Controller
                 return [
                     'id' => $shift->id,
                     'employee_id' => $shift->employee_id,
-                    'employee_name' => $shift->employee->first_name . ' ' . $shift->employee->last_name,
+                    'employee_name' => $shift->employee ? $shift->employee->first_name . ' ' . $shift->employee->last_name : null,
                     'department' => $shift->department,
                     'date' => $shift->date->toDateString(),
                     'day_of_week' => $shift->day_of_week,
@@ -171,9 +200,17 @@ class ScheduleController extends Controller
                     'end_time' => $shift->end_time,
                     'role' => $shift->role,
                     'shift_type' => $shift->shift_type,
-                    'requirements' => $shift->requirements
+                    'requirements' => $shift->requirements,
+                    'created_from' => $shift->created_from ?? 'manual',
+                    'status' => $shift->employee_id ? 'assigned' : 'open'
                 ];
             });
+
+            \Log::info('[getShiftsForWeek] Shifts retrieved', [
+                'count' => $shifts->count(),
+                'open_shifts' => $shifts->filter(fn($s) => !$s['employee_id'])->count(),
+                'assigned_shifts' => $shifts->filter(fn($s) => $s['employee_id'])->count()
+            ]);
 
             return $this->successResponse([
                 'shifts' => $shifts,
@@ -193,8 +230,12 @@ class ScheduleController extends Controller
     public function createShift(Request $request): JsonResponse
     {
         try {
+            \Log::info('[createShift] Request received', [
+                'all_data' => $request->all()
+            ]);
+            
             $validated = $request->validate([
-                'employee_id' => 'required|exists:employees,id',
+                'employee_id' => 'nullable|exists:employees,id',
                 'department' => 'required|string|in:BOH,FOH',
                 'date' => 'required|date_format:Y-m-d',
                 'start_time' => 'required|date_format:H:i',
@@ -204,13 +245,25 @@ class ScheduleController extends Controller
                 'requirements' => 'nullable|array'
             ]);
 
+            \Log::info('[createShift] Validation passed', [
+                'validated' => $validated,
+                'is_open_shift' => is_null($validated['employee_id'])
+            ]);
+
             $shift = $this->scheduleService->createShift($validated);
+
+            \Log::info('[createShift] Shift created successfully', [
+                'shift_id' => $shift->id,
+                'employee_id' => $shift->employee_id,
+                'is_open_shift' => is_null($shift->employee_id),
+                'date' => $shift->date->toDateString()
+            ]);
 
             return $this->successResponse([
                 'shift' => [
                     'id' => $shift->id,
                     'employee_id' => $shift->employee_id,
-                    'employee_name' => $shift->employee->first_name . ' ' . $shift->employee->last_name,
+                    'employee_name' => $shift->employee ? $shift->employee->first_name . ' ' . $shift->employee->last_name : null,
                     'department' => $shift->department,
                     'date' => $shift->date->toDateString(),
                     'day_of_week' => $shift->day_of_week,
@@ -218,14 +271,24 @@ class ScheduleController extends Controller
                     'end_time' => $shift->end_time,
                     'role' => $shift->role,
                     'shift_type' => $shift->shift_type,
-                    'requirements' => $shift->requirements
+                    'requirements' => $shift->requirements,
+                    'created_from' => $shift->created_from ?? 'manual',
+                    'status' => $shift->employee_id ? 'assigned' : 'open'
                 ]
             ], 'Shift created successfully', 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('[createShift] Validation error', [
+                'errors' => $e->errors()
+            ]);
             return $this->errorResponse('Validation failed: ' . json_encode($e->errors()), 422);
         } catch (\Exception $e) {
-            Log::error('Error creating shift: ' . $e->getMessage());
-            return $this->errorResponse('Failed to create shift', 500);
+            \Log::error('[createShift] Exception occurred', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return $this->errorResponse('Failed to create shift: ' . $e->getMessage(), 500);
         }
     }
 
@@ -306,8 +369,8 @@ class ScheduleController extends Controller
                 'department' => 'nullable|string'
             ]);
 
-            $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['week_start']);
-            $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['week_end']);
+            $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['week_start'], 'UTC')->startOfDay();
+            $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['week_end'], 'UTC')->endOfDay();
             $department = $validated['department'] ?? null;
 
             $result = $this->scheduleService->publishSchedule($weekStart, $weekEnd, $department);
@@ -349,7 +412,6 @@ class ScheduleController extends Controller
 
             $shifts = Schedule::forWeek($weekStart, $weekEnd)
                 ->where('employee_id', $employeeId)
-                ->where('published', true)
                 ->active()
                 ->orderBy('date')
                 ->orderBy('start_time')
@@ -366,7 +428,9 @@ class ScheduleController extends Controller
                         'role' => $shift->role,
                         'shift_type' => $shift->shift_type,
                         'requirements' => $shift->requirements,
-                        'published_at' => $shift->published_at
+                        'published' => $shift->published,
+                        'published_at' => $shift->published_at,
+                        'created_from' => $shift->created_from
                     ];
                 });
 
