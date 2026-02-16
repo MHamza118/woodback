@@ -188,7 +188,23 @@ class ScheduleController extends Controller
                 $query->forDepartment($department);
             }
 
-            $shifts = $query->with('employee')->get()->map(function ($shift) {
+            $collection = $query->with('employee')->get();
+
+            // Count shifts per (employee_id, date) for conflict detection: open_shift origin is conflict when same employee has >1 shift on same day
+            $shiftsPerEmployeeDate = [];
+            foreach ($collection as $s) {
+                if ($s->employee_id !== null) {
+                    $key = $s->employee_id . '|' . $s->date->toDateString();
+                    $shiftsPerEmployeeDate[$key] = ($shiftsPerEmployeeDate[$key] ?? 0) + 1;
+                }
+            }
+
+            $shifts = $collection->map(function ($shift) use ($shiftsPerEmployeeDate) {
+                $createdFrom = $shift->created_from ?? 'manual';
+                $key = $shift->employee_id . '|' . $shift->date->toDateString();
+                $count = $shift->employee_id ? ($shiftsPerEmployeeDate[$key] ?? 0) : 0;
+                $isConflict = $createdFrom === 'open_shift' && $count > 1;
+
                 return [
                     'id' => $shift->id,
                     'employee_id' => $shift->employee_id,
@@ -201,8 +217,9 @@ class ScheduleController extends Controller
                     'role' => $shift->role,
                     'shift_type' => $shift->shift_type,
                     'requirements' => $shift->requirements,
-                    'created_from' => $shift->created_from ?? 'manual',
-                    'status' => $shift->employee_id ? 'assigned' : 'open'
+                    'created_from' => $createdFrom,
+                    'status' => $shift->employee_id ? 'assigned' : 'open',
+                    'is_conflict' => $isConflict,
                 ];
             });
 
@@ -238,11 +255,12 @@ class ScheduleController extends Controller
                 'employee_id' => 'nullable|exists:employees,id',
                 'department' => 'required|string|in:BOH,FOH',
                 'date' => 'required|date_format:Y-m-d',
-                'start_time' => 'required|date_format:H:i',
-                'end_time' => 'required|date_format:H:i',
+                'start_time' => ['required', 'string', 'regex:/^\d{1,2}:\d{2}(:\d{2})?$/'],
+                'end_time' => ['required', 'string', 'regex:/^\d{1,2}:\d{2}(:\d{2})?$/'],
                 'role' => 'required|string',
                 'shift_type' => 'nullable|string',
-                'requirements' => 'nullable|array'
+                'requirements' => 'nullable|array',
+                'created_from' => 'nullable|string|in:open_shift,template,manual'
             ]);
 
             \Log::info('[createShift] Validation passed', [
@@ -252,11 +270,22 @@ class ScheduleController extends Controller
 
             $shift = $this->scheduleService->createShift($validated);
 
+            $createdFrom = $shift->created_from ?? 'manual';
+            $isConflict = false;
+            if ($shift->employee_id && $createdFrom === 'open_shift') {
+                $count = Schedule::where('employee_id', $shift->employee_id)
+                    ->whereDate('date', $shift->date)
+                    ->where('status', 'active')
+                    ->count();
+                $isConflict = $count > 1;
+            }
+
             \Log::info('[createShift] Shift created successfully', [
                 'shift_id' => $shift->id,
                 'employee_id' => $shift->employee_id,
                 'is_open_shift' => is_null($shift->employee_id),
-                'date' => $shift->date->toDateString()
+                'date' => $shift->date->toDateString(),
+                'is_conflict' => $isConflict
             ]);
 
             return $this->successResponse([
@@ -272,8 +301,9 @@ class ScheduleController extends Controller
                     'role' => $shift->role,
                     'shift_type' => $shift->shift_type,
                     'requirements' => $shift->requirements,
-                    'created_from' => $shift->created_from ?? 'manual',
-                    'status' => $shift->employee_id ? 'assigned' : 'open'
+                    'created_from' => $createdFrom,
+                    'status' => $shift->employee_id ? 'assigned' : 'open',
+                    'is_conflict' => $isConflict,
                 ]
             ], 'Shift created successfully', 201);
         } catch (\Illuminate\Validation\ValidationException $e) {

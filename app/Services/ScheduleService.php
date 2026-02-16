@@ -416,8 +416,10 @@ class ScheduleService
                 'week_end' => $weekEnd->toDateString()
             ]);
             
-            // Determine created_from based on whether employee_id is set
-            $createdFrom = $data['employee_id'] ? 'manual' : 'open_shift';
+            // Use provided created_from when assigning an open shift to an employee; otherwise infer
+            $createdFrom = isset($data['created_from']) && in_array($data['created_from'], ['open_shift', 'template', 'manual'], true)
+                ? $data['created_from']
+                : ($data['employee_id'] ? 'manual' : 'open_shift');
             
             $shift = Schedule::create([
                 'employee_id' => $data['employee_id'],
