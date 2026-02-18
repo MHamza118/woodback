@@ -23,6 +23,7 @@ class Schedule extends Model
         'week_end',
         'status',
         'created_from',
+        'is_conflict',
         'published',
         'published_at',
         'published_by'

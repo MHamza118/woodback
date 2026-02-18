@@ -190,7 +190,7 @@ class ScheduleController extends Controller
 
             $collection = $query->with('employee')->get();
 
-            // Count shifts per (employee_id, date) for conflict detection: open_shift origin is conflict when same employee has >1 shift on same day
+            // Count shifts per (employee_id, date) for conflict detection
             $shiftsPerEmployeeDate = [];
             foreach ($collection as $s) {
                 if ($s->employee_id !== null) {
@@ -199,11 +199,27 @@ class ScheduleController extends Controller
                 }
             }
 
+            // First pass: calculate and update is_conflict in database
+            foreach ($collection as $shift) {
+                $createdFrom = $shift->created_from ?? 'manual';
+                $key = $shift->employee_id . '|' . $shift->date->toDateString();
+                $count = $shift->employee_id ? ($shiftsPerEmployeeDate[$key] ?? 0) : 0;
+                
+                // Calculate is_conflict: if created from open_shift AND employee has >1 shift on same date
+                $isConflict = ($createdFrom === 'open_shift' && $count > 1);
+                
+                // Update database if conflict status changed
+                if ($shift->is_conflict != $isConflict) {
+                    Schedule::where('id', $shift->id)->update(['is_conflict' => $isConflict]);
+                }
+            }
+
+            // Second pass: build response with updated is_conflict values
             $shifts = $collection->map(function ($shift) use ($shiftsPerEmployeeDate) {
                 $createdFrom = $shift->created_from ?? 'manual';
                 $key = $shift->employee_id . '|' . $shift->date->toDateString();
                 $count = $shift->employee_id ? ($shiftsPerEmployeeDate[$key] ?? 0) : 0;
-                $isConflict = $createdFrom === 'open_shift' && $count > 1;
+                $isConflict = ($createdFrom === 'open_shift' && $count > 1);
 
                 return [
                     'id' => $shift->id,
@@ -265,19 +281,48 @@ class ScheduleController extends Controller
 
             \Log::info('[createShift] Validation passed', [
                 'validated' => $validated,
-                'is_open_shift' => is_null($validated['employee_id'])
+                'is_open_shift' => is_null($validated['employee_id']),
+                'created_from' => $validated['created_from'] ?? 'NOT PROVIDED'
             ]);
 
             $shift = $this->scheduleService->createShift($validated);
 
             $createdFrom = $shift->created_from ?? 'manual';
             $isConflict = false;
+            
+            \Log::info('[createShift] After service creation', [
+                'shift_id' => $shift->id,
+                'employee_id' => $shift->employee_id,
+                'date' => $shift->date->toDateString(),
+                'created_from_from_db' => $shift->created_from,
+                'created_from_expected' => $validated['created_from'] ?? 'NOT PROVIDED',
+            ]);
+            
             if ($shift->employee_id && $createdFrom === 'open_shift') {
                 $count = Schedule::where('employee_id', $shift->employee_id)
                     ->whereDate('date', $shift->date)
                     ->where('status', 'active')
                     ->count();
                 $isConflict = $count > 1;
+                
+                // Save is_conflict to database
+                $shift->update(['is_conflict' => $isConflict]);
+                
+                \Log::info('[createShift] Conflict calculated and saved', [
+                    'shift_id' => $shift->id,
+                    'employee_id' => $shift->employee_id,
+                    'date' => $shift->date->toDateString(),
+                    'created_from' => $createdFrom,
+                    'shift_count' => $count,
+                    'is_conflict' => $isConflict,
+                ]);
+            } else {
+                \Log::info('[createShift] No conflict check needed', [
+                    'shift_id' => $shift->id,
+                    'employee_id' => $shift->employee_id,
+                    'created_from' => $createdFrom,
+                    'reason' => !$shift->employee_id ? 'no employee_id' : 'not open_shift',
+                ]);
             }
 
             \Log::info('[createShift] Shift created successfully', [
@@ -345,6 +390,39 @@ class ScheduleController extends Controller
                 return $this->notFoundResponse('Shift not found');
             }
 
+            // Recalculate conflicts for this shift and all shifts on the same date for the same employee
+            $createdFrom = $shift->created_from ?? 'manual';
+            if ($shift->employee_id && $createdFrom === 'open_shift') {
+                $count = Schedule::where('employee_id', $shift->employee_id)
+                    ->whereDate('date', $shift->date)
+                    ->where('status', 'active')
+                    ->count();
+                $isConflict = $count > 1;
+                $shift->update(['is_conflict' => $isConflict]);
+            } else {
+                $shift->update(['is_conflict' => false]);
+            }
+            
+            // Also recalculate conflicts for all other shifts on the same date for the same employee
+            Schedule::where('employee_id', $shift->employee_id)
+                ->whereDate('date', $shift->date)
+                ->where('id', '!=', $shift->id)
+                ->where('status', 'active')
+                ->get()
+                ->each(function ($otherShift) {
+                    $createdFrom = $otherShift->created_from ?? 'manual';
+                    if ($createdFrom === 'open_shift') {
+                        $count = Schedule::where('employee_id', $otherShift->employee_id)
+                            ->whereDate('date', $otherShift->date)
+                            ->where('status', 'active')
+                            ->count();
+                        $isConflict = $count > 1;
+                        $otherShift->update(['is_conflict' => $isConflict]);
+                    } else {
+                        $otherShift->update(['is_conflict' => false]);
+                    }
+                });
+
             return $this->successResponse([
                 'shift' => [
                     'id' => $shift->id,
@@ -357,7 +435,9 @@ class ScheduleController extends Controller
                     'end_time' => $shift->end_time,
                     'role' => $shift->role,
                     'shift_type' => $shift->shift_type,
-                    'requirements' => $shift->requirements
+                    'requirements' => $shift->requirements,
+                    'created_from' => $shift->created_from,
+                    'is_conflict' => $shift->is_conflict
                 ]
             ], 'Shift updated successfully');
         } catch (\Illuminate\Validation\ValidationException $e) {
