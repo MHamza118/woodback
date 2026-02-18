@@ -403,31 +403,51 @@ class ScheduleController extends Controller
                 $shift->update(['is_conflict' => false]);
             }
             
-            // Also recalculate conflicts for all other shifts on the same date for the same employee
-            Schedule::where('employee_id', $shift->employee_id)
+            // Get all affected shifts on the same date for the same employee
+            $affectedShifts = Schedule::where('employee_id', $shift->employee_id)
                 ->whereDate('date', $shift->date)
-                ->where('id', '!=', $shift->id)
                 ->where('status', 'active')
-                ->get()
-                ->each(function ($otherShift) {
-                    $createdFrom = $otherShift->created_from ?? 'manual';
-                    if ($createdFrom === 'open_shift') {
-                        $count = Schedule::where('employee_id', $otherShift->employee_id)
-                            ->whereDate('date', $otherShift->date)
-                            ->where('status', 'active')
-                            ->count();
-                        $isConflict = $count > 1;
-                        $otherShift->update(['is_conflict' => $isConflict]);
-                    } else {
-                        $otherShift->update(['is_conflict' => false]);
-                    }
-                });
+                ->get();
+            
+            // Recalculate conflicts for all affected shifts
+            $affectedShifts->each(function ($otherShift) {
+                $createdFrom = $otherShift->created_from ?? 'manual';
+                if ($createdFrom === 'open_shift') {
+                    $count = Schedule::where('employee_id', $otherShift->employee_id)
+                        ->whereDate('date', $otherShift->date)
+                        ->where('status', 'active')
+                        ->count();
+                    $isConflict = $count > 1;
+                    $otherShift->update(['is_conflict' => $isConflict]);
+                } else {
+                    $otherShift->update(['is_conflict' => false]);
+                }
+            });
+
+            // Return the updated shift and all affected shifts
+            $affectedShiftsResponse = $affectedShifts->map(function ($s) {
+                return [
+                    'id' => $s->id,
+                    'employee_id' => $s->employee_id,
+                    'employee_name' => $s->employee ? $s->employee->first_name . ' ' . $s->employee->last_name : null,
+                    'department' => $s->department,
+                    'date' => $s->date->toDateString(),
+                    'day_of_week' => $s->day_of_week,
+                    'start_time' => $s->start_time,
+                    'end_time' => $s->end_time,
+                    'role' => $s->role,
+                    'shift_type' => $s->shift_type,
+                    'requirements' => $s->requirements,
+                    'created_from' => $s->created_from,
+                    'is_conflict' => $s->is_conflict
+                ];
+            });
 
             return $this->successResponse([
                 'shift' => [
                     'id' => $shift->id,
                     'employee_id' => $shift->employee_id,
-                    'employee_name' => $shift->employee->first_name . ' ' . $shift->employee->last_name,
+                    'employee_name' => $shift->employee ? $shift->employee->first_name . ' ' . $shift->employee->last_name : null,
                     'department' => $shift->department,
                     'date' => $shift->date->toDateString(),
                     'day_of_week' => $shift->day_of_week,
@@ -438,7 +458,8 @@ class ScheduleController extends Controller
                     'requirements' => $shift->requirements,
                     'created_from' => $shift->created_from,
                     'is_conflict' => $shift->is_conflict
-                ]
+                ],
+                'affected_shifts' => $affectedShiftsResponse
             ], 'Shift updated successfully');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse('Validation failed: ' . json_encode($e->errors()), 422);
