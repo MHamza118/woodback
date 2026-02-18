@@ -477,6 +477,11 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
                 Route::put('/shifts/{shiftId}', [App\Http\Controllers\Api\V1\ScheduleController::class, 'updateShift']);
                 Route::delete('/shifts/{shiftId}', [App\Http\Controllers\Api\V1\ScheduleController::class, 'deleteShift']);
 
+                // Team lead management
+                Route::get('/team-leads', [App\Http\Controllers\Api\V1\TeamLeadController::class, 'getTeamLeads']);
+                Route::post('/team-leads', [App\Http\Controllers\Api\V1\TeamLeadController::class, 'assignTeamLead']);
+                Route::delete('/team-leads/{assignmentId}', [App\Http\Controllers\Api\V1\TeamLeadController::class, 'removeTeamLead']);
+
                 Route::prefix('events')->group(function () {
                     // Date-specific routes must come before {id} routes
                     Route::get('/date/single', [App\Http\Controllers\Api\V1\EventController::class, 'getForDate']);
