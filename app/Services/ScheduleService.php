@@ -503,9 +503,22 @@ class ScheduleService
         if (isset($data['requirements'])) {
             $updateData['requirements'] = $data['requirements'];
         }
+        
+        if (isset($data['status'])) {
+            $updateData['status'] = $data['status'];
+        }
 
         $shift->update($updateData);
         $shift->load('employee');
+        
+        \Log::info('[ScheduleService.updateShift] Shift updated', [
+            'shift_id' => $shift->id,
+            'employee_id' => $shift->employee_id,
+            'date' => $shift->date->toDateString(),
+            'status_updated' => isset($data['status']),
+            'new_status' => $shift->status,
+            'created_from' => $shift->created_from,
+        ]);
         
         return $shift;
     }

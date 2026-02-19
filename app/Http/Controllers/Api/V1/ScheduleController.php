@@ -182,7 +182,8 @@ class ScheduleController extends Controller
                 'department' => $department
             ]);
 
-            $query = Schedule::forWeek($weekStart, $weekEnd)->active();
+            // Admin should see ALL shifts (active and inactive) to manage unassigned shifts
+            $query = Schedule::forWeek($weekStart, $weekEnd);
 
             if ($department) {
                 $query->forDepartment($department);
@@ -190,10 +191,10 @@ class ScheduleController extends Controller
 
             $collection = $query->with('employee')->get();
 
-            // Count shifts per (employee_id, date) for conflict detection
+            // Count shifts per (employee_id, date) for conflict detection (only count active shifts)
             $shiftsPerEmployeeDate = [];
             foreach ($collection as $s) {
-                if ($s->employee_id !== null) {
+                if ($s->employee_id !== null && $s->status === 'active') {
                     $key = $s->employee_id . '|' . $s->date->toDateString();
                     $shiftsPerEmployeeDate[$key] = ($shiftsPerEmployeeDate[$key] ?? 0) + 1;
                 }
@@ -203,10 +204,10 @@ class ScheduleController extends Controller
             foreach ($collection as $shift) {
                 $createdFrom = $shift->created_from ?? 'manual';
                 $key = $shift->employee_id . '|' . $shift->date->toDateString();
-                $count = $shift->employee_id ? ($shiftsPerEmployeeDate[$key] ?? 0) : 0;
+                $count = ($shift->employee_id && $shift->status === 'active') ? ($shiftsPerEmployeeDate[$key] ?? 0) : 0;
                 
-                // Calculate is_conflict: if created from open_shift AND employee has >1 shift on same date
-                $isConflict = ($createdFrom === 'open_shift' && $count > 1);
+                // Calculate is_conflict: if created from open_shift AND employee has >1 active shift on same date
+                $isConflict = ($createdFrom === 'open_shift' && $shift->status === 'active' && $count > 1);
                 
                 // Update database if conflict status changed
                 if ($shift->is_conflict != $isConflict) {
@@ -218,8 +219,20 @@ class ScheduleController extends Controller
             $shifts = $collection->map(function ($shift) use ($shiftsPerEmployeeDate) {
                 $createdFrom = $shift->created_from ?? 'manual';
                 $key = $shift->employee_id . '|' . $shift->date->toDateString();
-                $count = $shift->employee_id ? ($shiftsPerEmployeeDate[$key] ?? 0) : 0;
-                $isConflict = ($createdFrom === 'open_shift' && $count > 1);
+                $count = ($shift->employee_id && $shift->status === 'active') ? ($shiftsPerEmployeeDate[$key] ?? 0) : 0;
+                $isConflict = ($createdFrom === 'open_shift' && $shift->status === 'active' && $count > 1);
+
+                // Determine status: use database status if set, otherwise infer from employee_id
+                $status = $shift->status ?? ($shift->employee_id ? 'active' : 'open');
+                
+                // For frontend compatibility: map database status to frontend status
+                if ($status === 'inactive') {
+                    $frontendStatus = 'inactive';
+                } elseif (!$shift->employee_id) {
+                    $frontendStatus = 'open';
+                } else {
+                    $frontendStatus = 'assigned';
+                }
 
                 return [
                     'id' => $shift->id,
@@ -234,7 +247,7 @@ class ScheduleController extends Controller
                     'shift_type' => $shift->shift_type,
                     'requirements' => $shift->requirements,
                     'created_from' => $createdFrom,
-                    'status' => $shift->employee_id ? 'assigned' : 'open',
+                    'status' => $frontendStatus,
                     'is_conflict' => $isConflict,
                 ];
             });
@@ -381,7 +394,8 @@ class ScheduleController extends Controller
                 'end_time' => 'nullable|date_format:H:i',
                 'role' => 'nullable|string',
                 'shift_type' => 'nullable|string',
-                'requirements' => 'nullable|array'
+                'requirements' => 'nullable|array',
+                'status' => 'nullable|string|in:active,inactive'
             ]);
 
             $shift = $this->scheduleService->updateShift($shiftId, $validated);
@@ -389,59 +403,6 @@ class ScheduleController extends Controller
             if (!$shift) {
                 return $this->notFoundResponse('Shift not found');
             }
-
-            // Recalculate conflicts for this shift and all shifts on the same date for the same employee
-            $createdFrom = $shift->created_from ?? 'manual';
-            if ($shift->employee_id && $createdFrom === 'open_shift') {
-                $count = Schedule::where('employee_id', $shift->employee_id)
-                    ->whereDate('date', $shift->date)
-                    ->where('status', 'active')
-                    ->count();
-                $isConflict = $count > 1;
-                $shift->update(['is_conflict' => $isConflict]);
-            } else {
-                $shift->update(['is_conflict' => false]);
-            }
-            
-            // Get all affected shifts on the same date for the same employee
-            $affectedShifts = Schedule::where('employee_id', $shift->employee_id)
-                ->whereDate('date', $shift->date)
-                ->where('status', 'active')
-                ->get();
-            
-            // Recalculate conflicts for all affected shifts
-            $affectedShifts->each(function ($otherShift) {
-                $createdFrom = $otherShift->created_from ?? 'manual';
-                if ($createdFrom === 'open_shift') {
-                    $count = Schedule::where('employee_id', $otherShift->employee_id)
-                        ->whereDate('date', $otherShift->date)
-                        ->where('status', 'active')
-                        ->count();
-                    $isConflict = $count > 1;
-                    $otherShift->update(['is_conflict' => $isConflict]);
-                } else {
-                    $otherShift->update(['is_conflict' => false]);
-                }
-            });
-
-            // Return the updated shift and all affected shifts
-            $affectedShiftsResponse = $affectedShifts->map(function ($s) {
-                return [
-                    'id' => $s->id,
-                    'employee_id' => $s->employee_id,
-                    'employee_name' => $s->employee ? $s->employee->first_name . ' ' . $s->employee->last_name : null,
-                    'department' => $s->department,
-                    'date' => $s->date->toDateString(),
-                    'day_of_week' => $s->day_of_week,
-                    'start_time' => $s->start_time,
-                    'end_time' => $s->end_time,
-                    'role' => $s->role,
-                    'shift_type' => $s->shift_type,
-                    'requirements' => $s->requirements,
-                    'created_from' => $s->created_from,
-                    'is_conflict' => $s->is_conflict
-                ];
-            });
 
             return $this->successResponse([
                 'shift' => [
@@ -457,9 +418,9 @@ class ScheduleController extends Controller
                     'shift_type' => $shift->shift_type,
                     'requirements' => $shift->requirements,
                     'created_from' => $shift->created_from,
+                    'status' => $shift->status === 'inactive' ? 'inactive' : (!$shift->employee_id ? 'open' : 'assigned'),
                     'is_conflict' => $shift->is_conflict
-                ],
-                'affected_shifts' => $affectedShiftsResponse
+                ]
             ], 'Shift updated successfully');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse('Validation failed: ' . json_encode($e->errors()), 422);
