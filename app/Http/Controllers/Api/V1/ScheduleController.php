@@ -572,4 +572,105 @@ class ScheduleController extends Controller
             return $this->errorResponse('Failed to clear schedule', 500);
         }
     }
+
+    /**
+     * Import schedule from CSV
+     */
+    public function importSchedule(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'shifts' => 'required|array',
+                'week_start' => 'required|date_format:Y-m-d'
+            ]);
+
+            $shifts = $request->input('shifts');
+            $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_start'), 'UTC')->startOfDay();
+            $weekEnd = $weekStart->copy()->addDays(6);
+
+            $shiftsCreated = 0;
+
+            foreach ($shifts as $shift) {
+                // Calculate day_of_week and week dates from date
+                $date = \Carbon\Carbon::createFromFormat('Y-m-d', $shift['date']);
+                $dayOfWeek = $date->format('l'); // Monday, Tuesday, etc.
+                
+                // Calculate week start/end for this date
+                $shiftWeekStart = $date->copy()->startOfWeek();
+                $shiftWeekEnd = $shiftWeekStart->copy()->addDays(6);
+
+                if ($shift['section'] === 'assigned') {
+                    // Find employee by name
+                    $employee = \App\Models\Employee::where('status', 'approved')
+                        ->whereRaw("CONCAT(first_name, ' ', last_name) = ?", [$shift['employee_name']])
+                        ->first();
+
+                    if ($employee) {
+                        Schedule::create([
+                            'employee_id' => $employee->id,
+                            'date' => $shift['date'],
+                            'day_of_week' => $dayOfWeek,
+                            'start_time' => $shift['start_time'],
+                            'end_time' => $shift['end_time'],
+                            'role' => $shift['role'],
+                            'department' => $shift['department'],
+                            'week_start' => $shiftWeekStart->format('Y-m-d'),
+                            'week_end' => $shiftWeekEnd->format('Y-m-d'),
+                            'status' => 'assigned',
+                            'created_from' => 'import'
+                        ]);
+                        $shiftsCreated++;
+                    }
+                } elseif ($shift['section'] === 'unassigned') {
+                    Schedule::create([
+                        'employee_id' => null,
+                        'date' => $shift['date'],
+                        'day_of_week' => $dayOfWeek,
+                        'start_time' => $shift['start_time'],
+                        'end_time' => $shift['end_time'],
+                        'role' => $shift['role'],
+                        'department' => $shift['department'],
+                        'week_start' => $shiftWeekStart->format('Y-m-d'),
+                        'week_end' => $shiftWeekEnd->format('Y-m-d'),
+                        'status' => 'inactive',
+                        'created_from' => 'import'
+                    ]);
+                    $shiftsCreated++;
+                } elseif ($shift['section'] === 'open') {
+                    Schedule::create([
+                        'employee_id' => null,
+                        'date' => $shift['date'],
+                        'day_of_week' => $dayOfWeek,
+                        'start_time' => $shift['start_time'],
+                        'end_time' => $shift['end_time'],
+                        'role' => $shift['role'],
+                        'department' => $shift['department'],
+                        'week_start' => $shiftWeekStart->format('Y-m-d'),
+                        'week_end' => $shiftWeekEnd->format('Y-m-d'),
+                        'status' => 'open',
+                        'created_from' => 'import'
+                    ]);
+                    $shiftsCreated++;
+                }
+            }
+
+            return $this->successResponse([
+                'shifts_created' => $shiftsCreated
+            ], "Successfully imported {$shiftsCreated} shifts");
+        } catch (\Exception $e) {
+            Log::error('Error importing schedule: ' . $e->getMessage());
+            return $this->errorResponse('Failed to import schedule: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Normalize time format - remove seconds if present
+     */
+    /**
+     * Validate time format (HH:MM)
+     */
+    private function isValidTime($time): bool
+    {
+        return preg_match('/^\d{1,2}:\d{2}$/', $time) === 1;
+    }
 }

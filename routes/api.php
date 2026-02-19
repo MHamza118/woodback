@@ -470,6 +470,7 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
                 // Publish schedule
                 Route::post('/publish', [App\Http\Controllers\Api\V1\ScheduleController::class, 'publishSchedule']);
                 Route::post('/clear', [App\Http\Controllers\Api\V1\ScheduleController::class, 'clearSchedule']);
+                Route::post('/import', [App\Http\Controllers\Api\V1\ScheduleController::class, 'importSchedule']);
                 
                 // Shift CRUD operations
                 Route::get('/shifts', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getShiftsForWeek']);
