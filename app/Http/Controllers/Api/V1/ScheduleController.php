@@ -418,7 +418,7 @@ class ScheduleController extends Controller
                     'shift_type' => $shift->shift_type,
                     'requirements' => $shift->requirements,
                     'created_from' => $shift->created_from,
-                    'status' => $shift->status === 'inactive' ? 'inactive' : (!$shift->employee_id ? 'open' : 'assigned'),
+                    'status' => $shift->status,
                     'is_conflict' => $shift->is_conflict
                 ]
             ], 'Shift updated successfully');
