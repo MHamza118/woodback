@@ -110,12 +110,21 @@ class ScheduleService
                     Log::info('Employee ' . $employee->id . ' has departments: ' . json_encode($assignments['departments']));
                     if (in_array($departmentName, $assignments['departments'])) {
                         Log::info('Employee ' . $employee->id . ' matches department ' . $departmentName);
+                        
+                        // Extract roles for this department from assignments
+                        $roles = [];
+                        if (isset($assignments['roles']) && is_array($assignments['roles'])) {
+                            $roles = $assignments['roles'];
+                        }
+                        
                         $filtered[] = [
                             'id' => $employee->id,
                             'first_name' => $employee->first_name,
                             'last_name' => $employee->last_name,
                             'email' => $employee->email,
                             'employment_type' => $employee->employment_type,
+                            'location' => $employee->location,
+                            'roles' => $roles,
                             'assignments' => $assignments
                         ];
                     }
