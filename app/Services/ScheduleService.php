@@ -657,4 +657,230 @@ class ScheduleService
             ];
         }
     }
+
+    /**
+     * Save current schedule as a template
+     */
+    public function saveAsTemplate(Carbon $weekStart, Carbon $weekEnd, string $name, string $department, ?string $location = null, ?string $description = null, ?int $createdBy = null): array
+    {
+        try {
+            // Get all shifts for the week
+            $query = Schedule::forWeek($weekStart, $weekEnd);
+            
+            // Only filter by department if not "All departments"
+            if ($department && $department !== 'All departments') {
+                $query->forDepartment($department);
+            }
+            
+            $shifts = $query->get();
+
+            if ($shifts->isEmpty()) {
+                return [
+                    'success' => false,
+                    'message' => 'No shifts found for this week and department to save as template'
+                ];
+            }
+
+            // Prepare shifts data for storage
+            $shiftsData = [];
+            foreach ($shifts as $shift) {
+                $shiftsData[] = [
+                    'day_of_week' => $shift->day_of_week,
+                    'date' => $shift->date ? $shift->date->format('m/d/Y') : null,
+                    'start_time' => $shift->start_time,
+                    'end_time' => $shift->end_time,
+                    'role' => $shift->role,
+                    'shift_type' => $shift->shift_type,
+                    'requirements' => $shift->requirements,
+                    'department' => $shift->department,
+                    'status' => $shift->status ?? 'assigned',
+                    'employee_id' => $shift->employee_id,
+                    'employee_name' => $shift->employee ? $shift->employee->first_name . ' ' . $shift->employee->last_name : null,
+                ];
+            }
+
+            // Create or update template
+            $template = \App\Models\ScheduleTemplate::updateOrCreate(
+                [
+                    'name' => $name,
+                    'department' => $department,
+                    'location' => $location
+                ],
+                [
+                    'description' => $description,
+                    'shifts_data' => $shiftsData,
+                    'created_by' => $createdBy
+                ]
+            );
+
+            return [
+                'success' => true,
+                'message' => 'Template saved successfully',
+                'template' => [
+                    'id' => $template->id,
+                    'name' => $template->name,
+                    'department' => $template->department,
+                    'location' => $template->location,
+                    'shifts_count' => count($shiftsData)
+                ]
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error saving template: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Failed to save template: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Get all templates for a department
+     */
+    public function getTemplates(?string $department = null, ?string $location = null): array
+    {
+        try {
+            $query = \App\Models\ScheduleTemplate::query();
+
+            if ($department) {
+                $query->where('department', $department);
+            }
+
+            if ($location) {
+                $query->where('location', $location);
+            }
+
+            $templates = $query->orderBy('created_at', 'desc')->get();
+
+            return [
+                'success' => true,
+                'templates' => $templates->map(function ($template) {
+                    return [
+                        'id' => $template->id,
+                        'name' => $template->name,
+                        'department' => $template->department,
+                        'location' => $template->location,
+                        'description' => $template->description,
+                        'shifts_count' => count($template->shifts_data),
+                        'shifts_data' => $template->shifts_data,
+                        'created_at' => $template->created_at,
+                        'created_by' => $template->createdBy ? $template->createdBy->name : null
+                    ];
+                })->toArray()
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error fetching templates: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'templates' => []
+            ];
+        }
+    }
+
+    /**
+     * Delete a template
+     */
+    public function deleteTemplate(int $templateId): array
+    {
+        try {
+            $template = \App\Models\ScheduleTemplate::find($templateId);
+
+            if (!$template) {
+                return [
+                    'success' => false,
+                    'message' => 'Template not found'
+                ];
+            }
+
+            $template->delete();
+
+            return [
+                'success' => true,
+                'message' => 'Template deleted successfully'
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error deleting template: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Failed to delete template: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Fill schedule from saved template
+     */
+    public function fillScheduleFromTemplate(int $templateId, Carbon $weekStart): array
+    {
+        try {
+            $template = \App\Models\ScheduleTemplate::find($templateId);
+
+            if (!$template) {
+                return [
+                    'success' => false,
+                    'message' => 'Template not found'
+                ];
+            }
+
+            $weekEnd = $weekStart->copy()->addDays(6);
+            $shiftsData = $template->shifts_data;
+            $createdShifts = [];
+
+            foreach ($shiftsData as $shiftData) {
+                // Calculate the date for this day of week
+                $dayOfWeek = $shiftData['day_of_week'];
+                $currentDate = $weekStart->copy();
+                
+                while ($currentDate <= $weekEnd) {
+                    if (strtolower($currentDate->format('l')) === strtolower($dayOfWeek)) {
+                        // Create shift for this date
+                        $shift = Schedule::create([
+                            'employee_id' => $shiftData['employee_id'],
+                            'department' => $shiftData['department'] ?? $template->department,
+                            'day_of_week' => $dayOfWeek,
+                            'date' => $currentDate,
+                            'start_time' => $shiftData['start_time'],
+                            'end_time' => $shiftData['end_time'],
+                            'role' => $shiftData['role'],
+                            'shift_type' => $shiftData['shift_type'],
+                            'requirements' => $shiftData['requirements'],
+                            'week_start' => $weekStart,
+                            'week_end' => $weekEnd,
+                            'status' => 'active',
+                            'created_from' => 'template'
+                        ]);
+
+                        $createdShifts[] = [
+                            'id' => $shift->id,
+                            'employee_id' => $shift->employee_id,
+                            'employee_name' => $shiftData['employee_name'],
+                            'date' => $currentDate->toDateString(),
+                            'day_of_week' => $dayOfWeek,
+                            'start_time' => $shiftData['start_time'],
+                            'end_time' => $shiftData['end_time'],
+                            'role' => $shiftData['role'],
+                            'shift_type' => $shiftData['shift_type'],
+                            'requirements' => $shiftData['requirements'],
+                            'department' => $template->department
+                        ];
+                        break;
+                    }
+                    $currentDate->addDay();
+                }
+            }
+
+            return [
+                'success' => true,
+                'message' => 'Schedule filled from template successfully',
+                'shifts_created' => count($createdShifts),
+                'shifts' => $createdShifts
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error filling schedule from template: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Failed to fill schedule from template: ' . $e->getMessage(),
+                'shifts' => []
+            ];
+        }
+    }
 }

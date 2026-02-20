@@ -9,6 +9,7 @@ use App\Models\Schedule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class ScheduleController extends Controller
 {
@@ -701,5 +702,108 @@ class ScheduleController extends Controller
     private function isValidTime($time): bool
     {
         return preg_match('/^\d{1,2}:\d{2}$/', $time) === 1;
+    }
+
+    /**
+     * Save current schedule as a template
+     */
+    public function saveAsTemplate(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'week_start' => 'required|date',
+                'week_end' => 'required|date',
+                'name' => 'required|string|max:255',
+                'department' => 'required|string',
+                'location' => 'nullable|string',
+                'description' => 'nullable|string'
+            ]);
+
+            $weekStart = Carbon::parse($validated['week_start']);
+            $weekEnd = Carbon::parse($validated['week_end']);
+
+            $result = $this->scheduleService->saveAsTemplate(
+                $weekStart,
+                $weekEnd,
+                $validated['name'],
+                $validated['department'],
+                $validated['location'] ?? null,
+                $validated['description'] ?? null,
+                auth()->id()
+            );
+
+            return response()->json($result, $result['success'] ? 200 : 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error saving template: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all templates
+     */
+    public function getTemplates(Request $request): JsonResponse
+    {
+        try {
+            $department = $request->query('department');
+            $location = $request->query('location');
+
+            $result = $this->scheduleService->getTemplates($department, $location);
+
+            return response()->json($result, 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'templates' => [],
+                'message' => 'Error fetching templates: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a template
+     */
+    public function deleteTemplate(int $templateId): JsonResponse
+    {
+        try {
+            $result = $this->scheduleService->deleteTemplate($templateId);
+
+            return response()->json($result, $result['success'] ? 200 : 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error deleting template: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Fill schedule from a saved template
+     */
+    public function fillFromSavedTemplate(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'template_id' => 'required|integer|exists:schedule_templates,id',
+                'week_start' => 'required|date'
+            ]);
+
+            $weekStart = Carbon::parse($validated['week_start']);
+
+            $result = $this->scheduleService->fillScheduleFromTemplate(
+                $validated['template_id'],
+                $weekStart
+            );
+
+            return response()->json($result, $result['success'] ? 200 : 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error filling schedule from template: ' . $e->getMessage(),
+                'shifts' => []
+            ], 500);
+        }
     }
 }

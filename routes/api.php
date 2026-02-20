@@ -483,6 +483,12 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
                 Route::post('/team-leads', [App\Http\Controllers\Api\V1\TeamLeadController::class, 'assignTeamLead']);
                 Route::delete('/team-leads/{assignmentId}', [App\Http\Controllers\Api\V1\TeamLeadController::class, 'removeTeamLead']);
 
+                // Template management routes
+                Route::post('/templates/save', [App\Http\Controllers\Api\V1\ScheduleController::class, 'saveAsTemplate']);
+                Route::get('/templates', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getTemplates']);
+                Route::delete('/templates/{templateId}', [App\Http\Controllers\Api\V1\ScheduleController::class, 'deleteTemplate']);
+                Route::post('/templates/fill', [App\Http\Controllers\Api\V1\ScheduleController::class, 'fillFromSavedTemplate']);
+
                 Route::prefix('events')->group(function () {
                     // Date-specific routes must come before {id} routes
                     Route::get('/date/single', [App\Http\Controllers\Api\V1\EventController::class, 'getForDate']);
