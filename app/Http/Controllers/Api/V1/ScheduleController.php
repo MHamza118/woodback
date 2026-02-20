@@ -588,9 +588,18 @@ class ScheduleController extends Controller
             $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_start'), 'UTC')->startOfDay();
             $weekEnd = $weekStart->copy()->addDays(6);
 
+            error_log("=== IMPORT START ===");
+            error_log("Total shifts received: " . count($shifts));
+            error_log("Shifts data: " . json_encode($shifts));
+
             $shiftsCreated = 0;
+            $assignedCount = 0;
+            $openCount = 0;
+            $unassignedCount = 0;
 
             foreach ($shifts as $shift) {
+                error_log("Processing shift: " . json_encode($shift));
+
                 // Calculate day_of_week and week dates from date
                 $date = \Carbon\Carbon::createFromFormat('Y-m-d', $shift['date']);
                 $dayOfWeek = $date->format('l'); // Monday, Tuesday, etc.
@@ -600,10 +609,15 @@ class ScheduleController extends Controller
                 $shiftWeekEnd = $shiftWeekStart->copy()->addDays(6);
 
                 if ($shift['section'] === 'assigned') {
+                    $assignedCount++;
+                    error_log("ASSIGNED shift - looking for employee: " . $shift['employee_name']);
+                    
                     // Find employee by name
                     $employee = \App\Models\Employee::where('status', 'approved')
                         ->whereRaw("CONCAT(first_name, ' ', last_name) = ?", [$shift['employee_name']])
                         ->first();
+
+                    error_log("Employee found: " . ($employee ? "YES (ID: " . $employee->id . ")" : "NO"));
 
                     if ($employee) {
                         Schedule::create([
@@ -620,8 +634,14 @@ class ScheduleController extends Controller
                             'created_from' => 'import'
                         ]);
                         $shiftsCreated++;
+                        error_log("Assigned shift created!");
+                    } else {
+                        error_log("Employee NOT FOUND - shift skipped");
                     }
                 } elseif ($shift['section'] === 'unassigned') {
+                    $unassignedCount++;
+                    error_log("UNASSIGNED shift");
+                    
                     Schedule::create([
                         'employee_id' => null,
                         'date' => $shift['date'],
@@ -636,7 +656,11 @@ class ScheduleController extends Controller
                         'created_from' => 'import'
                     ]);
                     $shiftsCreated++;
+                    error_log("Unassigned shift created!");
                 } elseif ($shift['section'] === 'open') {
+                    $openCount++;
+                    error_log("OPEN shift");
+                    
                     Schedule::create([
                         'employee_id' => null,
                         'date' => $shift['date'],
@@ -651,13 +675,18 @@ class ScheduleController extends Controller
                         'created_from' => 'import'
                     ]);
                     $shiftsCreated++;
+                    error_log("Open shift created!");
                 }
             }
+
+            error_log("=== IMPORT END ===");
+            error_log("Summary - Assigned: {$assignedCount}, Unassigned: {$unassignedCount}, Open: {$openCount}, Created: {$shiftsCreated}");
 
             return $this->successResponse([
                 'shifts_created' => $shiftsCreated
             ], "Successfully imported {$shiftsCreated} shifts");
         } catch (\Exception $e) {
+            error_log("Import error: " . $e->getMessage());
             Log::error('Error importing schedule: ' . $e->getMessage());
             return $this->errorResponse('Failed to import schedule: ' . $e->getMessage(), 500);
         }
