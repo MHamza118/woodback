@@ -664,7 +664,7 @@ class ScheduleService
     public function saveAsTemplate(Carbon $weekStart, Carbon $weekEnd, string $name, string $department, ?string $location = null, ?string $description = null, ?int $createdBy = null): array
     {
         try {
-            // Get all shifts for the week - including inactive ones
+            // Get all shifts for the week
             $query = Schedule::forWeek($weekStart, $weekEnd);
             
             // Only filter by department if not "All departments"
@@ -672,7 +672,6 @@ class ScheduleService
                 $query->forDepartment($department);
             }
             
-            // Get ALL shifts regardless of status
             $shifts = $query->get();
 
             if ($shifts->isEmpty()) {
@@ -682,16 +681,16 @@ class ScheduleService
                 ];
             }
 
-            // Organize shifts by status
+            // Organize shifts by type for storage
             $shiftsData = [
                 'assigned' => [],
                 'open' => [],
-                'unassigned' => []
+                'unassigned' => [],
+                'flat' => []  // Keep flat array for fillScheduleFromTemplate compatibility
             ];
 
             foreach ($shifts as $shift) {
-                $shiftData = [
-                    'id' => $shift->id,
+                $shiftArray = [
                     'day_of_week' => $shift->day_of_week,
                     'date' => $shift->date ? $shift->date->format('Y-m-d') : null,
                     'start_time' => $shift->start_time,
@@ -705,20 +704,16 @@ class ScheduleService
                     'employee_name' => $shift->employee ? $shift->employee->first_name . ' ' . $shift->employee->last_name : null,
                 ];
 
-                // Categorize by actual status from database
-                if ($shift->status === 'assigned' && $shift->employee_id) {
-                    $shiftsData['assigned'][] = $shiftData;
-                } elseif ($shift->status === 'open') {
-                    $shiftsData['open'][] = $shiftData;
+                // Add to flat array for fillScheduleFromTemplate
+                $shiftsData['flat'][] = $shiftArray;
+
+                // Organize by type for preview modal
+                if ($shift->employee_id && $shift->status === 'active') {
+                    $shiftsData['assigned'][] = $shiftArray;
+                } elseif ($shift->status === 'active' && !$shift->employee_id) {
+                    $shiftsData['open'][] = $shiftArray;
                 } elseif ($shift->status === 'inactive') {
-                    $shiftsData['unassigned'][] = $shiftData;
-                } else {
-                    // Default to assigned if has employee, otherwise open
-                    if ($shift->employee_id) {
-                        $shiftsData['assigned'][] = $shiftData;
-                    } else {
-                        $shiftsData['open'][] = $shiftData;
-                    }
+                    $shiftsData['unassigned'][] = $shiftArray;
                 }
             }
 
@@ -736,8 +731,6 @@ class ScheduleService
                 ]
             );
 
-            $totalShifts = count($shiftsData['assigned']) + count($shiftsData['open']) + count($shiftsData['unassigned']);
-
             return [
                 'success' => true,
                 'message' => 'Template saved successfully',
@@ -746,7 +739,7 @@ class ScheduleService
                     'name' => $template->name,
                     'department' => $template->department,
                     'location' => $template->location,
-                    'shifts_count' => $totalShifts
+                    'shifts_count' => count($shiftsData['flat'])
                 ]
             ];
         } catch (\Exception $e) {
@@ -850,27 +843,17 @@ class ScheduleService
             $shiftsData = $template->shifts_data;
             $createdShifts = [];
 
-            // Handle both old flat array format and new organized format
-            $allShifts = [];
-            
-            if (is_array($shiftsData)) {
-                // Check if it's the new format (with assigned, open, unassigned keys)
-                if (isset($shiftsData['assigned']) || isset($shiftsData['open']) || isset($shiftsData['unassigned'])) {
-                    // New format - merge all shifts
-                    $allShifts = array_merge(
-                        $shiftsData['assigned'] ?? [],
-                        $shiftsData['open'] ?? [],
-                        $shiftsData['unassigned'] ?? []
-                    );
-                } else {
-                    // Old flat array format
-                    $allShifts = $shiftsData;
-                }
-            }
+            // Use flat array if available, otherwise fall back to old format
+            $shiftsToProcess = isset($shiftsData['flat']) ? $shiftsData['flat'] : $shiftsData;
 
-            foreach ($allShifts as $shiftData) {
-                // Use date directly if available, otherwise calculate from day_of_week
-                if (isset($shiftData['date'])) {
+            foreach ($shiftsToProcess as $shiftData) {
+                // Skip if not an array
+                if (!is_array($shiftData)) {
+                    continue;
+                }
+
+                // Use date directly if available
+                if (!empty($shiftData['date'])) {
                     $shiftDate = Carbon::parse($shiftData['date']);
                     
                     // Only create if within the target week
@@ -882,14 +865,14 @@ class ScheduleService
                             'department' => $shiftData['department'] ?? $template->department,
                             'day_of_week' => $dayOfWeek,
                             'date' => $shiftDate,
-                            'start_time' => $shiftData['start_time'],
-                            'end_time' => $shiftData['end_time'],
-                            'role' => $shiftData['role'],
+                            'start_time' => $shiftData['start_time'] ?? '09:00',
+                            'end_time' => $shiftData['end_time'] ?? '17:00',
+                            'role' => $shiftData['role'] ?? null,
                             'shift_type' => $shiftData['shift_type'] ?? null,
                             'requirements' => $shiftData['requirements'] ?? null,
                             'week_start' => $weekStart,
                             'week_end' => $weekEnd,
-                            'status' => $shiftData['status'] ?? 'assigned',
+                            'status' => 'active',
                             'created_from' => 'template'
                         ]);
 
@@ -899,55 +882,13 @@ class ScheduleService
                             'employee_name' => $shiftData['employee_name'] ?? null,
                             'date' => $shiftDate->toDateString(),
                             'day_of_week' => $dayOfWeek,
-                            'start_time' => $shiftData['start_time'],
-                            'end_time' => $shiftData['end_time'],
-                            'role' => $shiftData['role'],
+                            'start_time' => $shiftData['start_time'] ?? '09:00',
+                            'end_time' => $shiftData['end_time'] ?? '17:00',
+                            'role' => $shiftData['role'] ?? null,
                             'shift_type' => $shiftData['shift_type'] ?? null,
                             'requirements' => $shiftData['requirements'] ?? null,
-                            'department' => $shiftData['department'] ?? $template->department,
-                            'status' => $shiftData['status'] ?? 'assigned'
+                            'department' => $shiftData['department'] ?? $template->department
                         ];
-                    }
-                } elseif (isset($shiftData['day_of_week'])) {
-                    // Fallback to old day_of_week calculation
-                    $dayOfWeek = $shiftData['day_of_week'];
-                    $currentDate = $weekStart->copy();
-                    
-                    while ($currentDate <= $weekEnd) {
-                        if (strtolower($currentDate->format('l')) === strtolower($dayOfWeek)) {
-                            $shift = Schedule::create([
-                                'employee_id' => $shiftData['employee_id'] ?? null,
-                                'department' => $shiftData['department'] ?? $template->department,
-                                'day_of_week' => $dayOfWeek,
-                                'date' => $currentDate,
-                                'start_time' => $shiftData['start_time'],
-                                'end_time' => $shiftData['end_time'],
-                                'role' => $shiftData['role'],
-                                'shift_type' => $shiftData['shift_type'] ?? null,
-                                'requirements' => $shiftData['requirements'] ?? null,
-                                'week_start' => $weekStart,
-                                'week_end' => $weekEnd,
-                                'status' => $shiftData['status'] ?? 'assigned',
-                                'created_from' => 'template'
-                            ]);
-
-                            $createdShifts[] = [
-                                'id' => $shift->id,
-                                'employee_id' => $shift->employee_id,
-                                'employee_name' => $shiftData['employee_name'] ?? null,
-                                'date' => $currentDate->toDateString(),
-                                'day_of_week' => $dayOfWeek,
-                                'start_time' => $shiftData['start_time'],
-                                'end_time' => $shiftData['end_time'],
-                                'role' => $shiftData['role'],
-                                'shift_type' => $shiftData['shift_type'] ?? null,
-                                'requirements' => $shiftData['requirements'] ?? null,
-                                'department' => $shiftData['department'] ?? $template->department,
-                                'status' => $shiftData['status'] ?? 'assigned'
-                            ];
-                            break;
-                        }
-                        $currentDate->addDay();
                     }
                 }
             }
