@@ -533,7 +533,7 @@ class ScheduleService
     }
 
     /**
-     * Delete a shift (soft delete by setting status to inactive)
+     * Delete a shift (hard delete - completely remove from database)
      */
     public function deleteShift(int $shiftId): bool
     {
@@ -543,8 +543,8 @@ class ScheduleService
             return false;
         }
 
-        // Soft delete by setting status to inactive
-        $shift->update(['status' => 'inactive']);
+        // Hard delete - completely remove from database
+        $shift->delete();
         
         return true;
     }

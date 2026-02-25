@@ -555,7 +555,8 @@ class ScheduleController extends Controller
             $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_end'), 'UTC')->endOfDay();
             $department = $request->input('department');
 
-            $query = Schedule::forWeek($weekStart, $weekEnd)->active();
+            // Delete ALL shifts (active, inactive, open, assigned) - hard delete
+            $query = Schedule::forWeek($weekStart, $weekEnd);
 
             if ($department && $department !== 'All departments') {
                 $query->forDepartment($department);
