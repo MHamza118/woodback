@@ -485,11 +485,11 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
 
                 // Template management routes
                 Route::post('/templates/save', [App\Http\Controllers\Api\V1\ScheduleController::class, 'saveAsTemplate']);
+                Route::post('/templates/fill', [App\Http\Controllers\Api\V1\ScheduleController::class, 'fillFromSavedTemplate']);
                 Route::get('/templates', [App\Http\Controllers\Api\V1\ScheduleController::class, 'getTemplates']);
                 Route::put('/templates/{templateId}', [App\Http\Controllers\Api\V1\ScheduleController::class, 'updateTemplate']);
-                Route::delete('/templates/{templateId}', [App\Http\Controllers\Api\V1\ScheduleController::class, 'deleteTemplate']);
                 Route::post('/templates/{templateId}/duplicate', [App\Http\Controllers\Api\V1\ScheduleController::class, 'duplicateTemplate']);
-                Route::post('/templates/fill', [App\Http\Controllers\Api\V1\ScheduleController::class, 'fillFromSavedTemplate']);
+                Route::delete('/templates/{templateId}', [App\Http\Controllers\Api\V1\ScheduleController::class, 'deleteTemplate']);
 
                 Route::prefix('events')->group(function () {
                     // Date-specific routes must come before {id} routes
