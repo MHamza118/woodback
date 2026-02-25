@@ -883,4 +883,76 @@ class ScheduleService
             ];
         }
     }
+
+    /**
+     * Update a template (rename/update description)
+     */
+    public function updateTemplate(int $templateId, array $data): array
+    {
+        try {
+            $template = \App\Models\ScheduleTemplate::find($templateId);
+
+            if (!$template) {
+                return [
+                    'success' => false,
+                    'message' => 'Template not found'
+                ];
+            }
+
+            $template->update([
+                'name' => $data['name'] ?? $template->name,
+                'description' => $data['description'] ?? $template->description
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Template updated successfully',
+                'template' => $template
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error updating template: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Failed to update template: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Duplicate a template
+     */
+    public function duplicateTemplate(int $templateId, string $newName): array
+    {
+        try {
+            $originalTemplate = \App\Models\ScheduleTemplate::find($templateId);
+
+            if (!$originalTemplate) {
+                return [
+                    'success' => false,
+                    'message' => 'Template not found'
+                ];
+            }
+
+            $newTemplate = \App\Models\ScheduleTemplate::create([
+                'name' => $newName,
+                'department' => $originalTemplate->department,
+                'location' => $originalTemplate->location,
+                'description' => $originalTemplate->description,
+                'shifts_data' => $originalTemplate->shifts_data,
+                'created_by' => auth()->id()
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Template duplicated successfully',
+                'template' => $newTemplate
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error duplicating template: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Failed to duplicate template: ' . $e->getMessage()
+            ];
+        }
+    }
 }
