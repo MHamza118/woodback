@@ -681,40 +681,22 @@ class ScheduleService
                 ];
             }
 
-            // Organize shifts by type for storage
-            $shiftsData = [
-                'assigned' => [],
-                'open' => [],
-                'unassigned' => [],
-                'flat' => []  // Keep flat array for fillScheduleFromTemplate compatibility
-            ];
-
+            // Prepare shifts data for storage
+            $shiftsData = [];
             foreach ($shifts as $shift) {
-                $shiftArray = [
+                $shiftsData[] = [
                     'day_of_week' => $shift->day_of_week,
-                    'date' => $shift->date ? $shift->date->format('Y-m-d') : null,
+                    'date' => $shift->date ? $shift->date->format('m/d/Y') : null,
                     'start_time' => $shift->start_time,
                     'end_time' => $shift->end_time,
                     'role' => $shift->role,
                     'shift_type' => $shift->shift_type,
                     'requirements' => $shift->requirements,
                     'department' => $shift->department,
-                    'status' => $shift->status,
+                    'status' => $shift->status ?? 'assigned',
                     'employee_id' => $shift->employee_id,
                     'employee_name' => $shift->employee ? $shift->employee->first_name . ' ' . $shift->employee->last_name : null,
                 ];
-
-                // Add to flat array for fillScheduleFromTemplate
-                $shiftsData['flat'][] = $shiftArray;
-
-                // Organize by type for preview modal
-                if ($shift->employee_id && $shift->status === 'active') {
-                    $shiftsData['assigned'][] = $shiftArray;
-                } elseif ($shift->status === 'active' && !$shift->employee_id) {
-                    $shiftsData['open'][] = $shiftArray;
-                } elseif ($shift->status === 'inactive') {
-                    $shiftsData['unassigned'][] = $shiftArray;
-                }
             }
 
             // Create or update template
@@ -739,7 +721,7 @@ class ScheduleService
                     'name' => $template->name,
                     'department' => $template->department,
                     'location' => $template->location,
-                    'shifts_count' => count($shiftsData['flat'])
+                    'shifts_count' => count($shiftsData)
                 ]
             ];
         } catch (\Exception $e) {
@@ -843,33 +825,24 @@ class ScheduleService
             $shiftsData = $template->shifts_data;
             $createdShifts = [];
 
-            // Use flat array if available, otherwise fall back to old format
-            $shiftsToProcess = isset($shiftsData['flat']) ? $shiftsData['flat'] : $shiftsData;
-
-            foreach ($shiftsToProcess as $shiftData) {
-                // Skip if not an array
-                if (!is_array($shiftData)) {
-                    continue;
-                }
-
-                // Use date directly if available
-                if (!empty($shiftData['date'])) {
-                    $shiftDate = Carbon::parse($shiftData['date']);
-                    
-                    // Only create if within the target week
-                    if ($shiftDate >= $weekStart && $shiftDate <= $weekEnd) {
-                        $dayOfWeek = $shiftDate->format('l');
-                        
+            foreach ($shiftsData as $shiftData) {
+                // Calculate the date for this day of week
+                $dayOfWeek = $shiftData['day_of_week'];
+                $currentDate = $weekStart->copy();
+                
+                while ($currentDate <= $weekEnd) {
+                    if (strtolower($currentDate->format('l')) === strtolower($dayOfWeek)) {
+                        // Create shift for this date
                         $shift = Schedule::create([
-                            'employee_id' => $shiftData['employee_id'] ?? null,
+                            'employee_id' => $shiftData['employee_id'],
                             'department' => $shiftData['department'] ?? $template->department,
                             'day_of_week' => $dayOfWeek,
-                            'date' => $shiftDate,
-                            'start_time' => $shiftData['start_time'] ?? '09:00',
-                            'end_time' => $shiftData['end_time'] ?? '17:00',
-                            'role' => $shiftData['role'] ?? null,
-                            'shift_type' => $shiftData['shift_type'] ?? null,
-                            'requirements' => $shiftData['requirements'] ?? null,
+                            'date' => $currentDate,
+                            'start_time' => $shiftData['start_time'],
+                            'end_time' => $shiftData['end_time'],
+                            'role' => $shiftData['role'],
+                            'shift_type' => $shiftData['shift_type'],
+                            'requirements' => $shiftData['requirements'],
                             'week_start' => $weekStart,
                             'week_end' => $weekEnd,
                             'status' => 'active',
@@ -879,17 +852,19 @@ class ScheduleService
                         $createdShifts[] = [
                             'id' => $shift->id,
                             'employee_id' => $shift->employee_id,
-                            'employee_name' => $shiftData['employee_name'] ?? null,
-                            'date' => $shiftDate->toDateString(),
+                            'employee_name' => $shiftData['employee_name'],
+                            'date' => $currentDate->toDateString(),
                             'day_of_week' => $dayOfWeek,
-                            'start_time' => $shiftData['start_time'] ?? '09:00',
-                            'end_time' => $shiftData['end_time'] ?? '17:00',
-                            'role' => $shiftData['role'] ?? null,
-                            'shift_type' => $shiftData['shift_type'] ?? null,
-                            'requirements' => $shiftData['requirements'] ?? null,
-                            'department' => $shiftData['department'] ?? $template->department
+                            'start_time' => $shiftData['start_time'],
+                            'end_time' => $shiftData['end_time'],
+                            'role' => $shiftData['role'],
+                            'shift_type' => $shiftData['shift_type'],
+                            'requirements' => $shiftData['requirements'],
+                            'department' => $template->department
                         ];
+                        break;
                     }
+                    $currentDate->addDay();
                 }
             }
 
