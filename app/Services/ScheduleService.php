@@ -664,7 +664,7 @@ class ScheduleService
     public function saveAsTemplate(Carbon $weekStart, Carbon $weekEnd, string $name, string $department, ?string $location = null, ?string $description = null, ?int $createdBy = null): array
     {
         try {
-            // Get all shifts for the week
+            // Get all shifts for the week - including inactive ones
             $query = Schedule::forWeek($weekStart, $weekEnd);
             
             // Only filter by department if not "All departments"
@@ -672,6 +672,7 @@ class ScheduleService
                 $query->forDepartment($department);
             }
             
+            // Get ALL shifts regardless of status
             $shifts = $query->get();
 
             if ($shifts->isEmpty()) {
@@ -681,22 +682,44 @@ class ScheduleService
                 ];
             }
 
-            // Prepare shifts data for storage
-            $shiftsData = [];
+            // Organize shifts by status
+            $shiftsData = [
+                'assigned' => [],
+                'open' => [],
+                'unassigned' => []
+            ];
+
             foreach ($shifts as $shift) {
-                $shiftsData[] = [
+                $shiftData = [
+                    'id' => $shift->id,
                     'day_of_week' => $shift->day_of_week,
-                    'date' => $shift->date ? $shift->date->format('m/d/Y') : null,
+                    'date' => $shift->date ? $shift->date->format('Y-m-d') : null,
                     'start_time' => $shift->start_time,
                     'end_time' => $shift->end_time,
                     'role' => $shift->role,
                     'shift_type' => $shift->shift_type,
                     'requirements' => $shift->requirements,
                     'department' => $shift->department,
-                    'status' => $shift->status ?? 'assigned',
+                    'status' => $shift->status,
                     'employee_id' => $shift->employee_id,
                     'employee_name' => $shift->employee ? $shift->employee->first_name . ' ' . $shift->employee->last_name : null,
                 ];
+
+                // Categorize by actual status from database
+                if ($shift->status === 'assigned' && $shift->employee_id) {
+                    $shiftsData['assigned'][] = $shiftData;
+                } elseif ($shift->status === 'open') {
+                    $shiftsData['open'][] = $shiftData;
+                } elseif ($shift->status === 'inactive') {
+                    $shiftsData['unassigned'][] = $shiftData;
+                } else {
+                    // Default to assigned if has employee, otherwise open
+                    if ($shift->employee_id) {
+                        $shiftsData['assigned'][] = $shiftData;
+                    } else {
+                        $shiftsData['open'][] = $shiftData;
+                    }
+                }
             }
 
             // Create or update template
@@ -713,6 +736,8 @@ class ScheduleService
                 ]
             );
 
+            $totalShifts = count($shiftsData['assigned']) + count($shiftsData['open']) + count($shiftsData['unassigned']);
+
             return [
                 'success' => true,
                 'message' => 'Template saved successfully',
@@ -721,7 +746,7 @@ class ScheduleService
                     'name' => $template->name,
                     'department' => $template->department,
                     'location' => $template->location,
-                    'shifts_count' => count($shiftsData)
+                    'shifts_count' => $totalShifts
                 ]
             ];
         } catch (\Exception $e) {
