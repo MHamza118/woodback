@@ -662,8 +662,9 @@ class ScheduleService
     public function saveAsTemplate(Carbon $weekStart, Carbon $weekEnd, string $name, string $department, ?string $location = null, ?string $description = null, ?int $createdBy = null): array
     {
         try {
-            // Get all shifts for the week
-            $query = Schedule::forWeek($weekStart, $weekEnd);
+            // Get all shifts for the week with minimal data
+            $query = Schedule::forWeek($weekStart, $weekEnd)
+                ->select('id', 'employee_id', 'department', 'day_of_week', 'date', 'start_time', 'end_time', 'role', 'shift_type', 'requirements', 'status');
             
             // Only filter by department if not "All departments"
             if ($department && $department !== 'All departments') {
@@ -679,9 +680,23 @@ class ScheduleService
                 ];
             }
 
-            // Prepare shifts data for storage
+            // Prepare shifts data for storage - only essential fields
             $shiftsData = [];
             foreach ($shifts as $shift) {
+                $employeeName = null;
+                
+                // Only load employee name if employee_id exists
+                if ($shift->employee_id) {
+                    try {
+                        $employee = \App\Models\Employee::select('id', 'first_name', 'last_name')->find($shift->employee_id);
+                        if ($employee) {
+                            $employeeName = $employee->first_name . ' ' . $employee->last_name;
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning("Could not load employee {$shift->employee_id}: " . $e->getMessage());
+                    }
+                }
+
                 $shiftsData[] = [
                     'day_of_week' => $shift->day_of_week,
                     'date' => $shift->date ? $shift->date->format('m/d/Y') : null,
@@ -693,7 +708,7 @@ class ScheduleService
                     'department' => $shift->department,
                     'status' => $shift->status ?? 'assigned',
                     'employee_id' => $shift->employee_id,
-                    'employee_name' => $shift->employee ? $shift->employee->first_name . ' ' . $shift->employee->last_name : null,
+                    'employee_name' => $employeeName,
                 ];
             }
 
