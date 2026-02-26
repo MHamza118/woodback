@@ -48,7 +48,7 @@ class Order extends Model
     // Relationships
     public function tableMapping()
     {
-        // Keep this method for backward compatibility, returns the latest active mapping
+        // backward compatibility that returns the latest active mapping
         return $this->hasOne(TableMapping::class, 'order_number', 'order_number')
             ->where('status', 'active')
             ->latest();
