@@ -208,78 +208,83 @@ class ScheduleService
 
             // For each employee, create shifts based on their availability
             foreach ($employees as $employee) {
-                $employeeId = $employee['id'];
+                try {
+                    $employeeId = $employee['id'];
 
-                // Get the employee's actual role from their assignments
-                $employeeRole = 'Staff'; // Default role
-                if (isset($employee['assignments']['roles']) && is_array($employee['assignments']['roles']) && !empty($employee['assignments']['roles'])) {
-                    $employeeRole = $employee['assignments']['roles'][0]; // Use first role
-                }
-
-                // Get availability for the entire week
-                $weekAvailability = $availabilityService->getEffectiveAvailabilityRange(
-                    $employeeId,
-                    $weekStart,
-                    $weekEnd
-                );
-
-                // For each day in the week
-                $currentDate = $weekStart->copy();
-                while ($currentDate <= $weekEnd) {
-                    $dayOfWeek = strtolower($currentDate->format('l')); // monday, tuesday, etc.
-                    $dateString = $currentDate->toDateString();
-
-                    // Check if employee is available on this day
-                    $dayAvailability = $weekAvailability[$dateString] ?? null;
-
-                    // Only create shifts if availability is explicitly set and employee is available
-                    if ($dayAvailability && isset($dayAvailability['availability_data']) && isset($dayAvailability['availability_data'][$dayOfWeek])) {
-                        $dayData = $dayAvailability['availability_data'][$dayOfWeek];
-
-                        // If employee is available on this day
-                        if (isset($dayData['enabled']) && $dayData['enabled'] && isset($dayData['status']) && $dayData['status'] === 'available') {
-                            // Use the employee's availability times, not template times
-                            $startTime = $dayData['startTime'] ?? $dayData['start_time'] ?? '09:00';
-                            $endTime = $dayData['endTime'] ?? $dayData['end_time'] ?? '17:00';
-
-                            // Use the first template shift for shift_type and requirements
-                            $templateShift = $templateShifts[0] ?? [];
-
-                            $shift = Schedule::create([
-                                'employee_id' => $employeeId,
-                                'department' => $department,
-                                'day_of_week' => ucfirst($dayOfWeek),
-                                'date' => $currentDate,
-                                'start_time' => $startTime,
-                                'end_time' => $endTime,
-                                'role' => $employeeRole,
-                                'shift_type' => $templateShift['shift_type'] ?? 'F',
-                                'requirements' => $templateShift['requirements'] ?? null,
-                                'week_start' => $weekStart,
-                                'week_end' => $weekEnd,
-                                'status' => 'active',
-                                'created_from' => 'template'
-                            ]);
-
-                            $createdShifts[] = [
-                                'id' => $shift->id,
-                                'employee_id' => $employeeId,
-                                'employee_name' => $employee['first_name'] . ' ' . $employee['last_name'],
-                                'date' => $dateString,
-                                'day_of_week' => ucfirst($dayOfWeek),
-                                'start_time' => $startTime,
-                                'end_time' => $endTime,
-                                'role' => $employeeRole,
-                                'shift_type' => $templateShift['shift_type'] ?? 'F',
-                                'requirements' => $templateShift['requirements'] ?? null,
-                                'department' => $department
-                            ];
-
-                            $shiftsCreated++;
-                        }
+                    // Get the employee's actual role from their assignments
+                    $employeeRole = 'Staff'; // Default role
+                    if (isset($employee['assignments']['roles']) && is_array($employee['assignments']['roles']) && !empty($employee['assignments']['roles'])) {
+                        $employeeRole = $employee['assignments']['roles'][0]; // Use first role
                     }
 
-                    $currentDate->addDay();
+                    // Get availability for the entire week
+                    $weekAvailability = $availabilityService->getEffectiveAvailabilityRange(
+                        $employeeId,
+                        $weekStart,
+                        $weekEnd
+                    );
+
+                    // For each day in the week
+                    $currentDate = $weekStart->copy();
+                    while ($currentDate <= $weekEnd) {
+                        $dayOfWeek = strtolower($currentDate->format('l')); // monday, tuesday, etc.
+                        $dateString = $currentDate->toDateString();
+
+                        // Check if employee is available on this day
+                        $dayAvailability = $weekAvailability[$dateString] ?? null;
+
+                        // Only create shifts if availability is explicitly set and employee is available
+                        if ($dayAvailability && isset($dayAvailability['availability_data']) && isset($dayAvailability['availability_data'][$dayOfWeek])) {
+                            $dayData = $dayAvailability['availability_data'][$dayOfWeek];
+
+                            // If employee is available on this day
+                            if (isset($dayData['enabled']) && $dayData['enabled'] && isset($dayData['status']) && $dayData['status'] === 'available') {
+                                // Use the employee's availability times, not template times
+                                $startTime = $dayData['startTime'] ?? $dayData['start_time'] ?? '09:00';
+                                $endTime = $dayData['endTime'] ?? $dayData['end_time'] ?? '17:00';
+
+                                // Use the first template shift for shift_type and requirements
+                                $templateShift = $templateShifts[0] ?? [];
+
+                                $shift = Schedule::create([
+                                    'employee_id' => $employeeId,
+                                    'department' => $department,
+                                    'day_of_week' => ucfirst($dayOfWeek),
+                                    'date' => $currentDate,
+                                    'start_time' => $startTime,
+                                    'end_time' => $endTime,
+                                    'role' => $employeeRole,
+                                    'shift_type' => $templateShift['shift_type'] ?? 'F',
+                                    'requirements' => $templateShift['requirements'] ?? null,
+                                    'week_start' => $weekStart,
+                                    'week_end' => $weekEnd,
+                                    'status' => 'active',
+                                    'created_from' => 'template'
+                                ]);
+
+                                $createdShifts[] = [
+                                    'id' => $shift->id,
+                                    'employee_id' => $employeeId,
+                                    'employee_name' => $employee['first_name'] . ' ' . $employee['last_name'],
+                                    'date' => $dateString,
+                                    'day_of_week' => ucfirst($dayOfWeek),
+                                    'start_time' => $startTime,
+                                    'end_time' => $endTime,
+                                    'role' => $employeeRole,
+                                    'shift_type' => $templateShift['shift_type'] ?? 'F',
+                                    'requirements' => $templateShift['requirements'] ?? null,
+                                    'department' => $department
+                                ];
+
+                                $shiftsCreated++;
+                            }
+                        }
+
+                        $currentDate->addDay();
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning("Error processing employee {$employeeId} in fillFromTemplate: " . $e->getMessage());
+                    continue;
                 }
             }
 
@@ -290,6 +295,7 @@ class ScheduleService
                 'shifts' => $createdShifts
             ];
         } catch (\Exception $e) {
+            \Log::error('Error in fillFromTemplate: ' . $e->getMessage());
             return [
                 'success' => false,
                 'message' => 'Failed to fill schedule from template',
@@ -815,80 +821,100 @@ class ScheduleService
 
             $weekEnd = $weekStart->copy()->addDays(6);
             $shiftsData = $template->shifts_data;
+            
+            if (!is_array($shiftsData) || empty($shiftsData)) {
+                return [
+                    'success' => false,
+                    'message' => 'Template has no shift data'
+                ];
+            }
+
             $createdShifts = [];
 
             foreach ($shiftsData as $shiftData) {
-                // Handle missing day_of_week - derive from date if not present
-                if (!isset($shiftData['day_of_week']) || empty($shiftData['day_of_week'])) {
-                    if (isset($shiftData['date'])) {
-                        try {
-                            // Try multiple date formats
-                            $dateObj = null;
-                            $dateFormats = ['m/d/Y', 'Y-m-d', 'd/m/Y'];
-                            foreach ($dateFormats as $format) {
-                                try {
-                                    $dateObj = \Carbon\Carbon::createFromFormat($format, $shiftData['date']);
-                                    break;
-                                } catch (\Exception $e) {
+                try {
+                    // Handle missing day_of_week - derive from date if not present
+                    if (!isset($shiftData['day_of_week']) || empty($shiftData['day_of_week'])) {
+                        if (isset($shiftData['date'])) {
+                            try {
+                                // Try multiple date formats
+                                $dateObj = null;
+                                $dateFormats = ['m/d/Y', 'Y-m-d', 'd/m/Y'];
+                                foreach ($dateFormats as $format) {
+                                    try {
+                                        $dateObj = \Carbon\Carbon::createFromFormat($format, $shiftData['date']);
+                                        break;
+                                    } catch (\Exception $e) {
+                                        continue;
+                                    }
+                                }
+                                
+                                if (!$dateObj) {
+                                    Log::warning('Could not parse date format for shift data', ['date' => $shiftData['date']]);
                                     continue;
                                 }
-                            }
-                            
-                            if (!$dateObj) {
-                                Log::warning('Could not parse date format for shift data', ['date' => $shiftData['date']]);
+                                
+                                $dayOfWeek = ucfirst($dateObj->format('l'));
+                            } catch (\Exception $e) {
+                                Log::warning('Error parsing date in shift data: ' . $e->getMessage(), $shiftData);
                                 continue;
                             }
-                            
-                            $dayOfWeek = ucfirst($dateObj->format('l'));
-                        } catch (\Exception $e) {
-                            Log::warning('Error parsing date in shift data: ' . $e->getMessage(), $shiftData);
+                        } else {
+                            Log::warning('Skipping shift data without day_of_week or date', $shiftData);
                             continue;
                         }
                     } else {
-                        Log::warning('Skipping shift data without day_of_week or date', $shiftData);
-                        continue;
+                        $dayOfWeek = $shiftData['day_of_week'];
                     }
-                } else {
-                    $dayOfWeek = $shiftData['day_of_week'];
-                }
 
-                $currentDate = $weekStart->copy();
-                
-                while ($currentDate <= $weekEnd) {
-                    if (strtolower($currentDate->format('l')) === strtolower($dayOfWeek)) {
-                        // Create shift for this date
-                        $shift = Schedule::create([
-                            'employee_id' => $shiftData['employee_id'],
-                            'department' => $shiftData['department'] ?? $template->department,
-                            'day_of_week' => $dayOfWeek,
-                            'date' => $currentDate,
-                            'start_time' => $shiftData['start_time'],
-                            'end_time' => $shiftData['end_time'],
-                            'role' => $shiftData['role'],
-                            'shift_type' => $shiftData['shift_type'],
-                            'requirements' => $shiftData['requirements'],
-                            'week_start' => $weekStart,
-                            'week_end' => $weekEnd,
-                            'status' => 'active',
-                            'created_from' => 'template'
-                        ]);
+                    $currentDate = $weekStart->copy();
+                    $found = false;
+                    
+                    while ($currentDate <= $weekEnd && !$found) {
+                        if (strtolower($currentDate->format('l')) === strtolower($dayOfWeek)) {
+                            // Validate required fields
+                            if (!isset($shiftData['start_time']) || !isset($shiftData['end_time'])) {
+                                Log::warning('Shift data missing start_time or end_time', $shiftData);
+                                break;
+                            }
 
-                        $createdShifts[] = [
-                            'id' => $shift->id,
-                            'employee_id' => $shift->employee_id,
-                            'employee_name' => $shiftData['employee_name'],
-                            'date' => $currentDate->toDateString(),
-                            'day_of_week' => $dayOfWeek,
-                            'start_time' => $shiftData['start_time'],
-                            'end_time' => $shiftData['end_time'],
-                            'role' => $shiftData['role'],
-                            'shift_type' => $shiftData['shift_type'],
-                            'requirements' => $shiftData['requirements'],
-                            'department' => $template->department
-                        ];
-                        break;
+                            // Create shift for this date
+                            $shift = Schedule::create([
+                                'employee_id' => $shiftData['employee_id'] ?? null,
+                                'department' => $shiftData['department'] ?? $template->department,
+                                'day_of_week' => $dayOfWeek,
+                                'date' => $currentDate,
+                                'start_time' => $shiftData['start_time'],
+                                'end_time' => $shiftData['end_time'],
+                                'role' => $shiftData['role'] ?? 'Staff',
+                                'shift_type' => $shiftData['shift_type'] ?? 'F',
+                                'requirements' => $shiftData['requirements'] ?? null,
+                                'week_start' => $weekStart,
+                                'week_end' => $weekEnd,
+                                'status' => 'active',
+                                'created_from' => 'template'
+                            ]);
+
+                            $createdShifts[] = [
+                                'id' => $shift->id,
+                                'employee_id' => $shift->employee_id,
+                                'employee_name' => $shiftData['employee_name'] ?? 'Open Shift',
+                                'date' => $currentDate->toDateString(),
+                                'day_of_week' => $dayOfWeek,
+                                'start_time' => $shiftData['start_time'],
+                                'end_time' => $shiftData['end_time'],
+                                'role' => $shiftData['role'] ?? 'Staff',
+                                'shift_type' => $shiftData['shift_type'] ?? 'F',
+                                'requirements' => $shiftData['requirements'] ?? null,
+                                'department' => $template->department
+                            ];
+                            $found = true;
+                        }
+                        $currentDate->addDay();
                     }
-                    $currentDate->addDay();
+                } catch (\Exception $e) {
+                    Log::warning('Error processing individual shift in template: ' . $e->getMessage(), $shiftData);
+                    continue;
                 }
             }
 
