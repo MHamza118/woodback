@@ -186,10 +186,6 @@ class ScheduleService
             // Calculate week end (Sunday)
             $weekEnd = $weekStart->copy()->addDays(6);
 
-            // IMPORTANT: DO NOT DELETE ANY SHIFTS
-            // Just create new template shifts alongside existing open shifts
-            // Both open shifts and template shifts should coexist
-
             \Log::info('[fillFromTemplate] Creating template shifts without deleting existing shifts');
 
             // Get all employees in the department
@@ -237,7 +233,7 @@ class ScheduleService
                     $dayAvailability = $weekAvailability[$dateString] ?? null;
 
                     // Only create shifts if availability is explicitly set and employee is available
-                    if ($dayAvailability && isset($dayAvailability['availability_data'][$dayOfWeek])) {
+                    if ($dayAvailability && isset($dayAvailability['availability_data']) && isset($dayAvailability['availability_data'][$dayOfWeek])) {
                         $dayData = $dayAvailability['availability_data'][$dayOfWeek];
 
                         // If employee is available on this day
@@ -245,10 +241,6 @@ class ScheduleService
                             // Use the employee's availability times, not template times
                             $startTime = $dayData['startTime'] ?? $dayData['start_time'] ?? '09:00';
                             $endTime = $dayData['endTime'] ?? $dayData['end_time'] ?? '17:00';
-                            
-                            // IMPORTANT: Allow multiple shifts per employee per day
-                            // Open shifts and template shifts can coexist
-                            // Do NOT check for existing shifts - they should be separate rows
 
                             // Use the first template shift for shift_type and requirements
                             $templateShift = $templateShifts[0] ?? [];
@@ -826,8 +818,40 @@ class ScheduleService
             $createdShifts = [];
 
             foreach ($shiftsData as $shiftData) {
-                // Calculate the date for this day of week
-                $dayOfWeek = $shiftData['day_of_week'];
+                // Handle missing day_of_week - derive from date if not present
+                if (!isset($shiftData['day_of_week']) || empty($shiftData['day_of_week'])) {
+                    if (isset($shiftData['date'])) {
+                        try {
+                            // Try multiple date formats
+                            $dateObj = null;
+                            $dateFormats = ['m/d/Y', 'Y-m-d', 'd/m/Y'];
+                            foreach ($dateFormats as $format) {
+                                try {
+                                    $dateObj = \Carbon\Carbon::createFromFormat($format, $shiftData['date']);
+                                    break;
+                                } catch (\Exception $e) {
+                                    continue;
+                                }
+                            }
+                            
+                            if (!$dateObj) {
+                                Log::warning('Could not parse date format for shift data', ['date' => $shiftData['date']]);
+                                continue;
+                            }
+                            
+                            $dayOfWeek = ucfirst($dateObj->format('l'));
+                        } catch (\Exception $e) {
+                            Log::warning('Error parsing date in shift data: ' . $e->getMessage(), $shiftData);
+                            continue;
+                        }
+                    } else {
+                        Log::warning('Skipping shift data without day_of_week or date', $shiftData);
+                        continue;
+                    }
+                } else {
+                    $dayOfWeek = $shiftData['day_of_week'];
+                }
+
                 $currentDate = $weekStart->copy();
                 
                 while ($currentDate <= $weekEnd) {
