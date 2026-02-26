@@ -13,6 +13,8 @@ class CheckEmployeeStatus
      * Handle an incoming request.
      * Check if the authenticated employee is paused or inactive.
      * If so, revoke their token and return 401.
+     *
+     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {

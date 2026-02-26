@@ -555,8 +555,7 @@ class ScheduleController extends Controller
             $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_end'), 'UTC')->endOfDay();
             $department = $request->input('department');
 
-            // Delete ALL shifts (active, inactive, open, assigned) - hard delete
-            $query = Schedule::forWeek($weekStart, $weekEnd);
+            $query = Schedule::forWeek($weekStart, $weekEnd)->active();
 
             if ($department && $department !== 'All departments') {
                 $query->forDepartment($department);
@@ -804,49 +803,6 @@ class ScheduleController extends Controller
                 'success' => false,
                 'message' => 'Error filling schedule from template: ' . $e->getMessage(),
                 'shifts' => []
-            ], 500);
-        }
-    }
-
-    /**
-     * Update a template (rename/update description)
-     */
-    public function updateTemplate(Request $request, int $templateId): JsonResponse
-    {
-        try {
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'description' => 'nullable|string|max:500'
-            ]);
-
-            $result = $this->scheduleService->updateTemplate($templateId, $validated);
-
-            return response()->json($result, $result['success'] ? 200 : 400);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error updating template: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Duplicate a template
-     */
-    public function duplicateTemplate(Request $request, int $templateId): JsonResponse
-    {
-        try {
-            $validated = $request->validate([
-                'name' => 'required|string|max:255'
-            ]);
-
-            $result = $this->scheduleService->duplicateTemplate($templateId, $validated['name']);
-
-            return response()->json($result, $result['success'] ? 200 : 400);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error duplicating template: ' . $e->getMessage()
             ], 500);
         }
     }
