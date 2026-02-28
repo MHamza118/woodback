@@ -183,7 +183,7 @@ class ScheduleController extends Controller
                 'department' => $department
             ]);
 
-            // Admin should see ALL shifts (active and inactive) to manage unassigned shifts
+            // Admin should see ALL shifts (active and inactive)
             $query = Schedule::forWeek($weekStart, $weekEnd);
 
             if ($department) {
@@ -223,17 +223,8 @@ class ScheduleController extends Controller
                 $count = ($shift->employee_id && $shift->status === 'active') ? ($shiftsPerEmployeeDate[$key] ?? 0) : 0;
                 $isConflict = ($createdFrom === 'open_shift' && $shift->status === 'active' && $count > 1);
 
-                // Determine status: use database status if set, otherwise infer from employee_id
-                $status = $shift->status ?? ($shift->employee_id ? 'active' : 'open');
-                
-                // For frontend compatibility: map database status to frontend status
-                if ($status === 'inactive') {
-                    $frontendStatus = 'inactive';
-                } elseif (!$shift->employee_id) {
-                    $frontendStatus = 'open';
-                } else {
-                    $frontendStatus = 'assigned';
-                }
+                // Map database status to frontend status
+                $frontendStatus = !$shift->employee_id ? 'open' : 'assigned';
 
                 return [
                     'id' => $shift->id,
@@ -629,7 +620,6 @@ class ScheduleController extends Controller
             $shiftsCreated = 0;
             $assignedCount = 0;
             $openCount = 0;
-            $unassignedCount = 0;
 
             foreach ($shifts as $shift) {
                 error_log("Processing shift: " . json_encode($shift));
@@ -672,25 +662,6 @@ class ScheduleController extends Controller
                     } else {
                         error_log("Employee NOT FOUND - shift skipped");
                     }
-                } elseif ($shift['section'] === 'unassigned') {
-                    $unassignedCount++;
-                    error_log("UNASSIGNED shift");
-                    
-                    Schedule::create([
-                        'employee_id' => null,
-                        'date' => $shift['date'],
-                        'day_of_week' => $dayOfWeek,
-                        'start_time' => $shift['start_time'],
-                        'end_time' => $shift['end_time'],
-                        'role' => $shift['role'],
-                        'department' => $shift['department'],
-                        'week_start' => $shiftWeekStart->format('Y-m-d'),
-                        'week_end' => $shiftWeekEnd->format('Y-m-d'),
-                        'status' => 'inactive',
-                        'created_from' => 'import'
-                    ]);
-                    $shiftsCreated++;
-                    error_log("Unassigned shift created!");
                 } elseif ($shift['section'] === 'open') {
                     $openCount++;
                     error_log("OPEN shift");
@@ -714,7 +685,7 @@ class ScheduleController extends Controller
             }
 
             error_log("=== IMPORT END ===");
-            error_log("Summary - Assigned: {$assignedCount}, Unassigned: {$unassignedCount}, Open: {$openCount}, Created: {$shiftsCreated}");
+            error_log("Summary - Assigned: {$assignedCount}, Open: {$openCount}, Created: {$shiftsCreated}");
 
             return $this->successResponse([
                 'shifts_created' => $shiftsCreated
