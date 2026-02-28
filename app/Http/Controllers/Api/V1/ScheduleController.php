@@ -555,23 +555,55 @@ class ScheduleController extends Controller
             $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_end'), 'UTC')->endOfDay();
             $department = $request->input('department');
 
-            // Delete ALL shifts (active, inactive, open, assigned) - hard delete
-            $query = Schedule::forWeek($weekStart, $weekEnd);
+            $result = $this->scheduleService->clearSchedule($weekStart, $weekEnd, $department);
 
-            if ($department && $department !== 'All departments') {
-                $query->forDepartment($department);
+            if (!$result['success']) {
+                return $this->errorResponse($result['message'], 400);
             }
 
-            $deletedCount = $query->delete();
-
             return $this->successResponse([
-                'deleted_count' => $deletedCount,
+                'deleted_count' => $result['deleted_count'],
                 'week_start' => $weekStart->toDateString(),
                 'week_end' => $weekEnd->toDateString()
-            ], "Successfully deleted {$deletedCount} shifts");
+            ], $result['message']);
         } catch (\Exception $e) {
             Log::error('Error clearing schedule: ' . $e->getMessage());
             return $this->errorResponse('Failed to clear schedule', 500);
+        }
+    }
+
+    /**
+     * Revert schedule to last snapshot
+     */
+    public function revertSchedule(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'week_start' => 'required|date_format:Y-m-d',
+                'week_end' => 'required|date_format:Y-m-d',
+                'department' => 'nullable|string'
+            ]);
+
+            $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['week_start'], 'UTC')->startOfDay();
+            $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['week_end'], 'UTC')->endOfDay();
+            $department = $validated['department'] ?? null;
+
+            $result = $this->scheduleService->revertScheduleToLastSnapshot($weekStart, $weekEnd, $department);
+
+            if (!$result['success']) {
+                return $this->errorResponse($result['message'], 400);
+            }
+
+            return $this->successResponse([
+                'shifts_reverted' => $result['shifts_reverted'],
+                'week_start' => $weekStart->toDateString(),
+                'week_end' => $weekEnd->toDateString()
+            ], $result['message']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->errorResponse('Validation failed: ' . json_encode($e->errors()), 422);
+        } catch (\Exception $e) {
+            Log::error('Error reverting schedule: ' . $e->getMessage());
+            return $this->errorResponse('Failed to revert schedule', 500);
         }
     }
 

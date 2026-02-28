@@ -557,6 +557,9 @@ class ScheduleService
         try {
             Log::info("Publishing schedule for week {$weekStart} to {$weekEnd}, department: " . ($department ?? 'all'));
 
+            // Create snapshot BEFORE publishing
+            $this->createSnapshot($weekStart, $department, 'publish');
+
             // Build query for shifts to publish
             // IMPORTANT: Only publish shifts that have an employee assigned (employee_id IS NOT NULL)
             // Open shifts (employee_id = NULL) should NOT be published
@@ -952,6 +955,264 @@ class ScheduleService
             return [
                 'success' => false,
                 'message' => 'Failed to duplicate template: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Revert schedule to last published state
+     */
+    public function revertScheduleToLastPublished(Carbon $weekStart, Carbon $weekEnd, ?string $department = null): array
+    {
+        try {
+            Log::info("Reverting schedule for week {$weekStart} to {$weekEnd}, department: " . ($department ?? 'all'));
+
+            // Get all shifts with a saved published state
+            $query = Schedule::forWeek($weekStart, $weekEnd)
+                ->whereNotNull('last_published_state');
+
+            if ($department && $department !== 'All departments') {
+                $query->forDepartment($department);
+            }
+
+            $shifts = $query->get();
+
+            Log::info("Found {$shifts->count()} shifts with published state to revert");
+
+            if ($shifts->isEmpty()) {
+                return [
+                    'success' => false,
+                    'message' => 'No published version found to revert to',
+                    'shifts_reverted' => 0
+                ];
+            }
+
+            $reverted = 0;
+
+            foreach ($shifts as $shift) {
+                try {
+                    $state = $shift->last_published_state;
+
+                    if (!$state) {
+                        continue;
+                    }
+
+                    Log::info("Reverting shift ID: {$shift->id} to state: " . json_encode($state));
+
+                    $shift->update([
+                        'employee_id' => $state['employee_id'],
+                        'start_time' => $state['start_time'],
+                        'end_time' => $state['end_time'],
+                        'role' => $state['role'],
+                        'status' => $state['status'],
+                        'published' => false,
+                        'published_at' => null,
+                        'published_by' => null
+                    ]);
+
+                    $reverted++;
+
+                    Log::info("Successfully reverted shift {$shift->id}");
+                } catch (\Exception $e) {
+                    Log::error("Error reverting shift {$shift->id}: " . $e->getMessage());
+                    continue;
+                }
+            }
+
+            Log::info("Successfully reverted {$reverted} shifts");
+
+            return [
+                'success' => true,
+                'message' => "Successfully reverted {$reverted} shifts to last published state",
+                'shifts_reverted' => $reverted
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error reverting schedule: ' . $e->getMessage() . ' ' . $e->getTraceAsString());
+            return [
+                'success' => false,
+                'message' => 'Failed to revert schedule: ' . $e->getMessage(),
+                'shifts_reverted' => 0
+            ];
+        }
+    }
+
+    /**
+     * Clear all shifts for a specific week and department
+     */
+    public function clearSchedule(Carbon $weekStart, Carbon $weekEnd, ?string $department = null): array
+    {
+        try {
+            Log::info("Clearing schedule for week {$weekStart} to {$weekEnd}, department: " . ($department ?? 'all'));
+
+            // Create snapshot BEFORE clearing
+            $this->createSnapshot($weekStart, $department, 'clear');
+
+            // Delete ALL shifts (active, inactive, open, assigned) - hard delete
+            $query = Schedule::forWeek($weekStart, $weekEnd);
+
+            if ($department && $department !== 'All departments') {
+                $query->forDepartment($department);
+            }
+
+            $deletedCount = $query->delete();
+
+            Log::info("Successfully deleted {$deletedCount} shifts");
+
+            return [
+                'success' => true,
+                'message' => "Successfully deleted {$deletedCount} shifts",
+                'deleted_count' => $deletedCount
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error clearing schedule: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Failed to clear schedule: ' . $e->getMessage(),
+                'deleted_count' => 0
+            ];
+        }
+    }
+
+    /**
+     * Create a snapshot of current schedule state
+     */
+    private function createSnapshot(Carbon $weekStart, ?string $department = null, string $action = 'manual', ?int $createdBy = null): void
+    {
+        try {
+            $query = Schedule::forWeek($weekStart, $weekStart->copy()->addDays(6));
+
+            if ($department && $department !== 'All departments') {
+                $query->forDepartment($department);
+            }
+
+            $shifts = $query->get();
+
+            if ($shifts->isEmpty()) {
+                return;
+            }
+
+            // Prepare shifts data for snapshot
+            $shiftsData = [];
+            foreach ($shifts as $shift) {
+                $shiftsData[] = [
+                    'id' => $shift->id,
+                    'employee_id' => $shift->employee_id,
+                    'employee_name' => $shift->employee ? $shift->employee->first_name . ' ' . $shift->employee->last_name : null,
+                    'department' => $shift->department,
+                    'date' => $shift->date->toDateString(),
+                    'day_of_week' => $shift->day_of_week,
+                    'start_time' => $shift->start_time,
+                    'end_time' => $shift->end_time,
+                    'role' => $shift->role,
+                    'shift_type' => $shift->shift_type,
+                    'requirements' => $shift->requirements,
+                    'status' => $shift->status,
+                    'created_from' => $shift->created_from,
+                    'is_conflict' => $shift->is_conflict,
+                    'published' => $shift->published,
+                    'published_at' => $shift->published_at,
+                ];
+            }
+
+            // Create snapshot
+            \App\Models\ScheduleSnapshot::create([
+                'week_start_timestamp' => $weekStart->timestamp,
+                'department' => $department,
+                'shifts_data' => $shiftsData,
+                'action' => $action,
+                'created_by' => $createdBy ?? auth()->id()
+            ]);
+
+            Log::info("Snapshot created for week {$weekStart}, department: " . ($department ?? 'all') . ", action: {$action}");
+        } catch (\Exception $e) {
+            Log::error('Error creating snapshot: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Revert schedule to last snapshot
+     */
+    public function revertScheduleToLastSnapshot(Carbon $weekStart, Carbon $weekEnd, ?string $department = null): array
+    {
+        try {
+            Log::info("Reverting schedule for week {$weekStart} to {$weekEnd}, department: " . ($department ?? 'all'));
+
+            // Get the most recent snapshot for this week/department
+            $query = \App\Models\ScheduleSnapshot::where('week_start_timestamp', $weekStart->timestamp);
+
+            if ($department && $department !== 'All departments') {
+                $query->where('department', $department);
+            }
+
+            $snapshot = $query->orderBy('created_at', 'desc')->first();
+
+            if (!$snapshot) {
+                return [
+                    'success' => false,
+                    'message' => 'No previous version found to revert to',
+                    'shifts_reverted' => 0
+                ];
+            }
+
+            Log::info("Found snapshot from {$snapshot->created_at}, action: {$snapshot->action}");
+
+            // Delete all current shifts for this week/department
+            $deleteQuery = Schedule::forWeek($weekStart, $weekEnd);
+
+            if ($department && $department !== 'All departments') {
+                $deleteQuery->forDepartment($department);
+            }
+
+            $deleteQuery->delete();
+
+            Log::info("Deleted current shifts for week {$weekStart}");
+
+            // Restore shifts from snapshot
+            $shiftsData = $snapshot->shifts_data;
+            $restored = 0;
+
+            foreach ($shiftsData as $shiftData) {
+                try {
+                    Schedule::create([
+                        'employee_id' => $shiftData['employee_id'],
+                        'department' => $shiftData['department'],
+                        'day_of_week' => $shiftData['day_of_week'],
+                        'date' => $shiftData['date'],
+                        'start_time' => $shiftData['start_time'],
+                        'end_time' => $shiftData['end_time'],
+                        'role' => $shiftData['role'],
+                        'shift_type' => $shiftData['shift_type'],
+                        'requirements' => $shiftData['requirements'],
+                        'week_start' => $weekStart,
+                        'week_end' => $weekEnd,
+                        'status' => $shiftData['status'],
+                        'created_from' => $shiftData['created_from'],
+                        'is_conflict' => $shiftData['is_conflict'],
+                        'published' => false,
+                        'published_at' => null,
+                        'published_by' => null
+                    ]);
+
+                    $restored++;
+                } catch (\Exception $e) {
+                    Log::error("Error restoring shift: " . $e->getMessage());
+                    continue;
+                }
+            }
+
+            Log::info("Successfully restored {$restored} shifts from snapshot");
+
+            return [
+                'success' => true,
+                'message' => "Successfully reverted to previous state. Restored {$restored} shifts.",
+                'shifts_reverted' => $restored
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error reverting schedule: ' . $e->getMessage() . ' ' . $e->getTraceAsString());
+            return [
+                'success' => false,
+                'message' => 'Failed to revert schedule: ' . $e->getMessage(),
+                'shifts_reverted' => 0
             ];
         }
     }
