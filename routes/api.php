@@ -606,6 +606,9 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
 
             // Employee schedule/events routes (read-only)
             Route::prefix('schedule')->group(function () {
+                // Team leads endpoint for employees (read-only)
+                Route::get('/team-leads', [App\Http\Controllers\Api\V1\TeamLeadController::class, 'getTeamLeads']);
+                
                 Route::prefix('events')->group(function () {
                     // Date-specific routes must come before {id} routes
                     Route::get('/date/single', [App\Http\Controllers\Api\V1\EventController::class, 'getForDate']);
