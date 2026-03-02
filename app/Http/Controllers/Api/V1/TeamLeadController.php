@@ -98,13 +98,12 @@ class TeamLeadController extends Controller
                 'department' => 'required|string|in:BOH,FOH'
             ]);
 
-            // Check if employee has a shift on this date in this department
             $employee = Employee::find($validated['employee_id']);
             if (!$employee) {
                 return $this->notFoundResponse('Employee not found');
             }
 
-            // Check if already assigned as team lead
+            // Check if this employee is already assigned as team lead for this date/department
             $existing = TeamLeadAssignment::where('employee_id', $validated['employee_id'])
                 ->whereDate('assigned_date', $validated['assigned_date'])
                 ->where('department', $validated['department'])
@@ -114,7 +113,12 @@ class TeamLeadController extends Controller
                 return $this->errorResponse('Employee is already assigned as team lead for this date and department', 400);
             }
 
-            // Create the assignment
+            // Remove any other team lead for this date/department (only one per department per date)
+            TeamLeadAssignment::whereDate('assigned_date', $validated['assigned_date'])
+                ->where('department', $validated['department'])
+                ->delete();
+
+            // Create the assignment for the single date
             $assignment = TeamLeadAssignment::create([
                 'employee_id' => $validated['employee_id'],
                 'assigned_date' => $validated['assigned_date'],

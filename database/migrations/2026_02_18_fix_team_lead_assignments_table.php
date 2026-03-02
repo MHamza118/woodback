@@ -33,7 +33,7 @@ return new class extends Migration
             $table->foreign('assigned_by_admin_id')->references('id')->on('admins')->onDelete('set null');
             
             // Unique constraint: one employee can't be assigned as team lead twice on same date/department
-            // But multiple employees CAN be team leads on same date/department
+            // Backend enforces only ONE team lead per date/department (deletes previous when assigning new)
             $table->unique(['employee_id', 'assigned_date', 'department'], 'team_lead_unique');
         });
     }
