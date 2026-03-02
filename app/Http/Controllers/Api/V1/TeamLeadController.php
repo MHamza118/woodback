@@ -40,14 +40,15 @@ class TeamLeadController extends Controller
                 'department' => $department
             ]);
 
-            $query = TeamLeadAssignment::forDate($date);
+            // Use forWeek scope to get team leads for the entire week
+            $query = TeamLeadAssignment::forWeek($date);
             
             // Only filter by department if not "All departments"
             if ($department !== 'All departments') {
                 $query->forDepartment($department);
             }
 
-            $teamLeads = $query->with('employee')
+            $teamLeads = $query->with('employee', 'assignedByAdmin')
                 ->get()
                 ->map(function ($assignment) {
                     return [
@@ -57,6 +58,7 @@ class TeamLeadController extends Controller
                         'assigned_date' => $assignment->assigned_date->toDateString(),
                         'department' => $assignment->department,
                         'assigned_by_admin_id' => $assignment->assigned_by_admin_id,
+                        'assigned_by_admin_name' => $assignment->assignedByAdmin ? $assignment->assignedByAdmin->name : 'System',
                         'created_at' => $assignment->created_at,
                     ];
                 });
@@ -134,6 +136,7 @@ class TeamLeadController extends Controller
                     'assigned_date' => $assignment->assigned_date->toDateString(),
                     'department' => $assignment->department,
                     'assigned_by_admin_id' => $assignment->assigned_by_admin_id,
+                    'assigned_by_admin_name' => auth()->user()->name ?? 'System',
                     'created_at' => $assignment->created_at,
                 ]
             ], 'Team lead assigned successfully', 201);

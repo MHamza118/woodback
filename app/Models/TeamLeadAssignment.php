@@ -45,6 +45,15 @@ class TeamLeadAssignment extends Model
     }
 
     /**
+     * Scope to get team leads for a date range (week)
+     */
+    public function scopeForWeek($query, $weekStart)
+    {
+        $weekEnd = \Carbon\Carbon::parse($weekStart)->addDays(6);
+        return $query->whereBetween('assigned_date', [$weekStart, $weekEnd]);
+    }
+
+    /**
      * Scope to get team leads for a specific department
      */
     public function scopeForDepartment($query, $department)
