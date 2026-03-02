@@ -89,45 +89,77 @@ class ScheduleService
     }
 
     /**
-     * Get employees by department (from role assignments
+     * Get employees by department (from role assignments)
+     * Returns ALL active employees, including those without role assignments
+     * Employees without assignments are matched by their questionnaire response
      */
     public function getEmployeesByDepartment(string $departmentName): array
     {
         try {
+            // Get ALL approved employees
             $employees = Employee::where('status', Employee::STATUS_APPROVED)
-                ->whereNotNull('assignments')
                 ->get();
 
             Log::info('Fetching employees for department: ' . $departmentName);
-            Log::info('Total employees with assignments: ' . $employees->count());
+            Log::info('Total approved employees: ' . $employees->count());
 
             $filtered = [];
             foreach ($employees as $employee) {
                 $assignments = $employee->assignments;
                 Log::info('Checking employee ' . $employee->id . ' with assignments: ' . json_encode($assignments));
                 
+                // Check if employee has department assignment
+                $hasDepartmentAssignment = false;
+                $roles = [];
+                
                 if (is_array($assignments) && isset($assignments['departments']) && is_array($assignments['departments'])) {
                     Log::info('Employee ' . $employee->id . ' has departments: ' . json_encode($assignments['departments']));
                     if (in_array($departmentName, $assignments['departments'])) {
+                        $hasDepartmentAssignment = true;
                         Log::info('Employee ' . $employee->id . ' matches department ' . $departmentName);
                         
                         // Extract roles for this department from assignments
-                        $roles = [];
                         if (isset($assignments['roles']) && is_array($assignments['roles'])) {
                             $roles = $assignments['roles'];
                         }
-                        
-                        $filtered[] = [
-                            'id' => $employee->id,
-                            'first_name' => $employee->first_name,
-                            'last_name' => $employee->last_name,
-                            'email' => $employee->email,
-                            'employment_type' => $employee->employment_type,
-                            'location' => $employee->location,
-                            'roles' => $roles,
-                            'assignments' => $assignments
-                        ];
                     }
+                }
+                
+                // For employees without assignments, check questionnaire_responses
+                $matchesQuestionnaireDepartment = false;
+                if (!$hasDepartmentAssignment) {
+                    $questionnaireResponses = $employee->questionnaire_responses;
+                    if (is_array($questionnaireResponses)) {
+                        foreach ($questionnaireResponses as $response) {
+                            if (isset($response['question']) && 
+                                strpos($response['question'], 'front of house or back of house') !== false) {
+                                $answer = $response['answer'] ?? '';
+                                
+                                // Map questionnaire answer to department code
+                                if ($departmentName === 'FOH' && stripos($answer, 'Front of House') !== false) {
+                                    $matchesQuestionnaireDepartment = true;
+                                } elseif ($departmentName === 'BOH' && stripos($answer, 'Back of House') !== false) {
+                                    $matchesQuestionnaireDepartment = true;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // Include employee if they match via assignments OR questionnaire
+                if ($hasDepartmentAssignment || $matchesQuestionnaireDepartment) {
+                    $filtered[] = [
+                        'id' => $employee->id,
+                        'first_name' => $employee->first_name,
+                        'last_name' => $employee->last_name,
+                        'email' => $employee->email,
+                        'employment_type' => $employee->employment_type,
+                        'location' => $employee->location,
+                        'roles' => $roles,
+                        'assignments' => $assignments,
+                        'department' => $employee->department
+                    ];
                 }
             }
 
