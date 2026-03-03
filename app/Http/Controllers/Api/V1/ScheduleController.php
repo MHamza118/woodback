@@ -706,9 +706,6 @@ class ScheduleController extends Controller
     }
 
     /**
-     * Normalize time format - remove seconds if present
-     */
-    /**
      * Validate time format (HH:MM)
      */
     private function isValidTime($time): bool
