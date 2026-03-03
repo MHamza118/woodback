@@ -425,10 +425,18 @@ class ScheduleController extends Controller
     /**
      * Delete a shift
      */
-    public function deleteShift(int $shiftId): JsonResponse
+    public function deleteShift(string $shiftId): JsonResponse
     {
         try {
-            $result = $this->scheduleService->deleteShift($shiftId);
+            // Handle temporary IDs (shifts not yet saved to database)
+            if (strpos($shiftId, 'temp-') === 0) {
+                // Temporary shift - just return success (frontend will handle removal)
+                return $this->successResponse(null, 'Temporary shift removed');
+            }
+            
+            // Convert to integer for database lookup
+            $numericShiftId = (int) $shiftId;
+            $result = $this->scheduleService->deleteShift($numericShiftId);
 
             if (!$result) {
                 return $this->notFoundResponse('Shift not found');
