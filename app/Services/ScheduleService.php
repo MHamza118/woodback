@@ -279,9 +279,6 @@ class ScheduleService
                             $endTime = $dayData['endTime'] ?? $dayData['end_time'] ?? '17:00';
                             
                             // IMPORTANT: Allow multiple shifts per employee per day
-                            // Open shifts and template shifts can coexist
-                            // Do NOT check for existing shifts - they should be separate rows
-
                             // Use the first template shift for shift_type and requirements
                             $templateShift = $templateShifts[0] ?? [];
 
