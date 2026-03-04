@@ -17,21 +17,43 @@ class ScheduleService
     public function getAllDepartments(): array
     {
         try {
+            // Get all approved employees (don't filter by assignments - they might not have it set yet)
             $employees = Employee::where('status', Employee::STATUS_APPROVED)
-                ->whereNotNull('assignments')
                 ->get();
 
-            Log::info('Total approved employees with assignments: ' . $employees->count());
+            Log::info('Total approved employees: ' . $employees->count());
 
             $departments = [];
             foreach ($employees as $employee) {
-                $assignments = $employee->assignments;
+                $assignments = $employee->assignments ?? [];
                 Log::info('Employee ' . $employee->id . ' assignments: ' . json_encode($assignments));
                 
-                if (is_array($assignments) && isset($assignments['departments']) && is_array($assignments['departments'])) {
-                    foreach ($assignments['departments'] as $dept) {
-                        if (!in_array($dept, $departments)) {
-                            $departments[] = $dept;
+                // Check assignments first
+                if (is_array($assignments) && !empty($assignments)) {
+                    $depts = $assignments['departments'] ?? [];
+                    if (is_array($depts)) {
+                        foreach ($depts as $dept) {
+                            if (!in_array($dept, $departments)) {
+                                $departments[] = $dept;
+                            }
+                        }
+                    }
+                }
+                
+                // Also check questionnaire responses for department info
+                $questionnaireResponses = $employee->questionnaire_responses ?? [];
+                if (is_array($questionnaireResponses) && !empty($questionnaireResponses)) {
+                    foreach ($questionnaireResponses as $response) {
+                        if (isset($response['question']) && 
+                            strpos($response['question'], 'front of house or back of house') !== false) {
+                            $answer = $response['answer'] ?? '';
+                            
+                            if (stripos($answer, 'Front of House') !== false && !in_array('FOH', $departments)) {
+                                $departments[] = 'FOH';
+                            } elseif (stripos($answer, 'Back of House') !== false && !in_array('BOH', $departments)) {
+                                $departments[] = 'BOH';
+                            }
+                            break;
                         }
                     }
                 }
@@ -105,16 +127,17 @@ class ScheduleService
 
             $filtered = [];
             foreach ($employees as $employee) {
-                $assignments = $employee->assignments;
+                $assignments = $employee->assignments ?? [];
                 Log::info('Checking employee ' . $employee->id . ' with assignments: ' . json_encode($assignments));
                 
                 // Check if employee has department assignment
                 $hasDepartmentAssignment = false;
                 $roles = [];
                 
-                if (is_array($assignments) && isset($assignments['departments']) && is_array($assignments['departments'])) {
-                    Log::info('Employee ' . $employee->id . ' has departments: ' . json_encode($assignments['departments']));
-                    if (in_array($departmentName, $assignments['departments'])) {
+                // Ensure assignments is an array and has departments
+                if (is_array($assignments) && !empty($assignments)) {
+                    $departments = $assignments['departments'] ?? [];
+                    if (is_array($departments) && in_array($departmentName, $departments)) {
                         $hasDepartmentAssignment = true;
                         Log::info('Employee ' . $employee->id . ' matches department ' . $departmentName);
                         
@@ -128,8 +151,8 @@ class ScheduleService
                 // For employees without assignments, check questionnaire_responses
                 $matchesQuestionnaireDepartment = false;
                 if (!$hasDepartmentAssignment) {
-                    $questionnaireResponses = $employee->questionnaire_responses;
-                    if (is_array($questionnaireResponses)) {
+                    $questionnaireResponses = $employee->questionnaire_responses ?? [];
+                    if (is_array($questionnaireResponses) && !empty($questionnaireResponses)) {
                         foreach ($questionnaireResponses as $response) {
                             if (isset($response['question']) && 
                                 strpos($response['question'], 'front of house or back of house') !== false) {
@@ -584,7 +607,7 @@ class ScheduleService
     public function publishSchedule(Carbon $weekStart, Carbon $weekEnd, ?string $department = null): array
     {
         try {
-            Log::info("Publishing schedule for week {$weekStart} to {$weekEnd}, department: " . ($department ?? 'all'));
+
 
             // Create snapshot BEFORE publishing
             $this->createSnapshot($weekStart, $department, 'publish');
@@ -603,7 +626,7 @@ class ScheduleService
 
             $shifts = $query->get();
             
-            Log::info("Found {$shifts->count()} unpublished assigned shifts to publish");
+
 
             if ($shifts->isEmpty()) {
                 return [
@@ -619,24 +642,17 @@ class ScheduleService
             $employeeIds = [];
 
             foreach ($shifts as $shift) {
-                Log::info("Publishing shift ID: {$shift->id} for employee: {$shift->employee_id}");
-                
                 // Get the authenticated user (could be Admin or Employee)
                 $user = auth('sanctum')->user();
                 $adminId = $user ? $user->id : null;
-                Log::info("Current authenticated user ID: " . ($adminId ?? 'NULL') . ", User type: " . ($user ? get_class($user) : 'NULL'));
                 
-                $updateResult = $shift->update([
+                $shift->update([
                     'published' => true,
                     'published_at' => now(),
                     'published_by' => $adminId
                 ]);
                 
-                Log::info("Update result for shift {$shift->id}: " . ($updateResult ? 'success' : 'failed'));
-                
-                if ($updateResult) {
-                    $shiftsPublished++;
-                }
+                $shiftsPublished++;
                 
                 // Only add employee_id if it's not null
                 if ($shift->employee_id && !in_array($shift->employee_id, $employeeIds)) {
@@ -676,7 +692,7 @@ class ScheduleService
                 }
             }
 
-            Log::info("Published {$shiftsPublished} shifts and notified {$employeesNotified} employees");
+
 
             return [
                 'success' => true,

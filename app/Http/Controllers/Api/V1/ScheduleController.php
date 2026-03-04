@@ -98,7 +98,7 @@ class ScheduleController extends Controller
                 'employees_by_department' => $employees
             ], 'Employees retrieved successfully');
         } catch (\Exception $e) {
-            Log::error('Error fetching grouped employees: ' . $e->getMessage());
+            Log::error('Error fetching grouped employees: ' . $e->getMessage() . ' ' . $e->getTraceAsString());
             return $this->errorResponse('Failed to fetch employees', 500);
         }
     }
@@ -177,16 +177,10 @@ class ScheduleController extends Controller
             $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_end'), 'UTC')->endOfDay();
             $department = $request->input('department');
 
-            \Log::info('[getShiftsForWeek] Query parameters', [
-                'week_start' => $weekStart->toDateString(),
-                'week_end' => $weekEnd->toDateString(),
-                'department' => $department
-            ]);
-
             // Admin should see ALL shifts (active and inactive)
             $query = Schedule::forWeek($weekStart, $weekEnd);
 
-            if ($department) {
+            if ($department && $department !== 'All departments') {
                 $query->forDepartment($department);
             }
 
@@ -246,12 +240,6 @@ class ScheduleController extends Controller
                     'published_by' => $shift->published_by,
                 ];
             });
-
-            \Log::info('[getShiftsForWeek] Shifts retrieved', [
-                'count' => $shifts->count(),
-                'open_shifts' => $shifts->filter(fn($s) => !$s['employee_id'])->count(),
-                'assigned_shifts' => $shifts->filter(fn($s) => $s['employee_id'])->count()
-            ]);
 
             return $this->successResponse([
                 'shifts' => $shifts,
