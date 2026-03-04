@@ -621,10 +621,15 @@ class ScheduleService
             foreach ($shifts as $shift) {
                 Log::info("Publishing shift ID: {$shift->id} for employee: {$shift->employee_id}");
                 
+                // Get the authenticated user (could be Admin or Employee)
+                $user = auth('sanctum')->user();
+                $adminId = $user ? $user->id : null;
+                Log::info("Current authenticated user ID: " . ($adminId ?? 'NULL') . ", User type: " . ($user ? get_class($user) : 'NULL'));
+                
                 $updateResult = $shift->update([
                     'published' => true,
                     'published_at' => now(),
-                    'published_by' => auth()->id() ?? null
+                    'published_by' => $adminId
                 ]);
                 
                 Log::info("Update result for shift {$shift->id}: " . ($updateResult ? 'success' : 'failed'));

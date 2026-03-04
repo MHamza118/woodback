@@ -241,6 +241,9 @@ class ScheduleController extends Controller
                     'created_from' => $createdFrom,
                     'status' => $frontendStatus,
                     'is_conflict' => $isConflict,
+                    'published' => $shift->published ?? false,
+                    'published_at' => $shift->published_at ? $shift->published_at->toIso8601String() : null,
+                    'published_by' => $shift->published_by,
                 ];
             });
 
