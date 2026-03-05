@@ -463,7 +463,10 @@ class ScheduleService
         ]);
         
         try {
-            // Create date in UTC timezone to avoid timezone conversion issues
+            // Parse date string as UTC to ensure consistent handling
+            // The frontend sends dates in Y-m-d format (local date representation)
+            // We parse it as UTC and store it as-is in the database
+            // This ensures the same date string is stored regardless of user's timezone
             $date = Carbon::createFromFormat('Y-m-d', $data['date'], 'UTC')->startOfDay();
             
             // Calculate week start (Monday of the week)

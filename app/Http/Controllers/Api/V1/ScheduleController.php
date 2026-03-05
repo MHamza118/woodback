@@ -173,6 +173,7 @@ class ScheduleController extends Controller
                 'department' => 'nullable|string'
             ]);
 
+            // Parse dates as UTC to ensure consistent handling across all timezones
             $weekStart = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_start'), 'UTC')->startOfDay();
             $weekEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('week_end'), 'UTC')->endOfDay();
             $department = $request->input('department');
@@ -624,7 +625,7 @@ class ScheduleController extends Controller
                 error_log("Processing shift: " . json_encode($shift));
 
                 // Calculate day_of_week and week dates from date
-                $date = \Carbon\Carbon::createFromFormat('Y-m-d', $shift['date']);
+                $date = \Carbon\Carbon::createFromFormat('Y-m-d', $shift['date'], 'UTC');
                 $dayOfWeek = $date->format('l'); // Monday, Tuesday, etc.
                 
                 // Calculate week start/end for this date
