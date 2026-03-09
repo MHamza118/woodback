@@ -12,9 +12,6 @@ class FaqController extends Controller
 {
     /**
      * Get all FAQs for employees (active only)
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
@@ -45,9 +42,6 @@ class FaqController extends Controller
 
     /**
      * Get all FAQs for admin (including inactive)
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
      */
     public function adminIndex(Request $request)
     {
@@ -95,9 +89,6 @@ class FaqController extends Controller
 
     /**
      * Store a new FAQ
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
      */
     public function store(Request $request)
     {
@@ -127,9 +118,6 @@ class FaqController extends Controller
 
     /**
      * Show a specific FAQ
-     * 
-     * @param int $id
-     * @return \Illuminate\Http\JsonResponse
      */
     public function show($id)
     {
@@ -150,10 +138,6 @@ class FaqController extends Controller
 
     /**
      * Update a FAQ
-     * 
-     * @param Request $request
-     * @param int $id
-     * @return \Illuminate\Http\JsonResponse
      */
     public function update(Request $request, $id)
     {
@@ -192,9 +176,6 @@ class FaqController extends Controller
 
     /**
      * Delete a FAQ
-     * 
-     * @param int $id
-     * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
     {
@@ -217,9 +198,6 @@ class FaqController extends Controller
 
     /**
      * Toggle FAQ active status
-     * 
-     * @param int $id
-     * @return \Illuminate\Http\JsonResponse
      */
     public function toggleActive($id)
     {
