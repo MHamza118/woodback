@@ -60,7 +60,7 @@ class AdminController extends Controller
 
             return $this->successResponse($response, "Admin login successful. Welcome {$loginData['admin']->full_name}!");
         } catch (ValidationException $e) {
-            //actual validation error message
+            //validation error message
             $errors = $e->errors();
             $message = isset($errors['email']) ? $errors['email'][0] : 'Invalid credentials. Please check your email and password.';
             return $this->errorResponse($message, 401);
@@ -108,7 +108,7 @@ class AdminController extends Controller
             $pendingAssignments = TrainingAssignment::where('status', 'assigned')->count();
             $inProgressAssignments = TrainingAssignment::where('status', 'in_progress')->count();
             $overdueAssignments = TrainingAssignment::where('status', 'overdue')->count();
-            
+
             $trainingStats = [
                 'total_assignments' => $totalAssignments,
                 'completed_assignments' => $completedAssignments,
@@ -117,7 +117,7 @@ class AdminController extends Controller
                 'overdue_assignments' => $overdueAssignments,
                 'completion_rate' => $totalAssignments > 0 ? round(($completedAssignments / $totalAssignments) * 100, 1) : 0
             ];
-            
+
             // Add training stats to main stats array
             $stats['training'] = $trainingStats;
 
@@ -186,7 +186,7 @@ class AdminController extends Controller
     {
         try {
             $admin = $request->user();
-            
+
             return $this->successResponse(
                 new AdminResource($admin),
                 'Admin profile retrieved successfully'
@@ -207,7 +207,7 @@ class AdminController extends Controller
             ]);
 
             $admin = $request->user();
-            
+
             if ($admin->profile_image) {
                 if (\Storage::disk('public')->exists($admin->profile_image)) {
                     \Storage::disk('public')->delete($admin->profile_image);
@@ -236,7 +236,7 @@ class AdminController extends Controller
     {
         try {
             $admin = $request->user();
-            
+
             if ($admin->profile_image) {
                 if (\Storage::disk('public')->exists($admin->profile_image)) {
                     \Storage::disk('public')->delete($admin->profile_image);
@@ -260,29 +260,28 @@ class AdminController extends Controller
     {
         try {
             $admin = $request->user();
-            
+
             if (!$admin->profile_image) {
                 return response()->json(['error' => 'No profile image found'], 404);
             }
-            
+
             $disk = \Storage::disk('public');
-            
+
             if (!$disk->exists($admin->profile_image)) {
                 return response()->json([
                     'error' => 'Profile image file not found in storage',
                     'path' => $admin->profile_image
                 ], 404);
             }
-            
+
             $mimeType = $disk->mimeType($admin->profile_image);
             $fileContents = $disk->get($admin->profile_image);
-            
+
             return response($fileContents, 200)
                 ->header('Content-Type', $mimeType ?: 'image/jpeg')
                 ->header('Cache-Control', 'public, max-age=31536000')
                 ->header('Pragma', 'public')
                 ->header('Expires', gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
-            
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to retrieve profile image: ' . $e->getMessage()
@@ -346,7 +345,7 @@ class AdminController extends Controller
 
             // Merge both collections
             $interviewers = $adminInterviewers->concat($employeeInterviewers)->sortBy('first_name')->values();
-            
+
             return $this->successResponse([
                 'interviewers' => $interviewers
             ], 'Interviewers retrieved successfully');
@@ -363,9 +362,9 @@ class AdminController extends Controller
         try {
             $admin = $request->user();
             $filters = $request->only(['role', 'status']);
-            
+
             $result = $this->adminService->getAdminUsers($admin, $filters);
-            
+
             return $this->successResponse([
                 'users' => AdminResource::collection($result['admins']),
                 'meta' => [
@@ -400,7 +399,7 @@ class AdminController extends Controller
 
             $admin = $request->user();
             $result = $this->adminService->createAdminUser($admin, $validatedData);
-            
+
             return $this->successResponse([
                 'user' => new AdminResource($result['admin']),
                 'message' => $result['message']
@@ -429,7 +428,7 @@ class AdminController extends Controller
             ]);
 
             $adminUser = Admin::findOrFail($id);
-            
+
             // Update fields
             if (isset($validatedData['first_name'])) {
                 $adminUser->first_name = $validatedData['first_name'];
@@ -458,9 +457,9 @@ class AdminController extends Controller
             if (isset($validatedData['is_interviewer'])) {
                 $adminUser->is_interviewer = $validatedData['is_interviewer'];
             }
-            
+
             $adminUser->save();
-            
+
             return $this->successResponse([
                 'user' => new AdminResource($adminUser->fresh()),
             ], 'Admin user updated successfully');
@@ -482,11 +481,11 @@ class AdminController extends Controller
 
             $admin = $request->user();
             $result = $this->adminService->updateAdminPermissions(
-                $admin, 
-                (int)$id, 
+                $admin,
+                (int)$id,
                 $request->permissions
             );
-            
+
             return $this->successResponse([
                 'user' => new AdminResource($result['admin']),
             ], $result['message']);
@@ -503,7 +502,7 @@ class AdminController extends Controller
         try {
             $admin = $request->user();
             $result = $this->adminService->deactivateAdminUser($admin, (int)$id);
-            
+
             return $this->successResponse([
                 'user' => $result['admin'] ? new AdminResource($result['admin']) : null,
             ], $result['message']);
@@ -520,7 +519,7 @@ class AdminController extends Controller
         try {
             $admin = $request->user();
             $result = $this->adminService->getAvailableRolesAndPermissions($admin);
-            
+
             return $this->successResponse($result, 'Roles and permissions retrieved successfully');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to get roles and permissions: ' . $e->getMessage());
@@ -534,7 +533,7 @@ class AdminController extends Controller
     {
         try {
             $locations = Location::active()->orderBy('name')->get();
-            
+
             return $this->successResponse(
                 $locations,
                 'Locations retrieved successfully'
@@ -577,7 +576,7 @@ class AdminController extends Controller
                 'created_by' => $request->user()->id,
                 'active' => true
             ]);
-            
+
             return $this->successResponse(
                 $location,
                 'Location created successfully',
@@ -610,7 +609,7 @@ class AdminController extends Controller
 
             $location = Location::findOrFail($id);
             $location->update($validatedData);
-            
+
             return $this->successResponse(
                 $location->fresh(),
                 'Location updated successfully'
@@ -628,7 +627,7 @@ class AdminController extends Controller
         try {
             $location = Location::findOrFail($id);
             $location->update(['active' => false]);
-            
+
             return $this->successResponse(
                 $location->fresh(),
                 'Location deactivated successfully'
@@ -646,10 +645,10 @@ class AdminController extends Controller
         try {
             $user = $request->user();
             $userRole = $user ? $user->role : null;
-            
+
             // Build query
             $query = OnboardingPage::query();
-            
+
             // Admin and Owner see all pages
             // Manager sees their own, hiring_manager created, and approved pages
             // Hiring Manager sees their own and approved pages
@@ -662,26 +661,26 @@ class AdminController extends Controller
                 // 1. Their own submissions
                 // 2. Pages created by hiring_manager (for approval)
                 // 3. Approved pages
-                $query->where(function($q) use ($user) {
+                $query->where(function ($q) use ($user) {
                     $q->where('created_by', $user->id)
-                      ->orWhereHas('creator', function($creatorQuery) {
-                          $creatorQuery->where('role', 'hiring_manager');
-                      })
-                      ->orWhere('approval_status', 'approved');
+                        ->orWhereHas('creator', function ($creatorQuery) {
+                            $creatorQuery->where('role', 'hiring_manager');
+                        })
+                        ->orWhere('approval_status', 'approved');
                 })->ordered();
             } else if ($userRole === 'hiring_manager') {
                 // Hiring Manager sees their own and approved pages
-                $query->where(function($q) use ($user) {
+                $query->where(function ($q) use ($user) {
                     $q->where('created_by', $user->id)
-                      ->orWhere('approval_status', 'approved');
+                        ->orWhere('approval_status', 'approved');
                 })->ordered();
             } else {
                 // Others (employees) see only approved active pages
                 $query->approved()->active()->ordered();
             }
-            
+
             $pages = $query->with(['creator', 'approver'])->get();
-            
+
             return $this->successResponse(
                 $pages,
                 'Onboarding pages retrieved successfully'
@@ -714,7 +713,7 @@ class AdminController extends Controller
 
             $user = $request->user();
             $userRole = $user->role;
-            
+
             // Determine approval status based on role
             // Admin and Owner: auto-approve
             // Manager and Hiring Manager: pending approval
@@ -736,7 +735,7 @@ class AdminController extends Controller
                 'test_questions' => $request->test_questions ?? null,
                 'passing_score' => $request->passing_score ?? 80
             ]);
-            
+
             // Create notification for admin/owner when manager/hiring_manager submits for approval
             if ($approvalStatus === 'pending') {
                 try {
@@ -762,11 +761,11 @@ class AdminController extends Controller
                     \Log::error('Failed to create onboarding notification: ' . $e->getMessage());
                 }
             }
-            
-            $message = $approvalStatus === 'pending' 
-                ? 'Onboarding page submitted for approval' 
+
+            $message = $approvalStatus === 'pending'
+                ? 'Onboarding page submitted for approval'
                 : 'Onboarding page created successfully';
-            
+
             return $this->successResponse(
                 $page->load(['creator', 'approver']),
                 $message,
@@ -801,7 +800,7 @@ class AdminController extends Controller
             $page = OnboardingPage::findOrFail($id);
             $user = $request->user();
             $userRole = $user->role;
-            
+
             // If manager/hiring_manager is updating (possibly resubmitting after rejection)
             // reset approval status to pending
             if (in_array($userRole, ['manager', 'hiring_manager'])) {
@@ -811,13 +810,13 @@ class AdminController extends Controller
                 $validatedData['rejection_reason'] = null;
             }
             // Admin/Owner updates don't change approval status if already approved
-            
+
             $page->update($validatedData);
-            
+
             $message = isset($validatedData['approval_status']) && $validatedData['approval_status'] === 'pending'
                 ? 'Onboarding page resubmitted for approval'
                 : 'Onboarding page updated successfully';
-            
+
             return $this->successResponse(
                 $page->fresh()->load(['creator', 'approver']),
                 $message
@@ -834,13 +833,13 @@ class AdminController extends Controller
     {
         try {
             $page = OnboardingPage::findOrFail($id);
-            
+
             // Delete all employee progress for this page first
             EmployeeOnboardingProgress::where('onboarding_page_id', $id)->delete();
-            
+
             // Hard delete the page
             $page->delete();
-            
+
             return $this->successResponse(null, 'Onboarding page deleted successfully');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to delete onboarding page: ' . $e->getMessage());
@@ -855,9 +854,9 @@ class AdminController extends Controller
         try {
             $page = OnboardingPage::findOrFail($id);
             $page->update(['active' => !$page->active]);
-            
+
             $status = $page->active ? 'activated' : 'deactivated';
-            
+
             return $this->successResponse(
                 $page->fresh(),
                 "Onboarding page {$status} successfully"
@@ -875,35 +874,35 @@ class AdminController extends Controller
         try {
             $user = $request->user();
             $page = OnboardingPage::with('creator')->findOrFail($id);
-            
+
             // Check permissions
             // Admin and Owner can approve all pages
             // Manager can only approve pages created by hiring_manager
             $canApprove = false;
-            
+
             if (in_array($user->role, ['admin', 'owner'])) {
                 $canApprove = true;
             } elseif ($user->role === 'manager' && $page->creator && $page->creator->role === 'hiring_manager') {
                 $canApprove = true;
             }
-            
+
             if (!$canApprove) {
                 return $this->forbiddenResponse('You do not have permission to approve this onboarding page');
             }
-            
+
             $page->update([
                 'approval_status' => 'approved',
                 'approved_by' => $user->id,
                 'approved_at' => now(),
                 'rejection_reason' => null
             ]);
-            
+
             // Mark related notification as read
             TableNotification::where('type', 'onboarding_document_pending')
                 ->where('data->page_id', $page->id)
                 ->where('is_read', false)
                 ->update(['is_read' => true, 'read_at' => now()]);
-            
+
             return $this->successResponse(
                 $page->fresh()->load(['creator', 'approver']),
                 'Onboarding page approved successfully'
@@ -922,38 +921,38 @@ class AdminController extends Controller
             $request->validate([
                 'rejection_reason' => 'required|string|max:1000'
             ]);
-            
+
             $user = $request->user();
             $page = OnboardingPage::with('creator')->findOrFail($id);
-            
+
             // Check permissions
             // Admin and Owner can reject all pages
             // Manager can only reject pages created by hiring_manager
             $canReject = false;
-            
+
             if (in_array($user->role, ['admin', 'owner'])) {
                 $canReject = true;
             } elseif ($user->role === 'manager' && $page->creator && $page->creator->role === 'hiring_manager') {
                 $canReject = true;
             }
-            
+
             if (!$canReject) {
                 return $this->forbiddenResponse('You do not have permission to reject this onboarding page');
             }
-            
+
             $page->update([
                 'approval_status' => 'rejected',
                 'approved_by' => $user->id,
                 'approved_at' => now(),
                 'rejection_reason' => $request->rejection_reason
             ]);
-            
+
             // Mark related notification as read
             TableNotification::where('type', 'onboarding_document_pending')
                 ->where('data->page_id', $page->id)
                 ->where('is_read', false)
                 ->update(['is_read' => true, 'read_at' => now()]);
-            
+
             return $this->successResponse(
                 $page->fresh()->load(['creator', 'approver']),
                 'Onboarding page rejected'
@@ -970,14 +969,14 @@ class AdminController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             // Only admin and owner can see pending count
             if (!in_array($user->role, ['admin', 'owner'])) {
                 return $this->successResponse(['count' => 0], 'Pending onboarding count retrieved');
             }
-            
+
             $count = OnboardingPage::where('approval_status', 'pending')->count();
-            
+
             return $this->successResponse(
                 ['count' => $count],
                 'Pending onboarding count retrieved successfully'
@@ -994,16 +993,16 @@ class AdminController extends Controller
     {
         try {
             $page = OnboardingPage::findOrFail($id);
-            
+
             if (!$page->hasTest()) {
                 return $this->errorResponse('This onboarding page does not have a test');
             }
-            
+
             $results = \App\Models\OnboardingPageTestResult::where('onboarding_page_id', $id)
                 ->with(['employee:id,full_name,email'])
                 ->orderBy('created_at', 'desc')
                 ->get()
-                ->map(function($result) {
+                ->map(function ($result) {
                     return [
                         'id' => $result->id,
                         'employee' => $result->employee,
@@ -1013,7 +1012,7 @@ class AdminController extends Controller
                         'completed_at' => $result->completed_at->toISOString()
                     ];
                 });
-            
+
             return $this->successResponse([
                 'page_title' => $page->title,
                 'passing_score' => $page->getPassingScore(),
@@ -1133,33 +1132,33 @@ class AdminController extends Controller
     {
         try {
             $query = Customer::query();
-            
+
             // Apply filters
             if ($request->has('status') && $request->status !== 'All') {
                 $query->where('status', $request->status);
             }
-            
+
             if ($request->has('location') && $request->location !== 'All') {
                 $query->where('home_location', $request->location);
             }
-            
+
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
-                $query->where(function($q) use ($search) {
+                $query->where(function ($q) use ($search) {
                     $q->where('name', 'LIKE', "%{$search}%")
-                      ->orWhere('email', 'LIKE', "%{$search}%")
-                      ->orWhere('phone', 'LIKE', "%{$search}%");
+                        ->orWhere('email', 'LIKE', "%{$search}%")
+                        ->orWhere('phone', 'LIKE', "%{$search}%");
                 });
             }
-            
+
             // Apply sorting
             $sortBy = $request->get('sortBy', 'created_at');
             $sortOrder = $request->get('sortOrder', 'desc');
             $query->orderBy($sortBy, $sortOrder);
-            
+
             // Get customers
             $customers = $query->get();
-            
+
             // Get pagination meta information
             $meta = [
                 'total' => Customer::count(),
@@ -1168,7 +1167,7 @@ class AdminController extends Controller
                 'inactive_customers' => Customer::where('status', 'Inactive')->count(),
                 'paused_customers' => Customer::where('status', 'Paused')->count()
             ];
-            
+
             return $this->successResponse([
                 'customers' => $customers,
                 'meta' => $meta
@@ -1185,7 +1184,7 @@ class AdminController extends Controller
     {
         try {
             $customer = Customer::findOrFail($id);
-            
+
             return $this->successResponse(
                 $customer,
                 'Customer retrieved successfully'
@@ -1203,9 +1202,9 @@ class AdminController extends Controller
         try {
             $customer = Customer::findOrFail($id);
             $customerName = $customer->name;
-            
+
             $customer->delete();
-            
+
             return $this->successResponse(
                 null,
                 "Customer '{$customerName}' deleted successfully"
@@ -1246,7 +1245,7 @@ class AdminController extends Controller
                     ->limit(5)
                     ->get()
             ];
-            
+
             return $this->successResponse(
                 $stats,
                 'Customer statistics retrieved successfully'
@@ -1311,7 +1310,7 @@ class AdminController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             return $this->successResponse([
                 'notifications_enabled' => $user->notifications_enabled ?? true
             ], 'Notification preferences retrieved successfully');
@@ -1327,19 +1326,19 @@ class AdminController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             // Only allow expo users to toggle notifications
             if ($user->role !== 'expo') {
                 return $this->errorResponse('Only expo users can toggle notifications', 403);
             }
-            
+
             $request->validate([
                 'enabled' => 'required|boolean'
             ]);
-            
+
             $user->notifications_enabled = $request->enabled;
             $user->save();
-            
+
             return $this->successResponse([
                 'notifications_enabled' => $user->notifications_enabled
             ], 'Notification preferences updated successfully');
@@ -1355,12 +1354,12 @@ class AdminController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             // Toggle the onboarding notifications setting
             $user->update([
                 'onboarding_notifications_enabled' => !$user->onboarding_notifications_enabled
             ]);
-            
+
             return $this->successResponse([
                 'onboarding_notifications_enabled' => $user->fresh()->onboarding_notifications_enabled
             ], 'Onboarding notification preferences updated successfully');
@@ -1368,7 +1367,7 @@ class AdminController extends Controller
             return $this->errorResponse('Failed to update onboarding notification preferences: ' . $e->getMessage());
         }
     }
-    
+
     /**
      * Get employee welcome message setting
      */
@@ -1376,7 +1375,7 @@ class AdminController extends Controller
     {
         try {
             $welcomeMessage = SystemSetting::get('employee_welcome_message', 'Here\'s your personalized dashboard with training progress, anniversaries, and important updates.');
-            
+
             return $this->successResponse([
                 'message' => $welcomeMessage
             ], 'Welcome message retrieved successfully');
@@ -1384,7 +1383,7 @@ class AdminController extends Controller
             return $this->errorResponse('Failed to get welcome message: ' . $e->getMessage());
         }
     }
-    
+
     /**
      * Update employee welcome message setting (Owner/Admin/Manager only)
      */
@@ -1392,23 +1391,23 @@ class AdminController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             // Only owner, admin, and manager can update welcome message
             if (!in_array($user->role, ['owner', 'admin', 'manager'])) {
                 return $this->forbiddenResponse('Only owner, admin, and manager can update welcome message');
             }
-            
+
             $request->validate([
                 'message' => 'required|string|max:500'
             ]);
-            
+
             SystemSetting::set(
                 'employee_welcome_message',
                 $request->message,
                 'text',
                 'Welcome message shown on employee dashboard'
             );
-            
+
             return $this->successResponse([
                 'message' => $request->message
             ], 'Welcome message updated successfully');
