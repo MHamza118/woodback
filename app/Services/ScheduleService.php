@@ -1127,6 +1127,143 @@ class ScheduleService
     }
 
     /**
+     * Check if two time ranges overlap
+     * 
+     * @param string $start1 Start time of first shift (HH:MM format)
+     * @param string $end1 End time of first shift (HH:MM format)
+     * @param string $start2 Start time of second shift (HH:MM format)
+     * @param string $end2 End time of second shift (HH:MM format)
+     * @return bool True if times overlap
+     */
+    public function timesOverlap($start1, $end1, $start2, $end2): bool
+    {
+        // Convert times to minutes since midnight for easier comparison
+        $start1Minutes = $this->timeToMinutes($start1);
+        $end1Minutes = $this->timeToMinutes($end1);
+        $start2Minutes = $this->timeToMinutes($start2);
+        $end2Minutes = $this->timeToMinutes($end2);
+        
+        // Handle overnight shifts (end time < start time)
+        if ($end1Minutes < $start1Minutes) {
+            $end1Minutes += 24 * 60; // Add 24 hours
+        }
+        if ($end2Minutes < $start2Minutes) {
+            $end2Minutes += 24 * 60; // Add 24 hours
+        }
+        
+        // Check for overlap: shifts overlap if one starts before the other ends
+        // AND the other starts before the first one ends
+        return ($start1Minutes < $end2Minutes) && ($start2Minutes < $end1Minutes);
+    }
+    
+    /**
+     * Convert time string (HH:MM) to minutes since midnight
+     * 
+     * @param string $time Time in HH:MM format
+     * @return int Minutes since midnight
+     */
+    private function timeToMinutes($time): int
+    {
+        list($hours, $minutes) = explode(':', $time);
+        return (int)$hours * 60 + (int)$minutes;
+    }
+    
+    /**
+     * Check if a shift has time conflicts with other shifts for the same employee on the same date
+     * 
+     * @param Schedule $shift The shift to check
+     * @return bool True if there are conflicts
+     */
+    public function hasTimeConflicts(Schedule $shift): bool
+    {
+        if (!$shift->employee_id) {
+            return false; // Open shifts can't have conflicts
+        }
+        
+        // Get all other active shifts for this employee on the same date
+        $otherShifts = Schedule::where('employee_id', $shift->employee_id)
+            ->whereDate('date', $shift->date)
+            ->where('id', '!=', $shift->id)
+            ->where('status', 'active')
+            ->get();
+        
+        // Check if any shift has overlapping times
+        foreach ($otherShifts as $otherShift) {
+            if ($this->timesOverlap(
+                $shift->start_time,
+                $shift->end_time,
+                $otherShift->start_time,
+                $otherShift->end_time
+            )) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Update conflict status for all shifts of an employee on a specific date
+     * Only mark the most recently created shift as conflicted
+     * 
+     * @param int $employeeId
+     * @param string $date Date in Y-m-d format
+     * @return void
+     */
+    public function updateConflictsForEmployeeDate($employeeId, $date): void
+    {
+        $shifts = Schedule::where('employee_id', $employeeId)
+            ->whereDate('date', $date)
+            ->where('status', 'active')
+            ->orderBy('created_at', 'asc')
+            ->get();
+        
+        if ($shifts->count() <= 1) {
+            // Only one shift, no conflicts
+            foreach ($shifts as $shift) {
+                if ($shift->is_conflict) {
+                    $shift->update(['is_conflict' => false]);
+                }
+            }
+            return;
+        }
+        
+        // Check for time overlaps
+        $hasAnyOverlap = false;
+        for ($i = 0; $i < $shifts->count(); $i++) {
+            for ($j = $i + 1; $j < $shifts->count(); $j++) {
+                if ($this->timesOverlap(
+                    $shifts[$i]->start_time,
+                    $shifts[$i]->end_time,
+                    $shifts[$j]->start_time,
+                    $shifts[$j]->end_time
+                )) {
+                    $hasAnyOverlap = true;
+                    break 2;
+                }
+            }
+        }
+        
+        if (!$hasAnyOverlap) {
+            // No overlaps, clear all conflicts
+            foreach ($shifts as $shift) {
+                if ($shift->is_conflict) {
+                    $shift->update(['is_conflict' => false]);
+                }
+            }
+            return;
+        }
+        
+        // Mark only the most recently created shift as conflicted
+        foreach ($shifts as $index => $shift) {
+            $shouldBeConflicted = ($index === $shifts->count() - 1); // Last one (most recent)
+            if ($shift->is_conflict != $shouldBeConflicted) {
+                $shift->update(['is_conflict' => $shouldBeConflicted]);
+            }
+        }
+    }
+
+    /**
      * Create a snapshot of current schedule state
      */
     private function createSnapshot(Carbon $weekStart, ?string $department = null, string $action = 'manual', ?int $createdBy = null): void
