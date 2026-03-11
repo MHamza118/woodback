@@ -24,6 +24,7 @@ use App\Models\TableNotification;
 use App\Models\Admin;
 use App\Models\SystemSetting;
 use App\Models\Schedule;
+use Carbon\Carbon;
 
 class EmployeeController extends Controller
 {
@@ -398,10 +399,10 @@ class EmployeeController extends Controller
             ];
 
             // Get upcoming shifts for the current week (from published schedules)
+            // Use UTC for date comparisons to match how shifts are stored
+            $today = Carbon::now('UTC')->startOfDay();
             $endOfWeek = $today->copy()->endOfWeek();
             
-            // Get all shifts for this employee from the current week onwards
-            // Include both published and unpublished shifts since they're visible in My Schedule
             $upcomingShifts = Schedule::where('employee_id', $employee->id)
                 ->where('status', 'active')
                 ->where('date', '>=', $today->toDateString())
