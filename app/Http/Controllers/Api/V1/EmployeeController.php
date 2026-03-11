@@ -11,6 +11,7 @@ use App\Http\Resources\EmployeeResource;
 use App\Http\Resources\QuestionnaireResource;
 use App\Services\EmployeeService;
 use App\Services\EmployeeTrainingService;
+use App\Services\EmployeeStatsService;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,11 +33,13 @@ class EmployeeController extends Controller
 
     protected $employeeService;
     protected $employeeTrainingService;
+    protected $employeeStatsService;
 
-    public function __construct(EmployeeService $employeeService, EmployeeTrainingService $employeeTrainingService)
+    public function __construct(EmployeeService $employeeService, EmployeeTrainingService $employeeTrainingService, EmployeeStatsService $employeeStatsService)
     {
         $this->employeeService = $employeeService;
         $this->employeeTrainingService = $employeeTrainingService;
+        $this->employeeStatsService = $employeeStatsService;
     }
 
     /**
@@ -364,12 +367,8 @@ class EmployeeController extends Controller
             $startOfWeek = $today->copy()->startOfWeek();
             $startOfMonth = $today->copy()->startOfMonth();
 
-            // Calculate work statistics (placeholder - implement when time tracking is added)
-            $workStats = [
-                'hours_this_week' => 0, // TODO: Implement when time tracking system is added
-                'shifts_completed_this_month' => 0, // TODO: Implement when shift tracking is added
-                'hours_change_from_last_week' => 0
-            ];
+            // Calculate work statistics from time entries using the service
+            $workStats = $this->employeeStatsService->getWorkStats($employee->id);
 
             // Get training statistics from the training service (uses real progress data)
             $trainingStatsFromService = $this->employeeTrainingService->getEmployeeTrainingStats($employee->id);
@@ -409,6 +408,10 @@ class EmployeeController extends Controller
                 ->orderBy('start_time', 'asc')
                 ->get()
                 ->map(function ($shift) {
+                    // Format times to 12-hour format (e.g., 9AM - 5PM)
+                    $startTime = Carbon::createFromFormat('H:i:s', $shift->start_time)->format('gA');
+                    $endTime = Carbon::createFromFormat('H:i:s', $shift->end_time)->format('gA');
+                    
                     return [
                         'id' => $shift->id,
                         'date' => $shift->date->toISOString(),
@@ -421,7 +424,7 @@ class EmployeeController extends Controller
                         'status' => $shift->status ?? 'confirmed',
                         'shift_type' => $shift->shift_type,
                         'duration' => $this->calculateShiftDuration($shift->start_time, $shift->end_time),
-                        'time' => $shift->start_time . ' - ' . $shift->end_time
+                        'time' => $startTime . ' - ' . $endTime
                     ];
                 })
                 ->toArray();

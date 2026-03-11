@@ -21,12 +21,9 @@ class ScheduleService
             $employees = Employee::where('status', Employee::STATUS_APPROVED)
                 ->get();
 
-            Log::info('Total approved employees: ' . $employees->count());
-
             $departments = [];
             foreach ($employees as $employee) {
                 $assignments = $employee->assignments ?? [];
-                Log::info('Employee ' . $employee->id . ' assignments: ' . json_encode($assignments));
                 
                 // Check assignments first
                 if (is_array($assignments) && !empty($assignments)) {
@@ -59,14 +56,12 @@ class ScheduleService
                 }
             }
 
-            Log::info('Departments found: ' . json_encode($departments));
             sort($departments);
 
             return array_map(function ($dept) {
                 return ['name' => $dept];
             }, $departments);
         } catch (\Exception $e) {
-            Log::error('Error fetching departments: ' . $e->getMessage() . ' ' . $e->getTraceAsString());
             throw $e;
         }
     }
@@ -105,7 +100,6 @@ class ScheduleService
             sort($roles);
             return array_values($roles); // Re-index array to ensure clean output
         } catch (\Exception $e) {
-            Log::error('Error fetching roles for department: ' . $e->getMessage());
             throw $e;
         }
     }
@@ -186,10 +180,8 @@ class ScheduleService
                 }
             }
 
-            Log::info('Filtered employees for ' . $departmentName . ': ' . count($filtered));
             return $filtered;
         } catch (\Exception $e) {
-            Log::error('Error fetching employees by department: ' . $e->getMessage() . ' ' . $e->getTraceAsString());
             throw $e;
         }
     }
@@ -211,7 +203,6 @@ class ScheduleService
 
             return $result;
         } catch (\Exception $e) {
-            Log::error('Error fetching grouped employees: ' . $e->getMessage());
             throw $e;
         }
     }
@@ -225,7 +216,6 @@ class ScheduleService
             return Employee::select('id', 'first_name', 'last_name', 'email', 'employment_type', 'assignments')
                 ->find($employeeId);
         } catch (\Exception $e) {
-            Log::error('Error fetching employee details: ' . $e->getMessage());
             throw $e;
         }
     }
@@ -244,8 +234,6 @@ class ScheduleService
             // IMPORTANT: DO NOT DELETE ANY SHIFTS
             // Just create new template shifts alongside existing open shifts
             // Both open shifts and template shifts should coexist
-
-            \Log::info('[fillFromTemplate] Creating template shifts without deleting existing shifts');
 
             // Get all employees in the department
             $employees = $this->getEmployeesByDepartment($department);
@@ -458,10 +446,6 @@ class ScheduleService
      */
     public function createShift(array $data): Schedule
     {
-        \Log::info('[ScheduleService.createShift] Starting', [
-            'data' => $data
-        ]);
-        
         try {
             // Parse date string as UTC to ensure consistent handling
             // The frontend sends dates in Y-m-d format (local date representation)
@@ -472,13 +456,6 @@ class ScheduleService
             // Calculate week start (Monday of the week)
             $weekStart = $date->copy()->startOfWeek();
             $weekEnd = $date->copy()->endOfWeek();
-            
-            \Log::info('[ScheduleService.createShift] Date parsed', [
-                'date' => $date->toDateString(),
-                'day_of_week' => strtolower($date->format('l')),
-                'week_start' => $weekStart->toDateString(),
-                'week_end' => $weekEnd->toDateString()
-            ]);
             
             // Use provided created_from when assigning an open shift to an employee; otherwise infer
             $createdFrom = isset($data['created_from']) && in_array($data['created_from'], ['open_shift', 'template', 'manual'], true)
@@ -501,22 +478,10 @@ class ScheduleService
                 'created_from' => $createdFrom
             ]);
 
-            \Log::info('[ScheduleService.createShift] Shift created', [
-                'shift_id' => $shift->id,
-                'date_stored' => $shift->date->toDateString(),
-                'created_from' => $createdFrom
-            ]);
-
             $shift->load('employee');
             
             return $shift;
         } catch (\Exception $e) {
-            \Log::error('[ScheduleService.createShift] Error', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
             throw $e;
         }
     }
@@ -662,8 +627,6 @@ class ScheduleService
                     $employeeIds[] = $shift->employee_id;
                 }
             }
-            
-            Log::info("Successfully published {$shiftsPublished} shifts");
 
             // Send notifications to employees
             $employeesNotified = 0;
@@ -691,7 +654,7 @@ class ScheduleService
                         $employeesNotified++;
                     }
                 } catch (\Exception $e) {
-                    Log::error("Failed to notify employee {$employeeId}: " . $e->getMessage());
+                    // Silently fail on notification errors
                 }
             }
 
@@ -704,7 +667,6 @@ class ScheduleService
                 'employees_notified' => $employeesNotified
             ];
         } catch (\Exception $e) {
-            Log::error('Error publishing schedule: ' . $e->getMessage() . ' ' . $e->getTraceAsString());
             return [
                 'success' => false,
                 'message' => 'Failed to publish schedule: ' . $e->getMessage(),
@@ -781,7 +743,6 @@ class ScheduleService
                 ]
             ];
         } catch (\Exception $e) {
-            Log::error('Error saving template: ' . $e->getMessage());
             return [
                 'success' => false,
                 'message' => 'Failed to save template: ' . $e->getMessage()
@@ -824,7 +785,6 @@ class ScheduleService
                 })->toArray()
             ];
         } catch (\Exception $e) {
-            Log::error('Error fetching templates: ' . $e->getMessage());
             return [
                 'success' => false,
                 'templates' => []
@@ -854,7 +814,6 @@ class ScheduleService
                 'message' => 'Template deleted successfully'
             ];
         } catch (\Exception $e) {
-            Log::error('Error deleting template: ' . $e->getMessage());
             return [
                 'success' => false,
                 'message' => 'Failed to delete template: ' . $e->getMessage()
@@ -931,7 +890,6 @@ class ScheduleService
                 'shifts' => $createdShifts
             ];
         } catch (\Exception $e) {
-            Log::error('Error filling schedule from template: ' . $e->getMessage());
             return [
                 'success' => false,
                 'message' => 'Failed to fill schedule from template: ' . $e->getMessage(),
@@ -966,7 +924,6 @@ class ScheduleService
                 'template' => $template
             ];
         } catch (\Exception $e) {
-            Log::error('Error updating template: ' . $e->getMessage());
             return [
                 'success' => false,
                 'message' => 'Failed to update template: ' . $e->getMessage()
@@ -1004,7 +961,6 @@ class ScheduleService
                 'template' => $newTemplate
             ];
         } catch (\Exception $e) {
-            Log::error('Error duplicating template: ' . $e->getMessage());
             return [
                 'success' => false,
                 'message' => 'Failed to duplicate template: ' . $e->getMessage()
@@ -1050,8 +1006,6 @@ class ScheduleService
                         continue;
                     }
 
-                    Log::info("Reverting shift ID: {$shift->id} to state: " . json_encode($state));
-
                     $shift->update([
                         'employee_id' => $state['employee_id'],
                         'start_time' => $state['start_time'],
@@ -1064,15 +1018,10 @@ class ScheduleService
                     ]);
 
                     $reverted++;
-
-                    Log::info("Successfully reverted shift {$shift->id}");
                 } catch (\Exception $e) {
-                    Log::error("Error reverting shift {$shift->id}: " . $e->getMessage());
                     continue;
                 }
             }
-
-            Log::info("Successfully reverted {$reverted} shifts");
 
             return [
                 'success' => true,
