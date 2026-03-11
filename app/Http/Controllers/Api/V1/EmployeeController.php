@@ -398,15 +398,13 @@ class EmployeeController extends Controller
                 'last_review_date' => null
             ];
 
-            // Get upcoming shifts for the current week (from published schedules)
-            // Use UTC for date comparisons to match how shifts are stored
-            $today = Carbon::now('UTC')->startOfDay();
+            // Get upcoming shifts for the current week
+            $startOfWeek = $today->copy()->startOfWeek();
             $endOfWeek = $today->copy()->endOfWeek();
             
-            $upcomingShifts = Schedule::where('employee_id', $employee->id)
-                ->where('status', 'active')
-                ->where('date', '>=', $today->toDateString())
-                ->where('date', '<=', $endOfWeek->toDateString())
+            $upcomingShifts = Schedule::forWeek($startOfWeek, $endOfWeek)
+                ->where('employee_id', $employee->id)
+                ->active()
                 ->orderBy('date', 'asc')
                 ->orderBy('start_time', 'asc')
                 ->get()
