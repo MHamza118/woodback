@@ -23,6 +23,7 @@ use App\Models\TrainingAssignment;
 use App\Models\TableNotification;
 use App\Models\Admin;
 use App\Models\SystemSetting;
+use App\Models\Schedule;
 
 class EmployeeController extends Controller
 {
@@ -396,8 +397,35 @@ class EmployeeController extends Controller
                 'last_review_date' => null
             ];
 
-            // Get upcoming schedule (placeholder - implement when scheduling system is added)
-            $upcomingShifts = [];
+            // Get upcoming shifts for the current week (from published schedules)
+            $endOfWeek = $today->copy()->endOfWeek();
+            
+            // Get all shifts for this employee from the current week onwards
+            // Include both published and unpublished shifts since they're visible in My Schedule
+            $upcomingShifts = Schedule::where('employee_id', $employee->id)
+                ->where('status', 'active')
+                ->where('date', '>=', $today->toDateString())
+                ->where('date', '<=', $endOfWeek->toDateString())
+                ->orderBy('date', 'asc')
+                ->orderBy('start_time', 'asc')
+                ->get()
+                ->map(function ($shift) {
+                    return [
+                        'id' => $shift->id,
+                        'date' => $shift->date->toISOString(),
+                        'day_of_week' => $shift->day_of_week,
+                        'start_time' => $shift->start_time,
+                        'end_time' => $shift->end_time,
+                        'role' => $shift->role,
+                        'department' => $shift->department,
+                        'location' => $shift->department,
+                        'status' => $shift->status ?? 'confirmed',
+                        'shift_type' => $shift->shift_type,
+                        'duration' => $this->calculateShiftDuration($shift->start_time, $shift->end_time),
+                        'time' => $shift->start_time . ' - ' . $shift->end_time
+                    ];
+                })
+                ->toArray();
             
             // Get active announcements (only is_active = true, ignore date filters)
             $announcements = \App\Models\Announcement::where('is_active', true)
@@ -540,6 +568,27 @@ class EmployeeController extends Controller
         ];
         
         return $labels[$days] ?? 'Anniversary';
+    }
+
+    /**
+     * Helper method to calculate shift duration in hours
+     */
+    private function calculateShiftDuration($startTime, $endTime)
+    {
+        try {
+            $start = \Carbon\Carbon::createFromFormat('H:i', $startTime);
+            $end = \Carbon\Carbon::createFromFormat('H:i', $endTime);
+            
+            // If end time is before start time, assume it's next day
+            if ($end < $start) {
+                $end->addDay();
+            }
+            
+            $hours = $end->diffInHours($start);
+            return $hours > 0 ? $hours : 8; // Default to 8 hours if calculation fails
+        } catch (\Exception $e) {
+            return 8; // Default to 8 hours
+        }
     }
 
     /**
